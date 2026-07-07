@@ -859,7 +859,16 @@
     document.getElementById('couplespace-api-key').value = state.apiConfig.couplespaceApiKey || '';
     document.getElementById('couplespace-model-input').value = state.apiConfig.couplespaceModel || '';
     document.getElementById('background-activity-switch').checked = state.globalSettings.enableBackgroundActivity || false;
+    const bgIntervalMode = state.globalSettings.backgroundActivityMode || 'random';
+    const bgModeSelect = document.getElementById('background-interval-mode-select');
+    if (bgModeSelect) bgModeSelect.value = bgIntervalMode;
     document.getElementById('background-interval-input').value = state.globalSettings.backgroundActivityInterval || 60;
+    document.getElementById('background-interval-min-input').value = state.globalSettings.backgroundActivityIntervalMin || 10;
+    document.getElementById('background-interval-max-input').value = state.globalSettings.backgroundActivityIntervalMax || 25;
+    const bgFixedGroup = document.getElementById('background-interval-fixed-group');
+    const bgRandomGroup = document.getElementById('background-interval-random-group');
+    if (bgFixedGroup) bgFixedGroup.style.display = bgIntervalMode === 'fixed' ? '' : 'none';
+    if (bgRandomGroup) bgRandomGroup.style.display = bgIntervalMode === 'fixed' ? 'none' : '';
     document.getElementById('block-cooldown-input').value = state.globalSettings.blockCooldownHours || 1;
     
     // 新增：加载后台查看用户手机设置

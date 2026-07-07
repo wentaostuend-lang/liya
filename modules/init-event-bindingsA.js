@@ -2150,11 +2150,17 @@ window.initEventBindingsA = async function(state, db) {
 
 
       const backgroundSwitch = document.getElementById('background-activity-switch');
-      const intervalInput = document.getElementById('background-interval-input');
+      const intervalModeSelect = document.getElementById('background-interval-mode-select');
+      const intervalFixedInput = document.getElementById('background-interval-input');
+      const intervalMinInput = document.getElementById('background-interval-min-input');
+      const intervalMaxInput = document.getElementById('background-interval-max-input');
       const cooldownInput = document.getElementById('block-cooldown-input');
 
       state.globalSettings.enableBackgroundActivity = backgroundSwitch.checked;
-      state.globalSettings.backgroundActivityInterval = parseInt(intervalInput.value) || 60;
+      state.globalSettings.backgroundActivityMode = intervalModeSelect ? intervalModeSelect.value : 'random';
+      state.globalSettings.backgroundActivityInterval = parseInt(intervalFixedInput.value) || 60;
+      state.globalSettings.backgroundActivityIntervalMin = parseInt(intervalMinInput.value) || 10;
+      state.globalSettings.backgroundActivityIntervalMax = parseInt(intervalMaxInput.value) || 25;
       state.globalSettings.blockCooldownHours = parseFloat(cooldownInput.value) || 1;
       state.globalSettings.enableAiDrawing = document.getElementById('enable-ai-drawing-switch').checked;
 
@@ -2246,7 +2252,9 @@ window.initEventBindingsA = async function(state, db) {
       stopBackgroundSimulation();
       if (state.globalSettings.enableBackgroundActivity) {
         startBackgroundSimulation();
-        console.log(`后台活动模拟已启动，间隔: ${state.globalSettings.backgroundActivityInterval}秒`);
+        console.log(state.globalSettings.backgroundActivityMode === 'fixed'
+          ? `后台活动模拟已启动，固定间隔: ${state.globalSettings.backgroundActivityInterval} 秒`
+          : `后台活动模拟已启动，随机间隔: ${state.globalSettings.backgroundActivityIntervalMin}~${state.globalSettings.backgroundActivityIntervalMax} 分钟`);
       } else {
         console.log("后台活动模拟已停止。");
       }

@@ -6,17 +6,55 @@
 //       startBackgroundKeepAlive, stopBackgroundKeepAlive, handleVisibilityChange,
 //       bindBackgroundKeepAliveEvents, loadBackgroundKeepAliveSettings
 
+  // 计算下一次后台活动触发前的等待时间（毫秒）
+  // 模式由 state.globalSettings.backgroundActivityMode 决定：
+  //   'fixed'  → 固定间隔，读取 backgroundActivityInterval（单位：秒），未配置默认 60 秒
+  //   'random' → 随机区间，读取 backgroundActivityIntervalMin / Max（单位：分钟），未配置默认 10~25 分钟
+  // 未设置 mode 时默认按 'random' 处理（保持当前版本的行为）
+  function getNextBackgroundIntervalMs() {
+    const mode = state.globalSettings.backgroundActivityMode || 'random';
+
+    if (mode === 'fixed') {
+      const intervalSeconds = Number(state.globalSettings.backgroundActivityInterval) || 60;
+      return intervalSeconds * 1000;
+    }
+
+    const minMinutes = Number(state.globalSettings.backgroundActivityIntervalMin) || 10;
+    const maxMinutes = Number(state.globalSettings.backgroundActivityIntervalMax) || 25;
+    const lower = Math.min(minMinutes, maxMinutes);
+    const upper = Math.max(minMinutes, maxMinutes);
+    const randomMinutes = lower + Math.random() * (upper - lower);
+    return randomMinutes * 60 * 1000;
+  }
+
   function startBackgroundSimulation() {
     if (simulationIntervalId) return;
-    const intervalSeconds = state.globalSettings.backgroundActivityInterval || 60;
-
-    simulationIntervalId = setInterval(runBackgroundSimulationTick, intervalSeconds * 1000);
+    scheduleNextBackgroundSimulationTick();
     playSilentAudio();
+  }
+
+  // 排定下一次 tick：固定模式下每次间隔相同；随机模式下每次重新随机
+  function scheduleNextBackgroundSimulationTick() {
+    const delayMs = getNextBackgroundIntervalMs();
+    const mode = state.globalSettings.backgroundActivityMode || 'random';
+    console.log(mode === 'fixed'
+      ? `[后台活动] 固定间隔，下一次将在 ${(delayMs / 1000).toFixed(0)} 秒后触发`
+      : `[后台活动] 随机间隔，下一次将在约 ${(delayMs / 60000).toFixed(1)} 分钟后触发`);
+
+    simulationIntervalId = setTimeout(async () => {
+      await runBackgroundSimulationTick();
+      // tick 内部若检测到总开关已关闭，会调用 stopBackgroundSimulation 把 simulationIntervalId 置空
+      if (state.globalSettings.enableBackgroundActivity) {
+        scheduleNextBackgroundSimulationTick();
+      } else {
+        simulationIntervalId = null;
+      }
+    }, delayMs);
   }
 
   function stopBackgroundSimulation() {
     if (simulationIntervalId) {
-      clearInterval(simulationIntervalId);
+      clearTimeout(simulationIntervalId);
       simulationIntervalId = null;
     }
     stopSilentAudio();
