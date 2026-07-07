@@ -26,7 +26,7 @@ function getCoupleSpaceApiConfig() {
 // 通用情侣空间离线保存/推送工具
 function sendOrSaveCoupleSpaceData(charId, msgObj, storageKey, itemToSave) {
   const iframe = document.getElementById('couple-space-iframe');
-  const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330--main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+  const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
   
   if (isIframeOpenForThisChar && iframe.contentWindow) {
     try {
@@ -351,7 +351,7 @@ function enterCoupleSpace(charId) {
   const userNickname = chat ? (chat.settings.myNickname || '我') : '我';
   const userAvatar = chat ? (chat.settings.myAvatar || state.qzoneSettings.avatar || defaultAvatar) : defaultAvatar;
   const iframe = document.getElementById('couple-space-iframe');
-  iframe.src = '330--main/index.html';
+  iframe.src = '330-main/index.html';
   iframe.onload = function() {
     const spaces = getCoupleSpaces();
     const space = spaces.find(s => s.charId === charId);
@@ -4579,7 +4579,7 @@ async function triggerAutoGardenWater(charId, isTimer = false) {
       comments: []
     };
     const iframe = document.getElementById('couple-space-iframe');
-    const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330--main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+    const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
     
     if (isIframeOpenForThisChar && iframe.contentWindow) {
       iframe.contentWindow.postMessage({ type: 'coupleSpaceGardenAutoResult', item: newWater }, '*');
@@ -5432,7 +5432,7 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
       } catch(e) {}
 
       const iframe = document.getElementById('couple-space-iframe');
-      const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330--main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+      const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
       
       if (isIframeOpenForThisChar && iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: 'coupleSpaceSleepAutoResult', phase: 'wake', item: currentSleep, sleepIndex: sleepingIdx.i }, '*');
