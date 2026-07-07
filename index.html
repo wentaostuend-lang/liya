@@ -2080,11 +2080,56 @@
                 </label>
             </div>
             <div class="settings-item">
-                <label>检测间隔 (秒)</label>
+                <label>间隔模式</label>
                 <div class="settings-right">
-                    <input type="number" id="background-interval-input" min="30" value="60" class="settings-num-input">
+                    <select id="background-interval-mode-select" class="settings-select">
+                        <option value="random">随机区间</option>
+                        <option value="fixed">固定间隔</option>
+                    </select>
                 </div>
             </div>
+            <div id="background-interval-fixed-group" style="display:none;">
+                <div class="settings-item">
+                    <label>固定间隔 (秒)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-input" min="30" step="1" value="60" class="settings-num-input">
+                    </div>
+                </div>
+            </div>
+            <div id="background-interval-random-group">
+                <div class="settings-item">
+                    <label>随机间隔 - 最小 (分钟)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>随机间隔 - 最大 (分钟)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
+                    </div>
+                </div>
+            </div>
+            <script>
+              (function() {
+                function bindBackgroundIntervalModeToggle() {
+                  const modeSelect = document.getElementById('background-interval-mode-select');
+                  const fixedGroup = document.getElementById('background-interval-fixed-group');
+                  const randomGroup = document.getElementById('background-interval-random-group');
+                  if (!modeSelect || !fixedGroup || !randomGroup) return;
+                  modeSelect.addEventListener('change', () => {
+                    const isFixed = modeSelect.value === 'fixed';
+                    fixedGroup.style.display = isFixed ? '' : 'none';
+                    randomGroup.style.display = isFixed ? 'none' : '';
+                  });
+                }
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', bindBackgroundIntervalModeToggle);
+                } else {
+                  bindBackgroundIntervalModeToggle();
+                }
+              })();
+            </script>
             <div class="settings-item">
                 <label>拉黑冷静期 (小时)</label>
                 <div class="settings-right">
@@ -2105,7 +2150,7 @@
                 </div>
             </div>
         </div>
-        <div class="settings-desc">开启后台活动会增加 API 费用。后台查看手机：留空概率时AI自主决定，填写0-100则按概率触发。</div>
+        <div class="settings-desc">开启后台活动会增加 API 费用。间隔模式可选择“固定间隔”（每次等待相同秒数）或“随机区间”（每次在最小~最大分钟数之间重新随机等待时间）。后台查看手机：留空概率时AI自主决定，填写0-100则按概率触发。</div>
 
         <!-- 语音设置 -->
         <div class="settings-header" data-lang-key="apiTtsSettings">Minimax TTS 语音</div>
