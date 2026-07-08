@@ -63,6 +63,26 @@
 
 
 
+  // 判断某个角色/群聊是否到了它自己的随机检查间隔（不影响冷却时间的判断，两者独立叠加）
+  // 到点后会重新随机排定下一次检查时间，并持久化保存
+  function isDueForRandomIntervalCheck(chat) {
+    const now = Date.now();
+    if (chat.nextCheckTimestamp && now < chat.nextCheckTimestamp) {
+      return false; // 还没到这个角色自己的随机检查时间
+    }
+    const intervalMin = Number(chat.settings.randomIntervalMin) || 10;
+    const intervalMax = Number(chat.settings.randomIntervalMax) || 25;
+    const lower = Math.min(intervalMin, intervalMax);
+    const upper = Math.max(intervalMin, intervalMax);
+    const randomMinutes = lower + Math.random() * (upper - lower);
+    chat.nextCheckTimestamp = now + randomMinutes * 60 * 1000;
+    // 持久化保存，避免刷新页面后随机排期丢失（不阻塞主流程，失败也不影响本次判断）
+    if (typeof db !== 'undefined' && db.chats) {
+      db.chats.put(chat).catch(() => {});
+    }
+    return true;
+  }
+
   async function runBackgroundSimulationTick() {
     console.log("模拟器心跳 Tick...");
     if (!state.globalSettings.enableBackgroundActivity) {
@@ -87,6 +107,10 @@
           console.log(`角色 "${chat.name}" 的独立后台活动开关已关闭，本次跳过。`);
           return;
         }
+        // 每个角色有自己的随机检查间隔，没到点就先不评估这次心跳
+        if (!isDueForRandomIntervalCheck(chat)) {
+          return;
+        }
         if (Math.random() < 0.20) {
           console.log(`角色 "${chat.name}" 被唤醒，准备独立行动...`);
           triggerInactiveAiAction(chat.id);
@@ -105,6 +129,10 @@
     allGroupChats.forEach(chat => {
       if (chat.settings.enableBackgroundActivity === false) {
         console.log(`群聊 "${chat.name}" 的后台活动开关已关闭，本次跳过。`);
+        return;
+      }
+      // 群聊同样按自己的随机间隔来判断是否该检查
+      if (!isDueForRandomIntervalCheck(chat)) {
         return;
       }
       if (chat.id !== state.activeChatId && Math.random() < 0.10) {

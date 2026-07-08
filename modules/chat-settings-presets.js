@@ -27,6 +27,8 @@
       groupBackgroundActivity: chat.settings.groupBackgroundActivity || false,
       actionCooldownMinutes: chat.settings.actionCooldownMinutes || 60,
       groupActionCooldownMinutes: chat.settings.groupActionCooldownMinutes || 30,
+      randomIntervalMin: chat.settings.randomIntervalMin || 10,
+      randomIntervalMax: chat.settings.randomIntervalMax || 25,
       
       // ===== 记忆设置 =====
       maxMemory: chat.settings.maxMemory || 10,

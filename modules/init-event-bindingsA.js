@@ -3286,6 +3286,8 @@ window.initEventBindingsA = async function(state, db) {
         document.getElementById('my-group-nickname-input').value = chat.settings.myNickname || '';
         document.getElementById('group-avatar-preview').src = chat.settings.groupAvatar || defaultGroupAvatar;
         document.getElementById('group-action-cooldown-input').value = chat.settings.actionCooldownMinutes || 10;
+        document.getElementById('group-random-interval-min-input').value = chat.settings.randomIntervalMin || 10;
+        document.getElementById('group-random-interval-max-input').value = chat.settings.randomIntervalMax || 25;
 
 
         document.getElementById('single-char-background-activity-group').style.display = 'none';
@@ -3444,6 +3446,8 @@ window.initEventBindingsA = async function(state, db) {
         document.getElementById('ai-avatar-preview').src = chat.settings.aiAvatar || defaultAvatar;
         document.getElementById('my-nickname-input').value = chat.settings.myNickname || '我';
         document.getElementById('ai-action-cooldown-input').value = chat.settings.actionCooldownMinutes || 10;
+        document.getElementById('ai-random-interval-min-input').value = chat.settings.randomIntervalMin || 10;
+        document.getElementById('ai-random-interval-max-input').value = chat.settings.randomIntervalMax || 25;
         const select = document.getElementById('assign-group-select');
         select.innerHTML = '<option value="">未分组</option>';
         const groups = await db.qzoneGroups.toArray();
@@ -4111,6 +4115,8 @@ window.initEventBindingsA = async function(state, db) {
         chat.settings.myNickname = document.getElementById('my-group-nickname-input').value.trim();
         chat.settings.groupAvatar = document.getElementById('group-avatar-preview').src;
         chat.settings.actionCooldownMinutes = parseInt(document.getElementById('group-action-cooldown-input').value) || 10;
+        chat.settings.randomIntervalMin = parseInt(document.getElementById('group-random-interval-min-input').value) || 10;
+        chat.settings.randomIntervalMax = parseInt(document.getElementById('group-random-interval-max-input').value) || 25;
         // 群聊也保存表情包识图与智能匹配，与单聊一致
         chat.settings.enableStickerVision = document.getElementById('enable-sticker-vision-checkbox').checked;
         chat.settings.enableStickerSmartMatch = document.getElementById('enable-sticker-smart-match-checkbox').checked;
@@ -4268,6 +4274,8 @@ window.initEventBindingsA = async function(state, db) {
         chat.settings.aiAvatar = document.getElementById('ai-avatar-preview').src;
         chat.settings.myNickname = document.getElementById('my-nickname-input').value.trim() || '我';
         chat.settings.actionCooldownMinutes = parseInt(document.getElementById('ai-action-cooldown-input').value) || 10;
+        chat.settings.randomIntervalMin = parseInt(document.getElementById('ai-random-interval-min-input').value) || 10;
+        chat.settings.randomIntervalMax = parseInt(document.getElementById('ai-random-interval-max-input').value) || 25;
 
         const selectedGroupId = document.getElementById('assign-group-select').value;
         chat.groupId = selectedGroupId ? parseInt(selectedGroupId) : null;
