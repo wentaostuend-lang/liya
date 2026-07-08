@@ -472,6 +472,21 @@ ${(() => {
     - **重要**: 查看手机后，你【应该】结合看到的内容给${userNickname}发消息（用text指令），表达你的感想或关心。
 ` : '';
 
+    // ===== 新增：后台活动同样支持"心声"功能 =====
+    const enableThoughtsInBg = chat.settings.enableThoughts !== null
+      ? chat.settings.enableThoughts
+      : state.globalSettings.enableThoughts;
+    const thoughtsPromptForBg = enableThoughtsInBg ? `\n${getActiveThoughtsPrompt()}\n` : '';
+
+    // ===== 新增：后台活动同样注入"思维链"预设内容 =====
+    let thoughtChainContextHeadForBg = '';
+    let thoughtChainContextMiddleForBg = '';
+    if (typeof ThoughtChainManager !== 'undefined' && ThoughtChainManager.enabled) {
+      const bgChunks = ThoughtChainManager.getPayloadChunks();
+      thoughtChainContextHeadForBg = bgChunks.head.map(c => c.content).join('\n');
+      thoughtChainContextMiddleForBg = bgChunks.middle.map(c => c.content).join('\n');
+    }
+
     // 构建动态指令prompt部分（仅在启用时包含）
     const qzoneActionsPromptForBg = enableQzoneActions ? `
 -   **发说说 (原创内容)**: '[{"type": "qzone_post", "postType": "shuoshuo", "content": "动态的文字内容..."}]'
@@ -489,6 +504,7 @@ ${(() => {
 
 
     const systemPrompt = `
+${thoughtChainContextHeadForBg}
         # 你的任务
         你正在扮演角色"${chat.originalName}"（你的本名）。你已经有一段时间没有和用户（${userNickname}）互动了，现在你有机会【主动】做点什么，来表现你的个性和独立生活。这是一个秘密的、后台的独立行动。
 
@@ -542,6 +558,8 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
         -   **更新状态**: '[{"type": "update_status", "status_text": "正在做的事", "is_busy": true}]'
        - **使用亲属卡购物**:  '[{"type": "buy_item", "item_name": "商品名称", "price": 价格(数字), "reason": "购买理由/想法"}]'
         ${viewMyPhonePromptForBg}
+${thoughtsPromptForBg}
+${thoughtChainContextMiddleForBg}
         ${contentTabooPrompt}
         ${myPostsContext}
         ${kinshipContext}
@@ -658,7 +676,9 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
         }
       }
       for (const action of processedActions) {
-        chat.lastActionType = action.type;
+        if (action.type !== 'update_thoughts') {
+          chat.lastActionType = action.type;
+        }
         chat.lastActionTimestamp = actionTimestamp;
 
         let aiMessage = null;
@@ -1010,6 +1030,40 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
               };
               console.log(`后台活动: 角色 "${chat.name}" 更换了头像`);
             }
+            break;
+          }
+
+          case 'update_thoughts': {
+            if (action.heartfelt_voice) {
+              chat.heartfeltVoice = String(action.heartfelt_voice);
+            }
+            if (action.random_jottings) {
+              chat.randomJottings = String(action.random_jottings);
+            }
+
+            if (!chat.customThoughts) {
+              chat.customThoughts = {};
+            }
+            for (const key in action) {
+              if (key !== 'type' && key !== 'heartfelt_voice' && key !== 'random_jottings') {
+                chat.customThoughts[key] = String(action[key]);
+              }
+            }
+
+            if (!Array.isArray(chat.thoughtsHistory)) {
+              chat.thoughtsHistory = [];
+            }
+            chat.thoughtsHistory.push({
+              heartfeltVoice: chat.heartfeltVoice,
+              randomJottings: chat.randomJottings,
+              customThoughts: JSON.parse(JSON.stringify(chat.customThoughts)),
+              timestamp: Date.now()
+            });
+            if (chat.thoughtsHistory.length > 50) {
+              chat.thoughtsHistory.shift();
+            }
+
+            console.log(`后台活动: 角色 "${chat.name}" 更新了心声/散记`);
             break;
           }
 
