@@ -3164,7 +3164,11 @@ window.initEventBindingsA = async function(state, db) {
       document.getElementById('todo-list-setting-group').style.display = isGroup ? 'none' : 'flex';
       document.getElementById('offline-mode-group').style.display = 'block'; // 群聊和单聊都显示线下模式
       document.getElementById('ai-cooldown-group').style.display = isGroup ? 'none' : 'block';
+      document.getElementById('ai-random-interval-min-group').style.display = isGroup ? 'none' : 'block';
+      document.getElementById('ai-random-interval-max-group').style.display = isGroup ? 'none' : 'block';
       document.getElementById('group-cooldown-group').style.display = isGroup ? 'block' : 'none';
+      document.getElementById('group-random-interval-min-group').style.display = isGroup ? 'block' : 'none';
+      document.getElementById('group-random-interval-max-group').style.display = isGroup ? 'block' : 'none';
       // 记忆存档功能现在支持群聊
       document.getElementById('memory-archive-section').style.display = 'block';
       document.getElementById('export-character-full-btn').style.display = isGroup ? 'none' : 'block';
