@@ -34,6 +34,7 @@
            #phone-screen {
                width: 100%;
                height: 100vh;
+               height: 100dvh; /* 支持的浏览器优先用动态视口高度，键盘弹出时会自动收缩 */
                position: relative;
                overflow: hidden;
                display: flex;
