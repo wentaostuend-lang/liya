@@ -156,9 +156,11 @@ class NotificationManager {
      * 发送聊天消息通知（强制横幅显示）
      */
     async notifyNewMessage(chatName, messageContent, chatId) {
+        // 每条消息用独立的 tag（chatId + 时间戳 + 随机串），避免同一聊天的多条消息互相替换、只剩最后一条
+        const uniqueTag = `chat-${chatId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         return await this.showNotification(`${chatName}`, {
             body: messageContent,
-            tag: `chat-${chatId}`,
+            tag: uniqueTag,
             data: {
                 type: 'chat',
                 chatId: chatId,
