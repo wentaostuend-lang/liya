@@ -141,6 +141,13 @@
         </svg>
         <span>应用设置模板</span>
       </div>
+      <div class="fb-menu-item" data-action="batch-random-interval">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        <span>批量随机间隔</span>
+      </div>
       <div class="fb-menu-item" data-action="role-api">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
@@ -787,6 +794,10 @@
       case 'apply-template':
         openSubmenu('template');
         break;
+      case 'batch-random-interval':
+        closeMenu();
+        openBatchRandomIntervalPanel();
+        break;
       case 'role-api':
         closeMenu(); // 关闭菜单
         openRoleApiConfig();
@@ -1013,6 +1024,117 @@
     if (typeof showToast === 'function') {
       showToast(enabled ? '已启用独立API配置' : '已关闭独立API配置');
     }
+  }
+
+  // 打开批量随机间隔面板：勾选若干角色/群聊，统一设置随机间隔范围
+  function openBatchRandomIntervalPanel() {
+    const allChats = Object.values(state.chats || {});
+    if (allChats.length === 0) {
+      if (typeof showToast === 'function') showToast('还没有任何角色或群聊');
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'batch-random-interval-panel';
+    panel.className = 'role-api-panel';
+    panel.innerHTML = `
+      <div class="role-api-content">
+        <div class="role-api-header">
+          <span class="role-api-back">‹</span>
+          <span class="role-api-title">批量设置随机间隔</span>
+          <span class="role-api-save">应用</span>
+        </div>
+        <div class="role-api-body">
+          <div class="role-api-section">
+            <div class="role-api-field">
+              <label class="role-api-label">随机间隔 - 最小（分钟）</label>
+              <input type="number" id="batch-interval-min" class="role-api-input" min="1" step="1" value="10">
+            </div>
+            <div class="role-api-field">
+              <label class="role-api-label">随机间隔 - 最大（分钟）</label>
+              <input type="number" id="batch-interval-max" class="role-api-input" min="1" step="1" value="25">
+            </div>
+          </div>
+          <div class="role-api-section">
+            <div class="role-api-switch-item">
+              <div class="role-api-switch-left">
+                <div class="role-api-switch-label">全选 / 全不选</div>
+                <div class="role-api-switch-desc">勾选下面想要批量应用的角色或群聊</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="batch-interval-select-all">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="role-api-section" id="batch-interval-chat-list" style="max-height: 50vh; overflow-y: auto;">
+            ${allChats.map(chat => `
+              <div class="role-api-switch-item">
+                <div class="role-api-switch-left">
+                  <div class="role-api-switch-label">${chat.name || '(未命名)'}${chat.isGroup ? '（群聊）' : ''}</div>
+                  <div class="role-api-switch-desc">当前：${chat.settings?.randomIntervalMin || 10}~${chat.settings?.randomIntervalMax || 25} 分钟</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="batch-interval-chat-checkbox" data-chat-id="${chat.id}">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const selectAllCheckbox = document.getElementById('batch-interval-select-all');
+    const chatCheckboxes = () => Array.from(panel.querySelectorAll('.batch-interval-chat-checkbox'));
+
+    selectAllCheckbox.addEventListener('change', function() {
+      chatCheckboxes().forEach(cb => { cb.checked = selectAllCheckbox.checked; });
+    });
+
+    panel.querySelector('.role-api-back').addEventListener('click', () => {
+      panel.remove();
+      openMenu();
+    });
+
+    panel.querySelector('.role-api-save').addEventListener('click', async () => {
+      const min = parseInt(document.getElementById('batch-interval-min').value) || 10;
+      const max = parseInt(document.getElementById('batch-interval-max').value) || 25;
+      const selectedIds = chatCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.chatId);
+
+      if (selectedIds.length === 0) {
+        if (typeof showToast === 'function') showToast('请至少勾选一个角色或群聊');
+        return;
+      }
+
+      let appliedCount = 0;
+      for (const chatId of selectedIds) {
+        const chat = state.chats[chatId];
+        if (!chat) continue;
+        chat.settings.randomIntervalMin = min;
+        chat.settings.randomIntervalMax = max;
+        try {
+          await db.chats.put(chat);
+          appliedCount++;
+        } catch (e) {}
+      }
+
+      if (typeof showToast === 'function') {
+        showToast(`已应用到 ${appliedCount} 个角色/群聊（${min}~${max} 分钟）`);
+      }
+      panel.remove();
+      openMenu();
+    });
+
+    // 点击面板外关闭
+    panel.addEventListener('click', (e) => {
+      if (e.target === panel) {
+        panel.remove();
+        openMenu();
+      }
+    });
   }
 
   // 启用三击唤起
