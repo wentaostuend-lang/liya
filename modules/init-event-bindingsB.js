@@ -848,6 +848,26 @@ window.initEventBindingsB = function(state, db) {
     };
     setupFileUpload('ai-avatar-input', (base64) => document.getElementById('ai-avatar-preview').src = base64);
     setupFileUpload('my-avatar-input', (base64) => document.getElementById('my-avatar-preview').src = base64);
+
+    // 直接用URL设置头像（不经过图库，省内存，简单快捷）
+    const aiAvatarUrlBtn = document.getElementById('ai-avatar-url-btn');
+    if (aiAvatarUrlBtn) {
+      aiAvatarUrlBtn.addEventListener('click', () => {
+        const url = prompt('请输入头像的图片URL：');
+        if (url && url.trim()) {
+          document.getElementById('ai-avatar-preview').src = url.trim();
+        }
+      });
+    }
+    const myAvatarUrlBtn = document.getElementById('my-avatar-url-btn');
+    if (myAvatarUrlBtn) {
+      myAvatarUrlBtn.addEventListener('click', () => {
+        const url = prompt('请输入头像的图片URL：');
+        if (url && url.trim()) {
+          document.getElementById('my-avatar-preview').src = url.trim();
+        }
+      });
+    }
     setupFileUpload('group-avatar-input', (base64) => document.getElementById('group-avatar-preview').src = base64);
     setupFileUpload('member-avatar-input', (base64) => document.getElementById('member-avatar-preview').src = base64);
     setupFileUpload('bg-input', async (base64) => {
