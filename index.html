@@ -135,8 +135,6 @@
   <script src="helper-assistant.js?v=0.0.36" defer></script>
   <script src="force-update.js?v=0.0.36" defer></script>
   <script src="modules/floating-ball.js?v=0.0.36" defer></script>
-  <script src="modules/keyboard-fix.js?v=0.0.36" defer></script>
-  <script src="modules/smart-sticker-v7.js?v=0.0.1" defer></script>
   
   <!-- 保活音频播放器样式（从内联 style 拆分） -->
   <link rel="stylesheet" href="css/keep-alive-player.css?v=0.0.36">
@@ -4730,6 +4728,7 @@
                          <!-- 按钮组在右 -->
                          <div class="avatar-btn-group">
                              <button class="settings-mini-btn" onclick="document.getElementById('ai-avatar-input').click()">更换</button>
+                             <button class="settings-mini-btn" id="ai-avatar-url-btn">URL</button>
                              <button class="settings-mini-btn" id="manage-ai-avatar-library-btn">图库</button>
                              <button class="settings-mini-btn change-frame-btn" data-type="ai">挂件</button>
                              <input type="file" id="ai-avatar-input" accept="image/*" hidden>
@@ -4759,6 +4758,7 @@
                          <img id="my-avatar-preview" class="settings-avatar">
                          <div class="avatar-btn-group">
                              <button class="settings-mini-btn" onclick="document.getElementById('my-avatar-input').click()">更换</button>
+                             <button class="settings-mini-btn" id="my-avatar-url-btn">URL</button>
                              <button class="settings-mini-btn" id="manage-my-avatar-library-btn">图库</button>
                              <button class="settings-mini-btn change-frame-btn" data-type="my">挂件</button>
                              <button class="settings-mini-btn" id="open-persona-library-btn">预设</button>
@@ -4947,34 +4947,10 @@
                      <input type="number" id="ai-action-cooldown-input" class="settings-num-input">
                 </div>
             </div>
-            <div class="settings-item" id="ai-random-interval-min-group">
-                <label>随机间隔 - 最小 (分钟)</label>
-                <div class="settings-right">
-                     <input type="number" id="ai-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
-                </div>
-            </div>
-            <div class="settings-item" id="ai-random-interval-max-group">
-                <label>随机间隔 - 最大 (分钟)</label>
-                <div class="settings-right">
-                     <input type="number" id="ai-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
-                </div>
-            </div>
             <div class="settings-item" id="group-cooldown-group">
                 <label>群聊行动冷却 (分钟)</label>
                 <div class="settings-right">
                      <input type="number" id="group-action-cooldown-input" class="settings-num-input">
-                </div>
-            </div>
-            <div class="settings-item" id="group-random-interval-min-group">
-                <label>随机间隔 - 最小 (分钟)</label>
-                <div class="settings-right">
-                     <input type="number" id="group-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
-                </div>
-            </div>
-            <div class="settings-item" id="group-random-interval-max-group">
-                <label>随机间隔 - 最大 (分钟)</label>
-                <div class="settings-right">
-                     <input type="number" id="group-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
                 </div>
             </div>
 
