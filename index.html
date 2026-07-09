@@ -135,6 +135,8 @@
   <script src="helper-assistant.js?v=0.0.36" defer></script>
   <script src="force-update.js?v=0.0.36" defer></script>
   <script src="modules/floating-ball.js?v=0.0.36" defer></script>
+  <script src="modules/keyboard-fix.js?v=0.0.36" defer></script>
+  <script src="modules/smart-sticker-v7.js?v=0.0.1" defer></script>
   
   <!-- 保活音频播放器样式（从内联 style 拆分） -->
   <link rel="stylesheet" href="css/keep-alive-player.css?v=0.0.36">
@@ -4947,10 +4949,34 @@
                      <input type="number" id="ai-action-cooldown-input" class="settings-num-input">
                 </div>
             </div>
+            <div class="settings-item" id="ai-random-interval-min-group">
+                <label>随机间隔 - 最小 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="ai-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="ai-random-interval-max-group">
+                <label>随机间隔 - 最大 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="ai-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
+                </div>
+            </div>
             <div class="settings-item" id="group-cooldown-group">
                 <label>群聊行动冷却 (分钟)</label>
                 <div class="settings-right">
                      <input type="number" id="group-action-cooldown-input" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="group-random-interval-min-group">
+                <label>随机间隔 - 最小 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="group-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="group-random-interval-max-group">
+                <label>随机间隔 - 最大 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="group-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
                 </div>
             </div>
 
