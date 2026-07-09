@@ -6463,7 +6463,7 @@ ${getActiveThoughtsPrompt()}
           if (!isViewingThisChat) {
             chat.unreadCount = (chat.unreadCount || 0) + 1;
           }
-          if (!isViewingThisChat && !notificationShown) {
+          if (!isViewingThisChat) {
             let notificationText;
             switch (aiMessage.type) {
               case 'transfer':
@@ -6494,7 +6494,7 @@ ${getActiveThoughtsPrompt()}
             const finalNotifText = chat.isGroup ? `${aiMessage.senderName}: ${notificationText}` : notificationText;
             showNotification(chatId, finalNotifText.substring(0, 40) + (finalNotifText.length > 40 ? '...' : ''));
             notificationShown = true;
-          } else if (isViewingThisChat && !notificationShown) {
+          } else if (isViewingThisChat) {
             // 新增：如果在聊天页面且启用了"在聊天页面也发送通知"，则发送系统级通知
             let notificationText;
             switch (aiMessage.type) {
