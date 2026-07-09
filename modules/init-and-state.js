@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
       lockScreenEnabled: false,
       lockScreenPassword: '',
       lockScreenWallpaper: '',
+      accountHijackEnabled: false, // 新增：角色顶号功能总开关
       alwaysShowMusicIsland: false,
       detachStatusBar: false,
       enableMinimalChatUI: false,
