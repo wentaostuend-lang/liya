@@ -1979,6 +1979,8 @@ window.initEventBindingsA = async function(state, db) {
       state.globalSettings.lockScreenEnabled = document.getElementById('lock-screen-toggle').checked;
       state.globalSettings.lockScreenBypassEnabled = document.getElementById('lock-screen-bypass-toggle').checked;
       state.globalSettings.lockScreenPassword = document.getElementById('lock-screen-password-input').value.trim();
+      const hijackToggleSaveEl = document.getElementById('account-hijack-toggle');
+      if (hijackToggleSaveEl) state.globalSettings.accountHijackEnabled = hijackToggleSaveEl.checked;
 
       const lockPreview = document.getElementById('lock-wallpaper-preview');
       if (lockPreview.dataset.tempUrl) {

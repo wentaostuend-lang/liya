@@ -478,6 +478,12 @@ ${(() => {
       : state.globalSettings.enableThoughts;
     const thoughtsPromptForBg = enableThoughtsInBg ? `\n${getActiveThoughtsPrompt()}\n` : '';
 
+    // ===== 新增：后台活动同样支持"顶号"功能 =====
+    const hijackInjectionForBg = (typeof HijackManager !== 'undefined')
+      ? HijackManager.getPromptInjection(chat)
+      : { text: '', forced: false };
+    const hijackPromptForBg = hijackInjectionForBg.text;
+
     // ===== 新增：后台活动同样注入"思维链"预设内容 =====
     let thoughtChainContextHeadForBg = '';
     let thoughtChainContextMiddleForBg = '';
@@ -560,6 +566,7 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
         ${viewMyPhonePromptForBg}
 ${thoughtsPromptForBg}
 ${thoughtChainContextMiddleForBg}
+${hijackPromptForBg}
         ${contentTabooPrompt}
         ${myPostsContext}
         ${kinshipContext}
@@ -676,7 +683,7 @@ ${thoughtChainContextMiddleForBg}
         }
       }
       for (const action of processedActions) {
-        if (action.type !== 'update_thoughts') {
+        if (action.type !== 'update_thoughts' && action.type !== 'crack_password' && action.type !== 'hijack_account') {
           chat.lastActionType = action.type;
         }
         chat.lastActionTimestamp = actionTimestamp;
@@ -1064,6 +1071,20 @@ ${thoughtChainContextMiddleForBg}
             }
 
             console.log(`后台活动: 角色 "${chat.name}" 更新了心声/散记`);
+            break;
+          }
+
+          case 'crack_password': {
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
+              HijackManager.processCrackPassword(chat, action.attempt);
+            }
+            break;
+          }
+
+          case 'hijack_account': {
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && chat.knowsUserPassword) {
+              HijackManager.processHijackAccount(chat, action.target_chat_name, action.messages, action.inner_monologue);
+            }
             break;
           }
 

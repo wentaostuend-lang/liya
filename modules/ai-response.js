@@ -3055,6 +3055,13 @@ ${taskListString}
           const thoughtsPrompt = enableThoughts ? `
 ${getActiveThoughtsPrompt()}
 ` : '';
+
+          // 新增：顶号功能 prompt 注入（每次生成回复都会重新判定/掷概率）
+          const hijackInjection = (typeof HijackManager !== 'undefined')
+            ? HijackManager.getPromptInjection(chat)
+            : { text: '', forced: false };
+          const hijackPrompt = hijackInjection.text;
+
           // 新增：判断是否启用动态功能
           const enableQzoneActions = chat.settings.enableQzoneActions !== null
             ? chat.settings.enableQzoneActions
@@ -3385,6 +3392,10 @@ ${getActiveThoughtsPrompt()}
           systemPrompt = replaceTemplateVars(systemPromptTemplate, contextMapSingle);
 
           systemPrompt = processPromptWithSettings(systemPrompt, 'single');
+
+          // 顶号功能：直接追加在系统提示末尾，不依赖用户自定义模板里的占位符，
+          // 保证不管模板怎么改，这个功能都能生效
+          systemPrompt += hijackPrompt;
 
           messagesPayload = filteredHistory.map(msg => {
             // 处理系统消息（旁白和系统通知）
@@ -4730,6 +4741,16 @@ ${getActiveThoughtsPrompt()}
                 isHidden: true
               };
 
+            }
+            continue;
+          case 'crack_password':
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
+              HijackManager.processCrackPassword(chat, msgData.attempt);
+            }
+            continue;
+          case 'hijack_account':
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && chat.knowsUserPassword) {
+              HijackManager.processHijackAccount(chat, msgData.target_chat_name, msgData.messages, msgData.inner_monologue);
             }
             continue;
           case 'change_user_nickname':

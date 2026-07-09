@@ -1748,6 +1748,8 @@
     document.getElementById('lock-screen-toggle').checked = state.globalSettings.lockScreenEnabled || false; // 锁屏回显
     document.getElementById('lock-screen-bypass-toggle').checked = state.globalSettings.lockScreenBypassEnabled || false; // 锁屏跳过回显
     document.getElementById('lock-screen-password-input').value = state.globalSettings.lockScreenPassword || ''; // 密码回显
+    const hijackToggleEl = document.getElementById('account-hijack-toggle');
+    if (hijackToggleEl) hijackToggleEl.checked = state.globalSettings.accountHijackEnabled || false; // 顶号功能总开关回显
 
     // 锁屏壁纸回显
     const lockPreview = document.getElementById('lock-wallpaper-preview');
