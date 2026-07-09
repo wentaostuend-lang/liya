@@ -137,6 +137,7 @@
   <script src="modules/floating-ball.js?v=0.0.36" defer></script>
   <script src="modules/keyboard-fix.js?v=0.0.36" defer></script>
   <script src="modules/smart-sticker-v7.js?v=0.0.1" defer></script>
+  <script src="modules/account-hijack.js?v=0.0.1" defer></script>
   
   <!-- 保活音频播放器样式（从内联 style 拆分） -->
   <link rel="stylesheet" href="css/keep-alive-player.css?v=0.0.36">
@@ -3212,6 +3213,33 @@
         </div>
       </div>
     </div>
+    <div id="account-hijack-manage-modal" class="modal">
+      <div class="modal-content" style="height: 80%;">
+        <div class="modal-header">
+          <span>顶号角色管理</span>
+          <label>
+            <input type="checkbox" id="hijack-select-all-toggle"> 全选
+          </label>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+          <div style="padding: 12px 16px; background: #f9f9f9; border-bottom: 0.5px solid #ebedf0;">
+            <div style="font-size: 13px; color: var(--text-secondary, #999); margin-bottom: 8px;">批量设置（先勾选下面的角色，再点应用）</div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <select id="hijack-batch-mode-select" class="settings-select" style="flex: 1; min-width: 110px;">
+                <option value="ai_decide">AI自主决定</option>
+                <option value="probability">按概率触发</option>
+              </select>
+              <input type="number" id="hijack-batch-probability-input" min="0" max="100" value="10" placeholder="概率%" class="settings-num-input" style="width: 70px !important; display: none;">
+              <button class="settings-mini-btn" id="hijack-batch-apply-btn">应用到已勾选</button>
+            </div>
+          </div>
+          <div id="account-hijack-char-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="hijack-manage-close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
     <div id="clear-chat-html-modal" class="modal">
       <div class="modal-content" style="height: 75%;">
         <div class="modal-header">
@@ -4019,6 +4047,22 @@
             </div>
         </div>
 
+        <!-- 顶号功能 -->
+        <div class="settings-header">顶号功能</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>启用角色顶号功能</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="account-hijack-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item" id="account-hijack-manage-entry" style="cursor: pointer;">
+                <label>顶号角色管理</label>
+                <span style="color: var(--text-secondary, #999); font-size: 14px;">选择哪些角色可以顶号 ›</span>
+            </div>
+        </div>
+
         <!-- 4. 提示音 -->
         <div class="settings-header">声音</div>
         <div class="settings-section">
@@ -4730,7 +4774,6 @@
                          <!-- 按钮组在右 -->
                          <div class="avatar-btn-group">
                              <button class="settings-mini-btn" onclick="document.getElementById('ai-avatar-input').click()">更换</button>
-                             <button class="settings-mini-btn" id="ai-avatar-url-btn">URL</button>
                              <button class="settings-mini-btn" id="manage-ai-avatar-library-btn">图库</button>
                              <button class="settings-mini-btn change-frame-btn" data-type="ai">挂件</button>
                              <input type="file" id="ai-avatar-input" accept="image/*" hidden>
@@ -4760,7 +4803,6 @@
                          <img id="my-avatar-preview" class="settings-avatar">
                          <div class="avatar-btn-group">
                              <button class="settings-mini-btn" onclick="document.getElementById('my-avatar-input').click()">更换</button>
-                             <button class="settings-mini-btn" id="my-avatar-url-btn">URL</button>
                              <button class="settings-mini-btn" id="manage-my-avatar-library-btn">图库</button>
                              <button class="settings-mini-btn change-frame-btn" data-type="my">挂件</button>
                              <button class="settings-mini-btn" id="open-persona-library-btn">预设</button>
