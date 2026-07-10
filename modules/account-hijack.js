@@ -94,6 +94,23 @@ const HijackManager = {
     return false;
   },
 
+  // 短暂显示"XX正在顶号"遮罩，锁住输入框，动画不会太长
+  showHijackOverlay(hijackerName) {
+    const overlay = document.getElementById('hijack-in-progress-overlay');
+    const textEl = document.getElementById('hijack-in-progress-text');
+    const input = document.getElementById('chat-input');
+    if (!overlay) return;
+
+    if (textEl) textEl.textContent = `${hijackerName} 正在顶号...`;
+    overlay.style.display = 'flex';
+    if (input) input.setAttribute('readonly', 'true');
+
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      if (input) input.removeAttribute('readonly');
+    }, 1600);
+  },
+
   // 处理 hijack_account 指令：往目标聊天里插入冒充消息，并触发对方真实回应
   async processHijackAccount(hijackerChat, targetChatName, messages, innerMonologue) {
     if (!targetChatName || !Array.isArray(messages) || messages.length === 0) return false;
@@ -134,6 +151,12 @@ const HijackManager = {
       try { await window.db.chats.put(targetChat); } catch (e) { console.error('顶号功能保存目标聊天失败:', e); }
     }
     if (typeof window.renderChatList === 'function') window.renderChatList();
+
+    // 如果用户正好开着被顶号的这个聊天窗口，短暂锁一下输入框，
+    // 配合一个"XX正在顶号"的小动画，模拟"手机正被别人占用"的既视感
+    if (state.activeChatId === targetChat.id) {
+      this.showHijackOverlay(hijackerName);
+    }
 
     // 同步更新顶号角色自己的心声/散记
     hijackerChat.heartfeltVoice = innerMonologue
