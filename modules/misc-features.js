@@ -3143,7 +3143,7 @@
 
 
   const DEFAULT_BUTTON_ORDER = [
-    'open-sticker-panel-btn', 'send-photo-btn', 'camera-capture-btn', 'upload-image-btn',
+    'open-sticker-panel-btn', 'send-photo-btn', 'camera-capture-btn', 'upload-image-btn', 'send-avatar-btn',
     'transfer-btn', 'voice-message-btn', 'voice-record-btn', 'send-waimai-request-btn',
     'video-call-btn', 'group-video-call-btn', 'voice-call-btn', 'group-voice-call-btn', 'send-poll-btn',
     'share-link-btn', 'share-location-btn', 'gomoku-btn',
