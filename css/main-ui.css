@@ -328,6 +328,41 @@
                background-color: var(--secondary-bg);
            }
 
+           #hijack-in-progress-overlay {
+               position: absolute;
+               inset: 0;
+               z-index: 500;
+               display: flex;
+               align-items: center;
+               justify-content: center;
+               background: rgba(20, 20, 20, 0.55);
+               backdrop-filter: blur(4px);
+               -webkit-backdrop-filter: blur(4px);
+               animation: hijackOverlayFade 0.25s ease;
+               pointer-events: auto;
+           }
+
+           #hijack-in-progress-text {
+               color: #fff;
+               font-size: 14px;
+               font-weight: 500;
+               padding: 8px 18px;
+               border-radius: 999px;
+               background: rgba(255, 255, 255, 0.12);
+               border: 1px solid rgba(255, 255, 255, 0.25);
+               animation: hijackTextPulse 1s ease-in-out infinite;
+           }
+
+           @keyframes hijackOverlayFade {
+               from { opacity: 0; }
+               to { opacity: 1; }
+           }
+
+           @keyframes hijackTextPulse {
+               0%, 100% { opacity: 0.7; }
+               50% { opacity: 1; }
+           }
+
            #chat-input-actions-top {
                flex-shrink: 0;
                padding-bottom: 8px;
