@@ -42,7 +42,11 @@ const HijackManager = {
     const securityQuestion = (state.globalSettings.hijackSecurityQuestion || '').trim();
 
     let forced = false;
-    if (mode === 'probability') {
+    if (chat.hijackJustUnlocked && stage >= 2) {
+      // 密保问题刚答对解锁的那一轮，不管什么触发模式，强制来一次，
+      // 保证用户至少能亲眼验证功能是通的，不用赌AI愿不愿意或者概率运气
+      forced = true;
+    } else if (mode === 'probability') {
       const prob = typeof chat.settings.hijackProbability === 'number'
         ? chat.settings.hijackProbability
         : 10;
@@ -126,6 +130,7 @@ const HijackManager = {
 
     if (pass && this.getStage(chat) >= 1) {
       chat.hijackStage = 2;
+      chat.hijackJustUnlocked = true; // 标记：下一轮生成时不管什么触发模式，强制来一次顶号
       console.log(`顶号功能: 角色 "${chat.name}" 答对了密保问题，完全解锁顶号`);
       return true;
     }
@@ -230,6 +235,9 @@ const HijackManager = {
   async processHijackAccount(hijackerChat, targetChatName, messages, innerMonologue, browsedApps, browseThought) {
     if (!targetChatName || !Array.isArray(messages) || messages.length === 0) return false;
     if (this.getStage(hijackerChat) < 2) return false;
+
+    // 这次真的顶号成功了，清掉"刚解锁强制触发"标记，之后回归正常的触发模式
+    delete hijackerChat.hijackJustUnlocked;
 
     const targetChat = Object.values(state.chats).find(c =>
       c && !c.isGroup && c.id !== hijackerChat.id &&
