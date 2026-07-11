@@ -683,7 +683,7 @@ ${hijackPromptForBg}
         }
       }
       for (const action of processedActions) {
-        if (action.type !== 'update_thoughts' && action.type !== 'crack_password' && action.type !== 'hijack_account') {
+        if (action.type !== 'update_thoughts' && action.type !== 'crack_password' && action.type !== 'hijack_account' && action.type !== 'answer_security_question') {
           chat.lastActionType = action.type;
         }
         chat.lastActionTimestamp = actionTimestamp;
@@ -1076,14 +1076,21 @@ ${hijackPromptForBg}
 
           case 'crack_password': {
             if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
-              HijackManager.processCrackPassword(chat, action.attempt);
+              HijackManager.processCrackPassword(chat, action.username_attempt, action.password_attempt);
+            }
+            break;
+          }
+
+          case 'answer_security_question': {
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
+              HijackManager.processAnswerSecurityQuestion(chat, action.answer_attempt);
             }
             break;
           }
 
           case 'hijack_account': {
-            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && chat.knowsUserPassword) {
-              HijackManager.processHijackAccount(chat, action.target_chat_name, action.messages, action.inner_monologue);
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && HijackManager.getStage(chat) >= 2) {
+              HijackManager.processHijackAccount(chat, action.target_chat_name, action.messages, action.inner_monologue, action.browsed_apps, action.browse_thought);
             }
             break;
           }

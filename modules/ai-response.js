@@ -4745,12 +4745,17 @@ ${getActiveThoughtsPrompt()}
             continue;
           case 'crack_password':
             if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
-              HijackManager.processCrackPassword(chat, msgData.attempt);
+              HijackManager.processCrackPassword(chat, msgData.username_attempt, msgData.password_attempt);
+            }
+            continue;
+          case 'answer_security_question':
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat)) {
+              HijackManager.processAnswerSecurityQuestion(chat, msgData.answer_attempt);
             }
             continue;
           case 'hijack_account':
-            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && chat.knowsUserPassword) {
-              HijackManager.processHijackAccount(chat, msgData.target_chat_name, msgData.messages, msgData.inner_monologue);
+            if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && HijackManager.getStage(chat) >= 2) {
+              HijackManager.processHijackAccount(chat, msgData.target_chat_name, msgData.messages, msgData.inner_monologue, msgData.browsed_apps, msgData.browse_thought);
             }
             continue;
           case 'change_user_nickname':
@@ -6484,7 +6489,7 @@ ${getActiveThoughtsPrompt()}
           if (!isViewingThisChat) {
             chat.unreadCount = (chat.unreadCount || 0) + 1;
           }
-          if (!isViewingThisChat) {
+          if (!isViewingThisChat && !notificationShown) {
             let notificationText;
             switch (aiMessage.type) {
               case 'transfer':
@@ -6515,7 +6520,7 @@ ${getActiveThoughtsPrompt()}
             const finalNotifText = chat.isGroup ? `${aiMessage.senderName}: ${notificationText}` : notificationText;
             showNotification(chatId, finalNotifText.substring(0, 40) + (finalNotifText.length > 40 ? '...' : ''));
             notificationShown = true;
-          } else if (isViewingThisChat) {
+          } else if (isViewingThisChat && !notificationShown) {
             // 新增：如果在聊天页面且启用了"在聊天页面也发送通知"，则发送系统级通知
             let notificationText;
             switch (aiMessage.type) {
