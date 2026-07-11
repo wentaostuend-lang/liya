@@ -328,6 +328,76 @@
                background-color: var(--secondary-bg);
            }
 
+           /* ===== 顶号「不看」全屏小剧场 ===== */
+           #hijack-scene-modal {
+               display: none;
+               position: fixed;
+               inset: 0;
+               z-index: 20000;
+               background: #fff;
+               flex-direction: column;
+           }
+           #hijack-scene-modal.visible {
+               display: flex;
+           }
+           .hijack-scene-choice-btn {
+               width: 100%;
+               padding: 14px 16px;
+               border-radius: 14px;
+               border: 1px solid #e5e5ea;
+               background: #fff;
+               font-size: 15px;
+               color: #333;
+               text-align: center;
+           }
+           .hijack-scene-choice-btn:active {
+               background: #f2f2f7;
+           }
+
+           /* ===== 顶号「让我看看」翻看模式 ===== */
+           #hijack-watch-topbar {
+               display: none;
+               position: fixed;
+               top: 0;
+               left: 0;
+               right: 0;
+               z-index: 15000;
+               background: #fff;
+               border-bottom: 1px solid #eee;
+           }
+           #hijack-watch-topbar.visible {
+               display: block;
+           }
+           #hijack-watch-topbar.minimized .hijack-watch-row2 {
+               display: none !important;
+           }
+           #hijack-watch-bubble {
+               display: none;
+               position: fixed;
+               z-index: 15100;
+               left: 16px;
+               bottom: 100px;
+               max-width: 70%;
+               background: rgba(0, 0, 0, 0.75);
+               color: #fff;
+               font-size: 13px;
+               padding: 10px 14px;
+               border-radius: 14px;
+               line-height: 1.5;
+               animation: hijackBubbleFade 0.25s ease;
+           }
+           #hijack-watch-bubble.visible {
+               display: block;
+           }
+           @keyframes hijackRecBlink {
+               0%, 100% { opacity: 1; }
+               50% { opacity: 0.2; }
+           }
+           @keyframes hijackBubbleFade {
+               from { opacity: 0; transform: translateY(8px); }
+               to { opacity: 1; transform: translateY(0); }
+           }
+
            #hijack-in-progress-overlay {
                position: absolute;
                inset: 0;
