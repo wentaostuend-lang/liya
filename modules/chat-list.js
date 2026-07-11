@@ -69,6 +69,9 @@
     }
     if (screenId === 'wallpaper-screen') window.renderWallpaperScreenProxy();
     if (screenId === 'account-vault-screen' && typeof window.renderAccountVaultScreen === 'function') window.renderAccountVaultScreen();
+    if (screenId === 'alt-persona-screen' && typeof window.renderAltPersonaScreen === 'function') window.renderAltPersonaScreen();
+    if (screenId === 'alt-persona-detail-screen' && typeof window.renderAltPersonaDetailScreen === 'function') window.renderAltPersonaDetailScreen();
+    if (screenId === 'sms-app-screen' && typeof window.renderSmsAppScreen === 'function') window.renderSmsAppScreen();
     if (screenId === 'world-book-screen') window.renderWorldBookScreenProxy();
     if (screenId === 'x-social-screen') window.renderXSocialScreenProxy();
     if (screenId === 'douban-screen') renderDoubanScreen();

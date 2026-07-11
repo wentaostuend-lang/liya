@@ -81,6 +81,13 @@ const HijackScenes = {
     choicesEl.innerHTML = '';
     finalInputArea.style.display = 'none';
 
+    // 修复：「离开」按钮之前没绑定任何功能，点了没反应会像卡住一样。
+    // 现在点一下就强制关闭场景，不管内部流程走到哪一步了都能立刻解锁界面。
+    const forceLeave = () => {
+      modal.classList.remove('visible');
+    };
+    leaveBtn.addEventListener('click', forceLeave, { once: true });
+
     // 先真正执行冒充（用户此刻选择了不看，但事情已经发生了）
     await HijackManager._executeHijackMessages(hijackerChat, targetChat, messages);
 

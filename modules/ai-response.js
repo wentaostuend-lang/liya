@@ -3397,6 +3397,13 @@ ${getActiveThoughtsPrompt()}
           // 保证不管模板怎么改，这个功能都能生效
           systemPrompt += hijackPrompt;
 
+          // 小号/短信 伪装功能：同理直接追加
+          if (typeof DisguiseManager !== 'undefined') {
+            systemPrompt += DisguiseManager.getAltPersonaPromptInjection(chat);
+            systemPrompt += DisguiseManager.getPendingAltRevealPromptInjection(chat);
+            systemPrompt += DisguiseManager.getSmsPromptInjection(chat);
+          }
+
           messagesPayload = filteredHistory.map(msg => {
             // 处理系统消息（旁白和系统通知）
             if (msg.role === 'system' && !msg.isHidden) {
@@ -4756,6 +4763,26 @@ ${getActiveThoughtsPrompt()}
           case 'hijack_account':
             if (typeof HijackManager !== 'undefined' && HijackManager.isEnabledForChat(chat) && HijackManager.getStage(chat) >= 2) {
               HijackManager.processHijackAccount(chat, msgData.target_chat_name, msgData.messages, msgData.inner_monologue, msgData.browsed_apps, msgData.browse_thought);
+            }
+            continue;
+          case 'note_altpersona_suspicion':
+            if (typeof DisguiseManager !== 'undefined' && chat.isAltPersonaChat) {
+              DisguiseManager.processNoteAltPersonaSuspicion(chat, msgData.note);
+            }
+            continue;
+          case 'reveal_altpersona':
+            if (typeof DisguiseManager !== 'undefined' && chat.isAltPersonaChat) {
+              DisguiseManager.processRevealAltPersona(chat);
+            }
+            continue;
+          case 'clear_pending_altpersona_reveal':
+            if (typeof DisguiseManager !== 'undefined') {
+              DisguiseManager.processClearPendingAltRevealFlag(chat);
+            }
+            continue;
+          case 'clear_pending_sms_reveal':
+            if (typeof DisguiseManager !== 'undefined') {
+              DisguiseManager.processClearPendingSmsRevealFlag(chat);
             }
             continue;
           case 'change_user_nickname':
@@ -6489,7 +6516,7 @@ ${getActiveThoughtsPrompt()}
           if (!isViewingThisChat) {
             chat.unreadCount = (chat.unreadCount || 0) + 1;
           }
-          if (!isViewingThisChat && !notificationShown) {
+          if (!isViewingThisChat) {
             let notificationText;
             switch (aiMessage.type) {
               case 'transfer':
@@ -6520,7 +6547,7 @@ ${getActiveThoughtsPrompt()}
             const finalNotifText = chat.isGroup ? `${aiMessage.senderName}: ${notificationText}` : notificationText;
             showNotification(chatId, finalNotifText.substring(0, 40) + (finalNotifText.length > 40 ? '...' : ''));
             notificationShown = true;
-          } else if (isViewingThisChat && !notificationShown) {
+          } else if (isViewingThisChat) {
             // 新增：如果在聊天页面且启用了"在聊天页面也发送通知"，则发送系统级通知
             let notificationText;
             switch (aiMessage.type) {
