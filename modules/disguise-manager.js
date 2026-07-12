@@ -168,10 +168,64 @@ const DisguiseManager = {
     }
   },
 
-  // 发一条伪装短信给目标角色，单独调一次API，判断角色是否识破
-  async sendMaskSms(targetChatId, maskName, content) {
+  // 取得（或新建）某个角色 + 某个面具 的短信会话线程
+  getOrCreateSmsThread(targetChatId, maskName) {
     const targetChat = state.chats[targetChatId];
     if (!targetChat) return null;
+    if (!targetChat.smsThreads) targetChat.smsThreads = {};
+    if (!targetChat.smsThreads[maskName]) {
+      targetChat.smsThreads[maskName] = { messages: [], guessed: false };
+    }
+    return targetChat.smsThreads[maskName];
+  },
+
+  getAllSmsThreads() {
+    const result = [];
+    Object.values(state.chats).forEach(chat => {
+      if (!chat || !chat.smsThreads) return;
+      Object.keys(chat.smsThreads).forEach(maskName => {
+        const thread = chat.smsThreads[maskName];
+        const last = thread.messages[thread.messages.length - 1];
+        result.push({
+          targetChatId: chat.id,
+          targetName: chat.originalName || chat.name,
+          maskName,
+          guessed: thread.guessed,
+          lastMessage: last ? last.content : '',
+          lastTimestamp: last ? last.timestamp : 0
+        });
+      });
+    });
+    result.sort((a, b) => b.lastTimestamp - a.lastTimestamp);
+    return result;
+  },
+
+  async deleteSmsThread(targetChatId, maskName) {
+    const targetChat = state.chats[targetChatId];
+    if (!targetChat || !targetChat.smsThreads) return;
+    delete targetChat.smsThreads[maskName];
+    if (window.db && window.db.chats) {
+      try { await db.chats.put(targetChat); } catch (e) { console.error(e); }
+    }
+  },
+
+  // 只是把一条消息塞进线程里，不调API——像正常发短信一样，可以连发好几条
+  async queueSmsMessage(targetChatId, maskName, content) {
+    const thread = this.getOrCreateSmsThread(targetChatId, maskName);
+    if (!thread) return null;
+    const msg = { role: 'user', content, timestamp: Date.now() };
+    thread.messages.push(msg);
+    if (window.db && window.db.chats) {
+      try { await db.chats.put(state.chats[targetChatId]); } catch (e) { console.error(e); }
+    }
+    return msg;
+  },
+
+  // 用户手动点"获取回复"才会真正调用API，带上这条线程目前为止的完整上下文
+  async requestSmsReply(targetChatId, maskName) {
+    const targetChat = state.chats[targetChatId];
+    const thread = this.getOrCreateSmsThread(targetChatId, maskName);
+    if (!targetChat || !thread || thread.messages.length === 0) return null;
 
     const cfg = state.apiConfig;
     if (!cfg || !cfg.proxyUrl || !cfg.apiKey || !cfg.model) {
@@ -179,14 +233,21 @@ const DisguiseManager = {
       return null;
     }
 
+    const conversationText = thread.messages.map(m =>
+      m.role === 'user' ? `${maskName}: ${m.content}` : `你: ${m.content}`
+    ).join('\n');
+
     const sysPrompt = `你正在扮演角色"${targetChat.originalName || targetChat.name}"。
 【你的人设】：${targetChat.settings.aiPersona || ''}
-现在你收到一条陌生短信，发送者自称"${maskName}"，内容是："${content}"
-你完全不知道这是谁发的。请：
-1. 用你的人设口吻，给出一句回复短信的内容(reply)。
+你正在用短信和一个自称"${maskName}"的陌生联系人聊天，${thread.guessed ? '你已经怀疑/发现这其实是你对象假扮的，可以延续这种心态回复。' : '你完全不知道这是谁。'}
+以下是目前为止的短信往来记录：
+${conversationText}
+
+请：
+1. 给出你现在要回复的短信内容(reply)，可以是一条，也可以拆成多条短句(用数组replies表示，更像真实发短信的节奏)。
 2. 判断你是否怀疑这其实是你对象假扮发的(guessed: true/false)，如果怀疑，简单说说理由(reason)。
 只返回JSON，不要任何多余文字：
-{"reply": "...", "guessed": true/false, "reason": "..."}`;
+{"replies": ["...", "..."], "guessed": true/false, "reason": "..."}`;
 
     let isGemini = cfg.proxyUrl.includes('generativelanguage');
     let response;
@@ -204,7 +265,7 @@ const DisguiseManager = {
           body: JSON.stringify({
             model: cfg.model,
             messages: [{ role: 'system', content: sysPrompt }, { role: 'user', content: '请回应' }],
-            max_tokens: 300
+            max_tokens: 400
           })
         });
       }
@@ -214,31 +275,40 @@ const DisguiseManager = {
       const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
       const parsed = JSON.parse(cleaned);
 
-      if (!Array.isArray(targetChat.smsInbox)) targetChat.smsInbox = [];
-      const record = {
-        id: 'sms_' + Date.now(),
-        maskName,
-        content,
-        reply: parsed.reply || '',
-        guessed: !!parsed.guessed,
-        timestamp: Date.now()
-      };
-      targetChat.smsInbox.push(record);
+      const replies = Array.isArray(parsed.replies) && parsed.replies.length > 0
+        ? parsed.replies
+        : (parsed.reply ? [parsed.reply] : []);
 
-      if (record.guessed) {
-        targetChat.pendingSmsReveal = { maskName, content, reason: parsed.reason || '' };
-      } else {
+      let ts = Date.now();
+      replies.forEach(text => {
+        thread.messages.push({ role: 'char', content: text, timestamp: ts++ });
+      });
+
+      const wasGuessedBefore = thread.guessed;
+      if (parsed.guessed) thread.guessed = true;
+
+      // 第一次被猜中时，才往正牌聊天里插一次伏笔，避免每次回复都反复提醒
+      if (parsed.guessed && !wasGuessedBefore) {
+        targetChat.pendingSmsReveal = {
+          maskName,
+          content: thread.messages.filter(m => m.role === 'user').slice(-1)[0]?.content || '',
+          reason: parsed.reason || ''
+        };
+      } else if (!parsed.guessed) {
         if (!Array.isArray(targetChat.smsBacklog)) targetChat.smsBacklog = [];
-        targetChat.smsBacklog.push({ maskName, content, timestamp: Date.now() });
-        if (targetChat.smsBacklog.length > 5) targetChat.smsBacklog.shift();
+        const lastUserMsg = thread.messages.filter(m => m.role === 'user').slice(-1)[0];
+        if (lastUserMsg) {
+          targetChat.smsBacklog.push({ maskName, content: lastUserMsg.content, timestamp: Date.now() });
+          if (targetChat.smsBacklog.length > 5) targetChat.smsBacklog.shift();
+        }
       }
 
       if (window.db && window.db.chats) {
         try { await db.chats.put(targetChat); } catch (e) { console.error(e); }
       }
-      return record;
+      return replies;
     } catch (e) {
-      console.error('发短信失败:', e);
+      console.error('获取短信回复失败:', e);
       return null;
     }
   },
@@ -250,7 +320,7 @@ const DisguiseManager = {
     if (chat.pendingSmsReveal) {
       const { maskName, content, reason } = chat.pendingSmsReveal;
       text += `\n\n# 【隐藏设定：可疑短信】\n`;
-      text += `你之前收到一条自称"${maskName}"的陌生短信："${content}"，你怀疑这是眼前这个人假扮发的（理由：${reason || '直觉'}）。如果剧情合适，可以主动提起问问是不是TA发的。提起之后使用指令 [{"type": "clear_pending_sms_reveal"}] 清空这条伏笔。\n`;
+      text += `你之前收到一条自称"${maskName}"的陌生短信往来，其中一条内容是："${content}"，你怀疑这是眼前这个人假扮发的（理由：${reason || '直觉'}）。如果剧情合适，可以主动提起问问是不是TA发的。提起之后使用指令 [{"type": "clear_pending_sms_reveal"}] 清空这条伏笔。\n`;
     } else if (Array.isArray(chat.smsBacklog) && chat.smsBacklog.length > 0 && Math.random() < 0.08) {
       const item = chat.smsBacklog[Math.floor(Math.random() * chat.smsBacklog.length)];
       text += `\n\n# 【隐藏设定：想起一件小事】\n`;
@@ -409,89 +479,152 @@ window.renderAltPersonaDetailScreen = function () {
 // 「短信」App 的 UI 交互
 // ============================================================
 window.renderSmsAppScreen = function () {
-  const targetSelect = document.getElementById('sms-target-select');
-  const maskSelect = document.getElementById('sms-mask-select');
-  if (!targetSelect || !maskSelect) return;
+  const listEl = document.getElementById('sms-inbox-list');
+  if (!listEl) return;
+  listEl.innerHTML = '';
 
-  const singleChats = Object.values(state.chats).filter(c => c && !c.isGroup && !c.isAltPersonaChat);
-  const prevTarget = targetSelect.value;
-  targetSelect.innerHTML = singleChats.map(c => `<option value="${c.id}">${c.originalName || c.name}</option>`).join('');
-  if (prevTarget && singleChats.find(c => c.id === prevTarget)) targetSelect.value = prevTarget;
-
-  const masks = DisguiseManager.getSavedMasks();
-  maskSelect.innerHTML = masks.map(m => `<option value="${m.name}">${m.name}</option>`).join('') || '<option value="">(没有保存的面具)</option>';
-
-  renderSmsThread();
-};
-
-function renderSmsThread() {
-  const targetSelect = document.getElementById('sms-target-select');
-  const threadEl = document.getElementById('sms-thread-list');
-  if (!targetSelect || !threadEl) return;
-
-  const chat = state.chats[targetSelect.value];
-  threadEl.innerHTML = '';
-  if (!chat || !Array.isArray(chat.smsInbox) || chat.smsInbox.length === 0) {
-    threadEl.innerHTML = '<div style="text-align:center; color:#999; font-size:14px; padding:30px 0;">还没有短信往来</div>';
+  const threads = DisguiseManager.getAllSmsThreads();
+  if (threads.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center; color:#999; font-size:14px; padding:40px 0;">还没有短信往来，点右上角新建一条</div>';
     return;
   }
 
-  chat.smsInbox.forEach(record => {
-    const item = document.createElement('div');
-    item.innerHTML = `
-      <div style="align-self:flex-end; max-width:75%; margin-left:auto; background:var(--accent-color,#007aff); color:#fff; padding:10px 14px; border-radius:14px 14px 4px 14px; font-size:14px;">
-        <div style="font-size:11px; opacity:0.8; margin-bottom:2px;">面具：${record.maskName}</div>
-        ${record.content}
+  threads.forEach(t => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex; align-items:center; gap:12px; background:#fff; border-radius:12px; padding:12px 14px; cursor:pointer;';
+    row.innerHTML = `
+      <div style="width:44px; height:44px; border-radius:12px; background:#f2f2f7; display:flex; align-items:center; justify-content:center; font-weight:600; color:#333; flex-shrink:0;">${t.maskName.slice(0, 1)}</div>
+      <div style="flex:1; overflow:hidden;">
+        <div style="font-size:15px; font-weight:500;">${t.maskName} <span style="font-weight:400; color:#999; font-size:12px;">→ ${t.targetName}</span></div>
+        <div style="font-size:13px; color:#999; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;">${t.lastMessage || '（还没发消息）'}</div>
       </div>
-      <div style="max-width:75%; background:#f0f0f0; color:#333; padding:10px 14px; border-radius:14px 14px 14px 4px; font-size:14px; margin-top:6px;">
-        ${record.reply}${record.guessed ? ' <span style="color:#ff3b30; font-size:11px;">（TA好像起疑心了）</span>' : ''}
-      </div>
+      ${t.guessed ? '<span style="font-size:11px; color:#ff3b30; flex-shrink:0;">已识破</span>' : ''}
     `;
-    threadEl.appendChild(item);
+    row.addEventListener('click', () => {
+      window.currentSmsTarget = { targetChatId: t.targetChatId, maskName: t.maskName };
+      showScreen('sms-thread-screen');
+    });
+    listEl.appendChild(row);
   });
-  threadEl.scrollTop = threadEl.scrollHeight;
-}
+};
+
+window.renderSmsThreadScreen = function () {
+  const ctx = window.currentSmsTarget;
+  if (!ctx) return;
+  const thread = DisguiseManager.getOrCreateSmsThread(ctx.targetChatId, ctx.maskName);
+  const targetChat = state.chats[ctx.targetChatId];
+
+  const titleEl = document.getElementById('sms-thread-title');
+  if (titleEl) titleEl.textContent = `${ctx.maskName} → ${targetChat ? (targetChat.originalName || targetChat.name) : ''}`;
+
+  const messagesEl = document.getElementById('sms-thread-messages');
+  if (!messagesEl || !thread) return;
+  messagesEl.innerHTML = '';
+
+  if (thread.messages.length === 0) {
+    messagesEl.innerHTML = '<div style="text-align:center; color:#999; font-size:13px; padding:30px 0;">还没有消息，在下面写点什么吧</div>';
+    return;
+  }
+
+  thread.messages.forEach(m => {
+    const row = document.createElement('div');
+    row.className = `sms-bubble-row ${m.role === 'user' ? 'mine' : 'theirs'}`;
+    const bubble = document.createElement('div');
+    bubble.className = 'sms-bubble';
+    bubble.textContent = m.content;
+    row.appendChild(bubble);
+    messagesEl.appendChild(row);
+  });
+
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+};
 
 (function () {
-  document.getElementById('sms-target-select')?.addEventListener('change', renderSmsThread);
+  document.getElementById('sms-new-thread-btn')?.addEventListener('click', () => {
+    const targetSelect = document.getElementById('sms-new-target-select');
+    const maskSelect = document.getElementById('sms-new-mask-select');
+    const singleChats = Object.values(state.chats).filter(c => c && !c.isGroup && !c.isAltPersonaChat);
+    targetSelect.innerHTML = singleChats.map(c => `<option value="${c.id}">${c.originalName || c.name}</option>`).join('');
 
-  document.getElementById('sms-save-mask-btn')?.addEventListener('click', async () => {
+    const masks = DisguiseManager.getSavedMasks();
+    maskSelect.innerHTML = masks.length > 0
+      ? masks.map(m => `<option value="${m.name}">${m.name}</option>`).join('')
+      : '<option value="">(还没有保存的面具，在下面新建一个)</option>';
+
+    document.getElementById('sms-new-mask-input').value = '';
+    document.getElementById('sms-new-thread-modal').classList.add('visible');
+  });
+
+  document.getElementById('sms-new-thread-cancel-btn')?.addEventListener('click', () => {
+    document.getElementById('sms-new-thread-modal').classList.remove('visible');
+  });
+
+  document.getElementById('sms-new-mask-save-btn')?.addEventListener('click', async () => {
     const input = document.getElementById('sms-new-mask-input');
     const name = input.value.trim();
     if (!name) return;
     await DisguiseManager.saveMask(name);
     input.value = '';
-    if (typeof window.renderSmsAppScreen === 'function') window.renderSmsAppScreen();
+    const maskSelect = document.getElementById('sms-new-mask-select');
+    const masks = DisguiseManager.getSavedMasks();
+    maskSelect.innerHTML = masks.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+    maskSelect.value = name;
   });
 
-  document.getElementById('sms-send-btn')?.addEventListener('click', async () => {
-    const targetSelect = document.getElementById('sms-target-select');
-    const maskSelect = document.getElementById('sms-mask-select');
+  document.getElementById('sms-new-thread-confirm-btn')?.addEventListener('click', () => {
+    const targetChatId = document.getElementById('sms-new-target-select').value;
+    const maskSelect = document.getElementById('sms-new-mask-select');
     const newMaskInput = document.getElementById('sms-new-mask-input');
-    const msgInput = document.getElementById('sms-message-input');
-
-    const targetChatId = targetSelect.value;
     const maskName = newMaskInput.value.trim() || maskSelect.value;
-    const content = msgInput.value.trim();
 
-    if (!targetChatId) { alert('先选一个要发的角色'); return; }
+    if (!targetChatId) { alert('先选一个角色吧'); return; }
     if (!maskName) { alert('填一个面具名字吧'); return; }
-    if (!content) { alert('写点短信内容吧'); return; }
 
-    const sendBtn = document.getElementById('sms-send-btn');
-    sendBtn.disabled = true;
-    sendBtn.textContent = '发送中...';
+    document.getElementById('sms-new-thread-modal').classList.remove('visible');
+    window.currentSmsTarget = { targetChatId, maskName };
+    showScreen('sms-thread-screen');
+  });
 
-    const record = await DisguiseManager.sendMaskSms(targetChatId, maskName, content);
+  document.getElementById('sms-thread-send-btn')?.addEventListener('click', async () => {
+    const ctx = window.currentSmsTarget;
+    if (!ctx) return;
+    const input = document.getElementById('sms-thread-input');
+    const content = input.value.trim();
+    if (!content) return;
 
-    sendBtn.disabled = false;
-    sendBtn.textContent = '发送';
+    await DisguiseManager.queueSmsMessage(ctx.targetChatId, ctx.maskName, content);
+    input.value = '';
+    renderSmsThreadScreen();
+  });
 
-    if (record) {
-      msgInput.value = '';
-      renderSmsThread();
+  document.getElementById('sms-thread-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('sms-thread-send-btn')?.click();
+  });
+
+  document.getElementById('sms-thread-getreply-btn')?.addEventListener('click', async () => {
+    const ctx = window.currentSmsTarget;
+    if (!ctx) return;
+    const btn = document.getElementById('sms-thread-getreply-btn');
+    btn.disabled = true;
+    btn.textContent = '正在等TA回复...';
+
+    const replies = await DisguiseManager.requestSmsReply(ctx.targetChatId, ctx.maskName);
+
+    btn.disabled = false;
+    btn.textContent = '📩 获取TA的回复';
+
+    if (replies) {
+      renderSmsThreadScreen();
     } else {
-      alert('发送失败，检查一下主API配置');
+      alert('获取回复失败，检查一下主API配置');
     }
+  });
+
+  document.getElementById('sms-thread-delete-btn')?.addEventListener('click', async () => {
+    const ctx = window.currentSmsTarget;
+    if (!ctx) return;
+    if (!confirm('确定删除这条短信会话吗？')) return;
+    await DisguiseManager.deleteSmsThread(ctx.targetChatId, ctx.maskName);
+    showScreen('sms-app-screen');
   });
 })();

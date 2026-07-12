@@ -72,6 +72,7 @@
     if (screenId === 'alt-persona-screen' && typeof window.renderAltPersonaScreen === 'function') window.renderAltPersonaScreen();
     if (screenId === 'alt-persona-detail-screen' && typeof window.renderAltPersonaDetailScreen === 'function') window.renderAltPersonaDetailScreen();
     if (screenId === 'sms-app-screen' && typeof window.renderSmsAppScreen === 'function') window.renderSmsAppScreen();
+    if (screenId === 'sms-thread-screen' && typeof window.renderSmsThreadScreen === 'function') window.renderSmsThreadScreen();
     if (screenId === 'world-book-screen') window.renderWorldBookScreenProxy();
     if (screenId === 'x-social-screen') window.renderXSocialScreenProxy();
     if (screenId === 'douban-screen') renderDoubanScreen();
@@ -197,6 +198,8 @@
     const allChats = Object.values(state.chats).filter(chat => {
       // 过滤掉联机好友（已迁移到独立的连接APP）
       if (chat.isOnlineFriend || chat.isGroupChat) return false;
+      // 过滤掉小号马甲聊天（只在"小号"App里通过专门入口进入，不出现在主聊天列表）
+      if (chat.isAltPersonaChat) return false;
       return true;
     }).sort((a, b) => {
       const pinDiff = (b.isPinned || false) - (a.isPinned || false);
