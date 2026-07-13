@@ -141,6 +141,7 @@
   <script src="modules/avatar-scrap.js?v=0.0.1" defer></script>
   <script src="modules/hijack-scenes.js?v=0.0.1" defer></script>
   <script src="modules/disguise-manager.js?v=0.0.1" defer></script>
+  <script src="modules/battery-reminder.js?v=0.0.1" defer></script>
   
   <!-- 保活音频播放器样式（从内联 style 拆分） -->
   <link rel="stylesheet" href="css/keep-alive-player.css?v=0.0.36">
@@ -4129,6 +4130,52 @@
             </div>
         </div>
 
+        <!-- 电量提醒 -->
+        <div class="settings-header">电量提醒</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>启用低电量提醒</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="battery-reminder-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div id="battery-reminder-unsupported-tip" style="display:none; padding: 10px 15px; font-size: 12px; color: #ff9500; background: #fff8f0;">
+                ⚠️ 你当前的浏览器/系统不支持读取电量信息（多见于 iOS Safari、Firefox），这个功能没法用。
+            </div>
+            <div class="settings-item-block" style="padding: 12px 15px;">
+                <label style="font-size: 13px; color: var(--text-secondary, #999); display:block; margin-bottom: 8px;">低电量档位（电量降到这些百分比时各自提醒一次）</label>
+                <div id="battery-tier-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <button id="battery-tier-add-btn" class="settings-mini-btn" style="margin-top: 8px;">+ 添加档位</button>
+            </div>
+            <div class="settings-item" style="border-top: 0.5px solid #ebedf0;">
+                <label>充满电（100%）时也提醒</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="battery-full-reminder-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item-block" style="padding: 12px 15px; border-top: 0.5px solid #ebedf0;">
+                <label style="font-size: 13px; color: var(--text-secondary, #999); display:block; margin-bottom: 8px;">由谁来提醒</label>
+                <select id="battery-reminder-who-mode" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #f9f9f9;">
+                    <option value="active_chat">当前正在聊天的角色</option>
+                    <option value="assigned">指定角色</option>
+                </select>
+                <select id="battery-reminder-assigned-char" style="width: 100%; margin-top: 8px; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #f9f9f9; display:none;"></select>
+            </div>
+            <div class="settings-item-block" style="padding: 12px 15px; border-top: 0.5px solid #ebedf0;">
+                <label style="font-size: 13px; color: var(--text-secondary, #999); display:block; margin-bottom: 8px;">台词生成方式</label>
+                <select id="battery-reminder-gen-mode" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px; background: #f9f9f9;">
+                    <option value="pregen">优先用预生成台词库（没有台词时自动实时生成）</option>
+                    <option value="realtime">每次都实时生成</option>
+                </select>
+            </div>
+            <div class="settings-item" id="battery-reminder-lib-entry" style="cursor: pointer;">
+                <label>预生成台词库管理</label>
+                <span style="color: var(--text-secondary, #999); font-size: 14px;">按角色、按档位分别生成台词 ›</span>
+            </div>
+        </div>
+
         <!-- 4. 提示音 -->
         <div class="settings-header">声音</div>
         <div class="settings-section">
@@ -4540,6 +4587,28 @@
           <button class="cancel" id="alt-persona-pick-target-cancel-btn">取消</button>
         </div>
       </div>
+    </div>
+
+    <!-- 电量提醒：台词库管理 -->
+    <div id="battery-reminder-lib-modal" class="modal">
+      <div class="modal-content" style="height: 75%;">
+        <div class="modal-header"><span>充电提醒台词库</span></div>
+        <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
+          <select id="battery-lib-char-select" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px;"></select>
+          <select id="battery-lib-tier-select" style="width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 14px;"></select>
+          <button id="battery-lib-generate-btn" class="settings-mini-btn" style="align-self: flex-start;">🔄 生成一批新台词（会替换现有的）</button>
+          <div id="battery-lib-lines-list" style="display: flex; flex-direction: column; gap: 8px;"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="battery-lib-close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 电量提醒：气泡 -->
+    <div id="battery-reminder-bubble">
+      <div id="battery-reminder-bubble-avatar"></div>
+      <div id="battery-reminder-bubble-text"></div>
     </div>
 
     <!-- 思维链条目编辑弹窗 -->
