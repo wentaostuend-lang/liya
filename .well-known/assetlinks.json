@@ -1,1 +1,8 @@
-
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "dev.pages.liya_36j.twa",
+        "sha256_cert_fingerprints": ["2D:C8:C3:E0:57:BC:A6:03:C1:DE:76:61:36:D8:AC:9C:3F:19:5F:83:B5:6A:63:91:BF:5E:D2:1B:77:4F:67:01"]
+      }
+    }]
