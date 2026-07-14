@@ -216,11 +216,30 @@ ${tierKey === FULL_TIER_KEY ? '' : '台词里如果需要提到具体电量百�
           })
         });
       }
-      if (!response.ok) throw new Error(response.statusText);
+      if (!response.ok) {
+        const errText = await response.text().catch(() => response.statusText);
+        throw new Error(`API请求失败(${response.status}): ${errText}`);
+      }
       const data = await response.json();
-      const raw = isGemini ? getGeminiResponseText(data) : data.choices[0].message.content;
+      if (data.error) throw new Error(`API返回错误: ${data.error.message || JSON.stringify(data.error)}`);
+      const raw = isGemini ? getGeminiResponseText(data) : data.choices?.[0]?.message?.content;
+      if (!raw) throw new Error('API返回了空内容，模型可能没有正常输出');
+
+      // 不再简单假设返回内容是"纯净JSON"：先尝试直接去围栏解析，
+      // 失败就用正则从文本里把 [...] 数组部分抠出来再解析一次，
+      // 兼容模型在JSON前后多说废话的情况（这是之前"生成失败"的主因）。
+      let lines;
       const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/```$/i, '').trim();
-      const lines = JSON.parse(cleaned);
+      try {
+        lines = JSON.parse(cleaned);
+      } catch (parseErr) {
+        const jsonMatch = raw.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          lines = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error(`AI没有返回可解析的JSON数组，原始回复：${raw.slice(0, 100)}`);
+        }
+      }
 
       if (!chat.batteryReminderLines || Array.isArray(chat.batteryReminderLines)) chat.batteryReminderLines = {};
       chat.batteryReminderLines[tierKey] = Array.isArray(lines) ? lines : [];
@@ -231,7 +250,7 @@ ${tierKey === FULL_TIER_KEY ? '' : '台词里如果需要提到具体电量百�
       return chat.batteryReminderLines[tierKey];
     } catch (e) {
       console.error('电量提醒: 生成台词库失败', e);
-      alert('生成失败，检查一下主API配置或稍后重试');
+      alert(`生成失败：${e.message || '未知错误'}`);
       return this._getLib(chat, tierKey);
     }
   }
