@@ -105,11 +105,13 @@ self.addEventListener('fetch', event => {
         // 缓存未命中，从网络获取并缓存
         return fetch(event.request).then(response => {
           if (response && response.status === 200) {
-            return caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, response.clone());
-              console.log('[SW] 已缓存资源:', url);
-              return response;
-            });
+            const responseToCache = response.clone(); // 拿到响应立刻clone，不等异步链跑完
+            event.waitUntil(
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseToCache);
+                console.log('[SW] 已缓存资源:', url);
+              }).catch(e => console.warn('[SW] 缓存写入失败:', e))
+            );
           }
           return response;
         }).catch(() => {
@@ -128,9 +130,12 @@ self.addEventListener('fetch', event => {
       .then(response => {
         // 更新缓存
         if (response && response.status === 200) {
-          caches.open(CACHE_NAME).then(cache => {
-            cache.put(event.request, response.clone());
-          });
+          const responseToCache = response.clone();
+          event.waitUntil(
+            caches.open(CACHE_NAME).then(cache => {
+              cache.put(event.request, responseToCache);
+            }).catch(e => console.warn('[SW] 缓存写入失败:', e))
+          );
         }
         return response;
       })
@@ -148,9 +153,12 @@ self.addEventListener('fetch', event => {
         const fetchPromise = fetch(event.request).then(response => {
           // 后台更新缓存
           if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then(cache => {
-              cache.put(event.request, response.clone());
-            });
+            const responseToCache = response.clone(); // 关键修复：先clone，再交给后台任务
+            event.waitUntil(
+              caches.open(CACHE_NAME).then(cache => {
+                cache.put(event.request, responseToCache);
+              }).catch(e => console.warn('[SW] 缓存写入失败:', e))
+            );
           }
           return response;
         }).catch(() => null);
@@ -158,6 +166,9 @@ self.addEventListener('fetch', event => {
         // 如果有缓存，立即返回缓存，同时后台更新
         if (cachedResponse) {
           console.log('[SW] 从缓存加载（后台更新）:', url);
+          // 关键修复：respondWith已经用cachedResponse结束这次请求了，
+          // fetchPromise是纯后台任务，必须用waitUntil告诉浏览器"别把我杀了，我还在跑"
+          event.waitUntil(fetchPromise.catch(() => {}));
           return cachedResponse;
         }
         // 没有缓存，等待网络请求
