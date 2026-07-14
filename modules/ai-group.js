@@ -1101,11 +1101,8 @@ ${hijackPromptForBg}
         if (aiMessage) {
           chat.history.push(aiMessage);
           chat.unreadCount = (chat.unreadCount || 0) + 1;
-          if (!hasSentNotification) {
-            let notificationText = aiMessage.type === 'ai_image' ? '[图片]' : (aiMessage.content || '');
-            showNotification(chatId, notificationText);
-            hasSentNotification = true;
-          }
+          let notificationText = aiMessage.type === 'ai_image' ? '[图片]' : (aiMessage.content || '');
+          showNotification(chatId, notificationText);
         }
       }
       await db.chats.put(chat);
@@ -1905,10 +1902,8 @@ ${longTermMemoryContext}
           });
         } else if (aiMessage) {
           chat.history.push(aiMessage);
-          if (!notificationSender) {
-            notificationSender = senderDisplayName;
-            notificationContent = aiMessage.type === 'ai_image' ? '[图片]' : (aiMessage.content || `[${aiMessage.type}]`);
-          }
+          const singleNotificationContent = aiMessage.type === 'ai_image' ? '[图片]' : (aiMessage.content || `[${aiMessage.type}]`);
+          showNotification(chatId, `${senderDisplayName}: ${singleNotificationContent}`);
         }
         hasPerformedMajorAction = true;
       }
@@ -1916,9 +1911,6 @@ ${longTermMemoryContext}
       if (hasPerformedMajorAction) {
         chat.lastActionTimestamp = Date.now();
         chat.unreadCount = (chat.unreadCount || 0) + responseArray.filter(a => a.type !== 'qzone_post' && a.type !== 'qzone_comment' && a.type !== 'qzone_like').length;
-        if (notificationSender && notificationContent) {
-          showNotification(chatId, `${notificationSender}: ${notificationContent}`);
-        }
         await db.chats.put(chat);
       }
 
