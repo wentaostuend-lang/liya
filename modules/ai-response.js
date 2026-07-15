@@ -3395,7 +3395,31 @@ ${getActiveThoughtsPrompt()}
 
           // 顶号功能：直接追加在系统提示末尾，不依赖用户自定义模板里的占位符，
           // 保证不管模板怎么改，这个功能都能生效
+          // 新增：AI自动记忆提醒功能（对方提到未来某个具体时间要做的事，AI主动记下来，到点会用角色语气提醒）
+          let reminderInstruction = "";
+          if (chat.settings.enableAiReminders) {
+            const nowForReminder = new Date();
+            reminderInstruction = `
+- **设置提醒 (指令: set_reminder)**:
+1. **触发条件**: 当对方在对话中提到一个**未来的、带有具体时间点**的安排或承诺时（例如"我12点要吃饭"、"晚上10点睡觉"、"明天下午3点开会"），你应该记住这件事。
+2. **你的行动**: 在正常回复的同时，追加一条 \`set_reminder\` 指令，把这件事和对应的时间记下来。到了那个时间点，系统会用你的语气自动生成一条提醒消息发给对方，不需要你现在就说"我会提醒你"。
+3. **禁止行为**: 不要为模糊、没有具体时间的话（比如"我想减肥"、"我要休息一下"）设置提醒；只有明确提到时间点才记。
+4. **指令标准格式**:
+   \`{"type": "set_reminder", "trigger_time": "YYYY-MM-DDTHH:mm:ss", "note": "要提醒的事情，用第三人称简短描述"}\`
+   （如果对方只说了钟点没说日期，默认视为今天；如果那个钟点已经过去了，视为明天。当前时间参考：${nowForReminder.getFullYear()}-${String(nowForReminder.getMonth() + 1).padStart(2, '0')}-${String(nowForReminder.getDate()).padStart(2, '0')} ${String(nowForReminder.getHours()).padStart(2, '0')}:${String(nowForReminder.getMinutes()).padStart(2, '0')}）
+
+**示例**:
+用户: "我今天中午12点要出去吃饭"
+你的回复(JSON数组):
+[
+  {"type": "text", "content": "好呀，吃完记得跟我说说好不好吃～"},
+  {"type": "set_reminder", "trigger_time": "${nowForReminder.toISOString().split('T')[0]}T12:00:00", "note": "提醒对方去吃午饭"}
+]
+    `;
+          }
+
           systemPrompt += hijackPrompt;
+          systemPrompt += reminderInstruction;
 
           // 小号/短信 伪装功能：同理直接追加
           if (typeof DisguiseManager !== 'undefined') {
@@ -4103,6 +4127,32 @@ ${getActiveThoughtsPrompt()}
               };
 
               console.log(`AI 添加事项: ${todoContent}, 状态: ${todoStatus}`);
+            }
+            break;
+          }
+          case 'set_reminder': {
+            if (!chat.settings.enableAiReminders) continue;
+
+            const reminderNote = msgData.note;
+            const triggerTimeRaw = msgData.trigger_time;
+            const triggerDate = triggerTimeRaw ? new Date(triggerTimeRaw) : null;
+
+            if (reminderNote && triggerDate && !isNaN(triggerDate) && triggerDate > new Date()) {
+              if (!chat.settings.aiReminders) chat.settings.aiReminders = [];
+
+              chat.settings.aiReminders.push({
+                id: Date.now() + Math.random(),
+                note: reminderNote,
+                triggerTime: triggerDate.getTime(),
+                fired: false,
+                createdAt: Date.now()
+              });
+
+              visibleSystemMessage = {
+                content: `[${chat.name} 记下了一件事，会在 ${triggerDate.getMonth() + 1}月${triggerDate.getDate()}日 ${String(triggerDate.getHours()).padStart(2, '0')}:${String(triggerDate.getMinutes()).padStart(2, '0')} 提醒你]`
+              };
+
+              console.log(`AI 设置提醒: ${reminderNote} @ ${triggerDate}`);
             }
             break;
           }

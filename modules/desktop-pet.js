@@ -478,9 +478,13 @@ ${content ? `\n# 页面内容\n${content}\n` : ""}
 （实际回复内容，语气自然、符合人设）`;
   }
 
+  let petBusy = false;
+
   async function triggerPetAIResponse() {
+    if (petBusy) return; // 防止连续双击/触屏误触发堆积多个并发请求，这是之前卡死崩溃的主因
     const activePetChat = findActivePetChat();
     if (!activePetChat) return;
+    petBusy = true;
 
     const maxMemory = activePetChat.settings?.maxMemory || 20;
     const userNickname = activePetChat.settings?.myNickname || "用户";
@@ -571,6 +575,8 @@ ${content ? `\n# 页面内容\n${content}\n` : ""}
       console.error("[桌宠] AI回复失败", e);
       hidePetWaitingBubble();
       showPetReplyBubble(`抱歉，我现在无法回应...\n错误：${e.message}`);
+    } finally {
+      petBusy = false;
     }
   }
 
@@ -809,7 +815,9 @@ ${content ? `\n# 页面内容\n${content}\n` : ""}
         <div class="settings-desc">重新生成该角色在所有界面的点击台词（需要API配置）</div>
       </div>
     `;
-    container.insertBefore(section, container.firstChild);
+    const anchor = Array.from(container.querySelectorAll(':scope > .settings-section'))
+      .find(sec => sec.textContent.includes('回复条数范围') || sec.textContent.includes('启用独立后台活动'));
+    container.insertBefore(section, anchor || container.firstChild);
     bindSettingsPanelEvents();
   }
 
