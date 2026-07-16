@@ -84,6 +84,9 @@
   <script src="modules/chat-settings-presets.js?v=0.0.36" defer></script>
   <script src="modules/desktop-pet.js?v=0.0.1" defer></script>
   <script src="modules/reminder-manager.js?v=0.0.1" defer></script>
+  <script src="modules/prank-app.js?v=0.0.1" defer></script>
+  <script src="modules/ins-theme.js?v=0.0.1" defer></script>
+  <script src="modules/theater-app.js?v=0.0.1" defer></script>
   <script src="modules/shopping.js?v=0.0.36" defer></script>
   <script src="modules/rendering-rules.js?v=0.0.36" defer></script>
   <script src="modules/red-packet-poll.js?v=0.0.36" defer></script>
@@ -544,6 +547,17 @@
                 <span class="label">小号</span>
               </div>
               <div class="desktop-app-icon" onclick="showScreen('sms-app-screen')">
+                <div class="icon-bg-desktop"><img id="icon-img-sms" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="短信"></div>
+                <span class="label">短信</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('prank-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">😈</div>
+                <span class="label">用TA的手机</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('theater-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🎭</div>
+                <span class="label">小剧场</span>
+              </div>
                 <div class="icon-bg-desktop"><img id="icon-img-sms-app" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="短信"></div>
                 <span class="label">短信</span>
               </div>
@@ -4490,6 +4504,16 @@
           <!-- 动态渲染的目标角色列表 -->
         </div>
       </div>
+    </div>
+
+    <!-- 小剧场（不带记忆的角色扮演长文生成） -->
+    <div id="theater-app-screen" class="screen">
+      <div id="theater-app-content" style="width:100%; height:100%; display:flex; flex-direction:column; background:#000;"></div>
+    </div>
+
+    <!-- 用TA的手机（捣乱App） -->
+    <div id="prank-app-screen" class="screen">
+      <div id="prank-app-content" style="width:100%; height:100%; display:flex; flex-direction:column; background:#000;"></div>
     </div>
 
     <!-- 短信 App -->
