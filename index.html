@@ -87,6 +87,8 @@
   <script src="modules/prank-app.js?v=0.0.1" defer></script>
   <script src="modules/ins-theme.js?v=0.0.1" defer></script>
   <script src="modules/theater-app.js?v=0.0.1" defer></script>
+  <script src="modules/status-bar.js?v=0.0.1" defer></script>
+  <script src="modules/status-bar-manager.js?v=0.0.1" defer></script>
   <script src="modules/shopping.js?v=0.0.36" defer></script>
   <script src="modules/rendering-rules.js?v=0.0.36" defer></script>
   <script src="modules/red-packet-poll.js?v=0.0.36" defer></script>
@@ -557,6 +559,10 @@
               <div class="desktop-app-icon" onclick="showScreen('theater-app-screen')">
                 <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🎭</div>
                 <span class="label">小剧场</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('status-bar-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">📊</div>
+                <span class="label">状态栏</span>
               </div>
             </div>
           </div>
@@ -4501,6 +4507,11 @@
           <!-- 动态渲染的目标角色列表 -->
         </div>
       </div>
+    </div>
+
+    <!-- 状态栏预设库 -->
+    <div id="status-bar-app-screen" class="screen">
+      <div id="status-bar-app-content" style="width:100%; height:100%; display:flex; flex-direction:column; background:#000;"></div>
     </div>
 
     <!-- 小剧场（不带记忆的角色扮演长文生成） -->
