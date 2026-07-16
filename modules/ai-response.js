@@ -3421,6 +3421,16 @@ ${getActiveThoughtsPrompt()}
           systemPrompt += hijackPrompt;
           systemPrompt += reminderInstruction;
 
+          // 新增：状态栏功能（全局开关 + 该角色绑定了预设才生效）
+          if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
+            try {
+              const sbPreset = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
+              if (sbPreset && sbPreset.promptSuffix) {
+                systemPrompt += `\n\n# 状态栏输出要求\n${sbPreset.promptSuffix}`;
+              }
+            } catch (e) { console.warn('[状态栏] 读取预设失败，跳过本次注入', e); }
+          }
+
           // 小号/短信 伪装功能：同理直接追加
           if (typeof DisguiseManager !== 'undefined') {
             systemPrompt += DisguiseManager.getAltPersonaPromptInjection(chat);

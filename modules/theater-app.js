@@ -198,7 +198,7 @@ ${retryNote || ''}
           const wordTotal = (s.chapters || []).reduce((a, c) => a + (c.length || 0), 0);
           return `<div class="th-story-card" data-id="${s.id}">
             <div><div class="name">${names.length > 0 ? names.join('、') : '(角色已删除)'}</div><div class="meta">${s.styleName} · ${(s.chapters || []).length}章 · 共${wordTotal}字</div></div>
-            <span style="color:#8e8e93;">›</span>
+            <span class="th-list-delete" data-id="${s.id}" style="color:#ff6b6b; font-size:18px; padding:6px;">🗑</span>
           </div>`;
         }).join('')}
         <button class="th-add-btn" id="th-new-story-btn">＋ 新建小剧场</button>
@@ -207,9 +207,18 @@ ${retryNote || ''}
     document.getElementById('th-close-btn').addEventListener('click', () => showScreen('home-screen'));
     document.getElementById('th-new-story-btn').addEventListener('click', renderNewStoryForm);
     content().querySelectorAll('.th-story-card[data-id]').forEach(el => {
-      el.addEventListener('click', async () => {
+      el.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('th-list-delete')) return;
         currentStory = await theaterDB.stories.get(parseInt(el.dataset.id, 10));
         renderWritingScreen();
+      });
+    });
+    content().querySelectorAll('.th-list-delete').forEach(el => {
+      el.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('确定删除整个小剧场吗？删了不能恢复。')) return;
+        await theaterDB.stories.delete(parseInt(el.dataset.id, 10));
+        renderStoryList();
       });
     });
   }
@@ -316,10 +325,17 @@ ${retryNote || ''}
   function renderWritingScreen() {
     const names = (currentStory.chatIds || []).map(id => state.chats[id]?.name).filter(Boolean);
     content().innerHTML = `
-      <div class="th-header"><span class="th-back" id="th-back-list2">‹</span><span class="th-title">${names.join('、') || '未知角色'} · ${currentStory.styleName}</span></div>
+      <div class="th-header"><span class="th-back" id="th-back-list2">‹</span><span class="th-title">${names.join('、') || '未知角色'} · ${currentStory.styleName}</span><span id="th-export-btn" style="font-size:20px; cursor:pointer; padding:4px 6px;">⬇</span><span id="th-delete-story-btn" style="font-size:19px; cursor:pointer; padding:4px 6px; color:#ff6b6b;">🗑</span></div>
       <div class="th-body" id="th-chapters">
-        ${(currentStory.chapters || []).map(ch => `
-          <div class="th-chapter-block">${ch.content}<div class="th-chapter-meta">${ch.length}字${ch.userDirection ? ' · 指示: ' + ch.userDirection : ''}</div></div>
+        ${(currentStory.chapters || []).map((ch, idx) => `
+          <div class="th-chapter-block">
+            ${ch.content}
+            <div class="th-chapter-meta">
+              ${ch.length}字${ch.userDirection ? ' · 指示: ' + ch.userDirection : ''}
+              <span class="th-chapter-action" data-action="reroll" data-idx="${idx}" style="margin-left:10px; cursor:pointer; color:#8ab4ff;">🎲重roll</span>
+              <span class="th-chapter-action" data-action="delete" data-idx="${idx}" style="margin-left:10px; cursor:pointer; color:#ff6b6b;">🗑删除</span>
+            </div>
+          </div>
         `).join('') || `<div style="color:#8e8e93; font-size:13px; text-align:center; padding:30px 0;">还没有正文，在下面输入剧情指示，点生成开始吧</div>`}
       </div>
       <div class="th-direction-bar">
@@ -336,6 +352,107 @@ ${retryNote || ''}
 
     document.getElementById('th-generate-btn').addEventListener('click', doGenerate);
     document.getElementById('th-immersive-btn').addEventListener('click', enterImmersiveMode);
+    document.getElementById('th-export-btn').addEventListener('click', exportStoryTxt);
+
+    document.getElementById('th-delete-story-btn').addEventListener('click', async () => {
+      if (!confirm('确定删除整个小剧场吗？里面所有正文都会没了，删了不能恢复。')) return;
+      await theaterDB.stories.delete(currentStory.id);
+      currentStory = null;
+      renderStoryList();
+    });
+
+    chaptersEl.querySelectorAll('.th-chapter-action').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        if (el.dataset.action === 'delete') deleteChapter(idx);
+        else if (el.dataset.action === 'reroll') openRerollDialog(idx);
+      });
+    });
+  }
+
+  async function deleteChapter(idx) {
+    if (!confirm('确定删除这一段吗？删了不能恢复。')) return;
+    currentStory.chapters.splice(idx, 1);
+    currentStory.updatedAt = Date.now();
+    await theaterDB.stories.put(currentStory);
+    renderWritingScreen();
+  }
+
+  function openRerollDialog(idx) {
+    const dialog = document.createElement('div');
+    dialog.id = 'th-reroll-dialog';
+    dialog.style.cssText = `position:fixed; inset:0; z-index:9999998; background:rgba(0,0,0,0.75); display:flex; align-items:center; justify-content:center;`;
+    dialog.innerHTML = `
+      <div style="background:#1c1c1e; border-radius:16px; padding:20px; width:82%; max-width:340px;">
+        <div style="font-size:15px; font-weight:700; margin-bottom:10px; color:#fff;">为什么不满意这一段？</div>
+        <div style="font-size:12px; color:#8e8e93; margin-bottom:10px;">告诉AI哪里不对、想怎么改（留空=换一个版本重写，风格不变）</div>
+        <textarea id="th-reroll-feedback" placeholder="例如：太快了，我想要更多心理描写；或者剧情走向不对，我想要ta拒绝而不是答应..." style="width:100%; box-sizing:border-box; min-height:90px; border:none; border-radius:10px; padding:10px 12px; background:#000; color:#fff; font-size:14px; font-family:inherit; resize:vertical;"></textarea>
+        <div style="display:flex; gap:8px; margin-top:14px;">
+          <button id="th-reroll-cancel" style="flex:1; border:none; border-radius:10px; padding:11px; background:#2c2c2e; color:#fff; font-size:14px;">取消</button>
+          <button id="th-reroll-confirm" style="flex:1; border:none; border-radius:10px; padding:11px; background:#fff; color:#000; font-weight:700; font-size:14px;">重新生成</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(dialog);
+    document.getElementById('th-reroll-cancel').addEventListener('click', () => dialog.remove());
+    document.getElementById('th-reroll-confirm').addEventListener('click', () => {
+      const feedback = document.getElementById('th-reroll-feedback').value.trim();
+      dialog.remove();
+      doReroll(idx, feedback);
+    });
+  }
+
+  async function doReroll(idx, feedback) {
+    const oldChapter = currentStory.chapters[idx];
+    const originalDirection = oldChapter.userDirection || '';
+    const combinedDirection = feedback
+      ? `${originalDirection}\n\n【这是重新生成，上一版用户不满意，反馈是】：${feedback}\n（请按这个反馈调整，不要重复上一版的问题）`
+      : `${originalDirection}\n\n（这是重新生成一个新版本，剧情方向不变，但具体写法/细节请换一种表达，不要跟上次雷同）`;
+
+    // 临时移除这一章，展示"重新生成中"，成功后插回原位置
+    currentStory.chapters.splice(idx, 1);
+    renderWritingScreen();
+    const chaptersEl2 = document.getElementById('th-chapters');
+    const loadingEl = document.createElement('div');
+    loadingEl.className = 'th-loading';
+    loadingEl.textContent = '正在重新生成这一段...';
+    chaptersEl2.appendChild(loadingEl);
+
+    try {
+      const newChapter = await generateChapter(currentStory, combinedDirection);
+      currentStory.chapters.splice(idx, 0, newChapter);
+      currentStory.updatedAt = Date.now();
+      await theaterDB.stories.put(currentStory);
+    } catch (e) {
+      console.error('[小剧场] 重roll失败', e);
+      currentStory.chapters.splice(idx, 0, oldChapter); // 失败就把原来的放回去
+      alert('重新生成失败：' + e.message);
+    }
+    renderWritingScreen();
+  }
+
+  function exportStoryTxt() {
+    const chapters = currentStory.chapters || [];
+    if (chapters.length === 0) { alert('还没有正文，无法导出'); return; }
+
+    const names = (currentStory.chatIds || []).map(id => state.chats[id]?.name).filter(Boolean).join('、') || '未知角色';
+    let txtContent = `${names} · ${currentStory.styleName}\n\n`;
+    chapters.forEach((ch, index) => {
+      txtContent += "===============\n";
+      txtContent += `第 ${index + 1} 段` + (ch.userDirection ? `（指示：${ch.userDirection}）` : '') + "\n";
+      txtContent += "===============\n\n";
+      txtContent += (ch.content || "") + "\n\n";
+    });
+
+    const blob = new Blob([txtContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${names}-小剧场.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   async function doGenerate() {
@@ -366,6 +483,8 @@ ${retryNote || ''}
     view.innerHTML = `<div id="theater-immersive-exit">✕</div>${fullText || '（还没有正文）'}`;
     document.body.appendChild(view);
     view.querySelector('#theater-immersive-exit').addEventListener('click', () => view.remove());
+    // 默认滚动到最新一段，而不是停在开头——重新roll/接着写之后大家一般想看的是最新内容
+    requestAnimationFrame(() => { view.scrollTop = view.scrollHeight; });
   }
 
   // ---------------- 初始化 ----------------
