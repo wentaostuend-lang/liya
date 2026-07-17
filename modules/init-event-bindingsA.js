@@ -2617,8 +2617,21 @@ window.initEventBindingsA = async function(state, db) {
       book.categoryId = categoryId ? parseInt(categoryId) : null;
 
       // 保存全局开关状态
+      const wasGlobal = book.isGlobal === true;
       const isGlobal = document.getElementById('world-book-global-switch').checked;
       book.isGlobal = isGlobal;
+
+      // 新增：全局开关从"开"变"关"时，同步把这本世界书从所有角色的挂载列表里摘掉，
+      // 避免"取消全局后依然在角色身上挂载"的问题
+      if (wasGlobal && !isGlobal) {
+        for (const cid in state.chats) {
+          const c = state.chats[cid];
+          if (c.settings && Array.isArray(c.settings.linkedWorldBookIds) && c.settings.linkedWorldBookIds.includes(book.id)) {
+            c.settings.linkedWorldBookIds = c.settings.linkedWorldBookIds.filter(id => id !== book.id);
+            try { await db.chats.put(c); } catch (e) { console.error('[世界书] 同步解除挂载失败', c.name, e); }
+          }
+        }
+      }
 
       // 保存注入位置（无论是否全局都保存）
       const injectPosition = document.getElementById('world-book-inject-position-select').value;

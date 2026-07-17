@@ -6,7 +6,8 @@
 // (char_avatar/user_avatar/char_name/char_remark/user_name/user_remark)。
 //
 // 数据结构：
-//   StatusBarDB.presets: {id, name, promptSuffix, regexSource, htmlTemplate, testText}
+//   StatusBarDB.presets: {id, name, promptSuffix, regexPattern, replacePattern}
+//   （字段名对齐社区通用的状态栏预设JSON格式，regexPattern是"/pattern/flags"这种JS正则字面量字符串）
 //   chat.settings.enableStatusBar        boolean 这个角色是否生成状态栏
 //   chat.settings.statusBarPresetId       number  用哪个预设
 //   chat.settings.statusBarHistoryLimit   number  最多同时显示几条历史（默认20）
@@ -58,17 +59,35 @@
   }
 
   // ---------------- 正则匹配 + 渲染 ----------------
+  // 解析 "/pattern/flags" 这种JS正则字面量字符串，兼容社区通用的状态栏预设格式
+  function parseRegexLiteral(source) {
+    if (!source) return null;
+    const trimmed = source.trim();
+    if (trimmed.startsWith('/')) {
+      const lastSlash = trimmed.lastIndexOf('/');
+      if (lastSlash > 0) {
+        const pattern = trimmed.slice(1, lastSlash);
+        const flags = trimmed.slice(lastSlash + 1).replace(/[^gimsuy]/g, '');
+        return { pattern, flags: flags.includes('g') ? flags : flags + 'g' };
+      }
+    }
+    // 没有斜杠包裹，当成裸正则处理，兼容手写的情况
+    return { pattern: trimmed, flags: 'g' };
+  }
+
   function buildRegex(source) {
+    const parsed = parseRegexLiteral(source);
+    if (!parsed) return null;
     try {
-      return new RegExp(source, 'g');
+      return new RegExp(parsed.pattern, parsed.flags);
     } catch (e) {
       console.error('[状态栏] 正则语法错误', e);
       return null;
     }
   }
 
-  function renderOne(matchGroups, htmlTemplate, chat) {
-    let html = htmlTemplate;
+  function renderOne(matchGroups, replacePattern, chat) {
+    let html = replacePattern;
     matchGroups.forEach((g, i) => {
       const re = new RegExp('\\$' + (i + 1), 'g');
       html = html.replace(re, g !== undefined ? g : '');
@@ -77,7 +96,7 @@
   }
 
   function collectStatusBars(chat, preset) {
-    const regex = buildRegex(preset.regexSource);
+    const regex = buildRegex(preset.regexPattern);
     if (!regex) return [];
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const results = [];
@@ -88,7 +107,7 @@
       const m = regex.exec(msg.content);
       if (m) {
         results.push({
-          html: renderOne(m.slice(1), preset.htmlTemplate, chat),
+          html: renderOne(m.slice(1), preset.replacePattern, chat),
           timestamp: msg.timestamp
         });
       }
@@ -119,6 +138,13 @@
       .sb-entry:last-child { border-bottom:none; }
       .sb-entry-time { font-size:10.5px; color:#777; margin-top:6px; text-align:right; }
       .sb-empty { text-align:center; color:#888; font-size:13px; padding:30px 0; }
+      #sb-viewer-close-round {
+        width: 44px; height: 44px; border-radius: 50%;
+        background: rgba(255,255,255,0.15); backdrop-filter: blur(6px);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; font-size: 20px; margin: 14px auto 20px; cursor: pointer;
+        flex-shrink: 0;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -130,11 +156,11 @@
     const entries = collectStatusBars(chat, preset);
     const overlay = document.createElement('div');
     overlay.id = 'sb-viewer-overlay';
+    overlay.style.flexDirection = 'column';
     overlay.innerHTML = `
       <div id="sb-viewer-panel">
         <div id="sb-viewer-header">
           <span class="title">${chat.name} · 状态栏（${preset.name}）</span>
-          <span class="close" id="sb-viewer-close">✕</span>
         </div>
         <div id="sb-viewer-list">
           ${entries.length === 0
@@ -142,9 +168,10 @@
             : entries.map(e => `<div class="sb-entry">${e.html}<div class="sb-entry-time">${new Date(e.timestamp).toLocaleString()}</div></div>`).join('')}
         </div>
       </div>
+      <div id="sb-viewer-close-round">✕</div>
     `;
     document.body.appendChild(overlay);
-    document.getElementById('sb-viewer-close').addEventListener('click', () => overlay.remove());
+    document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     wireInteractiveButtons(overlay, chat.id);
   }
