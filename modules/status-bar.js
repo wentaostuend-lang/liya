@@ -99,10 +99,12 @@
     const regex = buildRegex(preset.regexPattern);
     if (!regex) return [];
     const limit = chat.settings.statusBarHistoryLimit || 20;
+    const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
     const history = (chat.history || []).filter(m => m.role !== 'user' && typeof m.content === 'string');
     for (let i = history.length - 1; i >= 0 && results.length < limit; i--) {
       const msg = history[i];
+      if (dismissed.has(msg.timestamp)) continue; // 被"删除"过的状态栏跳过，但消息本身还在聊天记录里
       regex.lastIndex = 0;
       const m = regex.exec(msg.content);
       if (m) {
@@ -115,7 +117,7 @@
     return results; // 从新到旧
   }
 
-  // ---------------- 弹窗展示 ----------------
+  // ---------------- 弹窗展示（全屏沉浸 + 左右滑动轮播） ----------------
   function injectViewerStyle() {
     if (document.getElementById('sb-viewer-style')) return;
     const style = document.createElement('style');
@@ -123,27 +125,90 @@
     style.textContent = `
       #sb-viewer-overlay {
         position: fixed; inset: 0; z-index: 999998;
-        background: rgba(0,0,0,0.45); backdrop-filter: blur(2px);
-        display: flex; align-items: flex-end; justify-content: center;
+        background: rgba(0,0,0,0.45);
+        display: flex; flex-direction: column;
+        overflow: hidden;
       }
-      #sb-viewer-panel {
-        background: rgba(28,28,30,0.97); color: #fff; width: 100%; max-height: 75vh;
-        border-radius: 20px 20px 0 0; overflow: hidden; display: flex; flex-direction: column;
+      #sb-viewer-track {
+        flex: 1; display: flex; height: 100%;
+        transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+        touch-action: pan-y;
       }
-      #sb-viewer-header { display:flex; align-items:center; justify-content:space-between; padding:14px 16px; border-bottom:1px solid #333; }
-      #sb-viewer-header .title { font-size:15px; font-weight:700; }
-      #sb-viewer-header .close { font-size:20px; color:#999; cursor:pointer; padding:4px 8px; }
-      #sb-viewer-list { overflow-y:auto; padding:12px 16px; }
-      .sb-entry { margin-bottom:14px; padding-bottom:14px; border-bottom:1px dashed #333; }
-      .sb-entry:last-child { border-bottom:none; }
-      .sb-entry-time { font-size:10.5px; color:#777; margin-top:6px; text-align:right; }
-      .sb-empty { text-align:center; color:#888; font-size:13px; padding:30px 0; }
-      #sb-viewer-close-round {
-        width: 44px; height: 44px; border-radius: 50%;
-        background: rgba(255,255,255,0.15); backdrop-filter: blur(6px);
+      .sb-page {
+        flex: 0 0 100%; width: 100%; height: 100%;
         display: flex; align-items: center; justify-content: center;
-        color: #fff; font-size: 20px; margin: 14px auto 20px; cursor: pointer;
-        flex-shrink: 0;
+        padding: 60px 20px 100px; box-sizing: border-box;
+        overflow-y: auto;
+        scrollbar-width: none; /* Firefox 隐藏滚动条 */
+        -ms-overflow-style: none;
+      }
+      .sb-page::-webkit-scrollbar { display: none; } /* Chrome/Safari 隐藏滚动条 */
+      .sb-page-inner { width: 100%; }
+      .sb-empty { text-align:center; color: rgba(255,255,255,0.6); font-size:13px; }
+
+      /* ---- 多选删除模式 ---- */
+      #sb-select-list {
+        position: fixed; inset: 0; z-index: 999997; overflow-y: auto;
+        padding: 70px 16px 90px; box-sizing: border-box;
+        scrollbar-width: none;
+      }
+      #sb-select-list::-webkit-scrollbar { display: none; }
+      .sb-select-card {
+        position: relative; margin-bottom: 14px; border-radius: 16px; overflow: hidden;
+        border: 2px solid transparent;
+      }
+      .sb-select-card.checked { border-color: rgba(255,255,255,0.8); }
+      .sb-select-card .sb-select-mark {
+        position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
+        background: rgba(0,0,0,0.4); border: 1.5px solid rgba(255,255,255,0.7);
+        display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px;
+      }
+      .sb-select-card.checked .sb-select-mark { background: #0A84FF; border-color: #0A84FF; }
+      #sb-select-bottom-bar {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 999999;
+        background: rgba(28,28,30,0.92); backdrop-filter: blur(16px);
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 14px 18px calc(14px + env(safe-area-inset-bottom));
+        color: #fff; font-size: 14px;
+      }
+      #sb-select-bottom-bar .sb-count { color: rgba(255,255,255,0.7); font-size: 13px; }
+      #sb-select-bottom-bar .sb-actions { display: flex; gap: 16px; }
+      #sb-select-bottom-bar button { border: none; background: none; color: #fff; font-size: 14px; padding: 6px 4px; }
+      #sb-select-bottom-bar button.sb-delete-selected { color: #ff453a; font-weight: 600; }
+      #sb-select-bottom-bar button.sb-delete-selected:disabled { color: rgba(255,69,58,0.35); }
+
+      /* 玻璃质感按钮：参考色值来自你自己项目里v7/v8那套暗色玻璃面板变量 */
+      .sb-glass-btn {
+        width: 46px; height: 46px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        color: rgba(255,255,255,0.9); font-size: 18px; cursor: pointer;
+        background: linear-gradient(160deg, rgba(60,60,70,0.45) 0%, rgba(25,25,32,0.30) 100%);
+        border: 1px solid rgba(255,255,255,0.05);
+        border-top: 0.8px solid rgba(255,255,255,0.18);
+        border-left: 0.8px solid rgba(255,255,255,0.08);
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3),
+          inset 0 0.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.22);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+      }
+      #sb-viewer-edit {
+        position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 999999;
+      }
+      #sb-viewer-close-round {
+        position: fixed; left: 50%; bottom: max(28px, env(safe-area-inset-bottom));
+        transform: translateX(-50%); z-index: 999999;
+      }
+      #sb-viewer-dots {
+        position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
+        z-index: 999999; display: flex; gap: 6px;
+      }
+      #sb-viewer-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); }
+      #sb-viewer-dots .dot.active { background: rgba(255,255,255,0.9); }
+      #sb-viewer-counter {
+        position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
+        z-index: 999999; color: rgba(255,255,255,0.7); font-size: 11px;
+        background: rgba(0,0,0,0.3); padding: 3px 10px; border-radius: 20px;
+        backdrop-filter: blur(6px);
       }
     `;
     document.head.appendChild(style);
@@ -152,28 +217,139 @@
   function showStatusBarViewer(chat, preset) {
     injectViewerStyle();
     document.getElementById('sb-viewer-overlay')?.remove();
+    document.getElementById('sb-select-list')?.remove();
+    document.getElementById('sb-select-bottom-bar')?.remove();
 
-    const entries = collectStatusBars(chat, preset);
+    let entries = collectStatusBars(chat, preset);
+    let currentIndex = 0; // 0 = 最新
+
     const overlay = document.createElement('div');
     overlay.id = 'sb-viewer-overlay';
-    overlay.style.flexDirection = 'column';
-    overlay.innerHTML = `
-      <div id="sb-viewer-panel">
-        <div id="sb-viewer-header">
-          <span class="title">${chat.name} · 状态栏（${preset.name}）</span>
-        </div>
-        <div id="sb-viewer-list">
+
+    function renderFrame() {
+      const dotsHtml = entries.length > 1
+        ? `<div id="sb-viewer-dots">${entries.map((_, i) => `<div class="dot ${i === currentIndex ? 'active' : ''}"></div>`).join('')}</div>`
+        : '';
+      const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
+
+      overlay.innerHTML = `
+        <div id="sb-viewer-track">
           ${entries.length === 0
-            ? `<div class="sb-empty">还没有匹配到状态栏数据，可能AI还没按格式回复过</div>`
-            : entries.map(e => `<div class="sb-entry">${e.html}<div class="sb-entry-time">${new Date(e.timestamp).toLocaleString()}</div></div>`).join('')}
+            ? `<div class="sb-page"><div class="sb-empty">还没有匹配到状态栏数据，可能AI还没按格式回复过</div></div>`
+            : entries.map(e => `<div class="sb-page"><div class="sb-page-inner">${e.html}</div></div>`).join('')}
         </div>
-      </div>
-      <div id="sb-viewer-close-round">✕</div>
-    `;
+        <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
+        <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
+        ${dotsHtml}${counterHtml}
+      `;
+
+      const track = document.getElementById('sb-viewer-track');
+      track.style.transform = `translateX(${-currentIndex * 100}%)`;
+
+      document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
+      document.getElementById('sb-viewer-edit').addEventListener('click', enterSelectMode);
+      wireInteractiveButtons(overlay, chat.id);
+      bindSwipe(track);
+    }
+
+    // ---- 多选删除模式：只把状态栏标记为"隐藏"，不动背后的聊天消息 ----
+    function enterSelectMode() {
+      if (entries.length === 0) return;
+      overlay.style.display = 'none';
+
+      const selected = new Set();
+      const listEl = document.createElement('div');
+      listEl.id = 'sb-select-list';
+      listEl.innerHTML = entries.map((e, i) => `
+        <div class="sb-select-card" data-idx="${i}">
+          <div class="sb-page-inner">${e.html}</div>
+          <div class="sb-select-mark">✓</div>
+        </div>
+      `).join('');
+
+      const barEl = document.createElement('div');
+      barEl.id = 'sb-select-bottom-bar';
+      const updateBar = () => {
+        barEl.innerHTML = `
+          <span class="sb-count">已选 ${selected.size} 项</span>
+          <div class="sb-actions">
+            <button id="sb-select-all-btn">${selected.size === entries.length ? '取消全选' : '全选'}</button>
+            <button class="sb-delete-selected" id="sb-delete-selected-btn" ${selected.size === 0 ? 'disabled' : ''}>删除选中</button>
+            <button id="sb-select-cancel-btn">取消</button>
+          </div>
+        `;
+        document.getElementById('sb-select-all-btn').addEventListener('click', () => {
+          if (selected.size === entries.length) selected.clear();
+          else entries.forEach((_, i) => selected.add(i));
+          syncCardChecks(); updateBar();
+        });
+        document.getElementById('sb-delete-selected-btn').addEventListener('click', deleteSelected);
+        document.getElementById('sb-select-cancel-btn').addEventListener('click', exitSelectMode);
+      };
+
+      function syncCardChecks() {
+        listEl.querySelectorAll('.sb-select-card').forEach(card => {
+          card.classList.toggle('checked', selected.has(parseInt(card.dataset.idx, 10)));
+        });
+      }
+
+      listEl.querySelectorAll('.sb-select-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const idx = parseInt(card.dataset.idx, 10);
+          if (selected.has(idx)) selected.delete(idx); else selected.add(idx);
+          syncCardChecks(); updateBar();
+        });
+      });
+
+      async function deleteSelected() {
+        if (selected.size === 0) return;
+        const keysToHide = Array.from(selected).map(i => entries[i].timestamp);
+        if (!chat.settings.dismissedStatusBarKeys) chat.settings.dismissedStatusBarKeys = [];
+        chat.settings.dismissedStatusBarKeys.push(...keysToHide);
+        await db.chats.put(chat);
+
+        entries = collectStatusBars(chat, preset);
+        currentIndex = 0;
+        exitSelectMode();
+        if (entries.length === 0) { overlay.remove(); return; }
+        overlay.style.display = 'flex';
+        renderFrame();
+      }
+
+      function exitSelectMode() {
+        listEl.remove();
+        barEl.remove();
+        overlay.style.display = 'flex';
+      }
+
+      document.body.appendChild(listEl);
+      document.body.appendChild(barEl);
+      updateBar();
+    }
+
+    function bindSwipe(track) {
+      let startX = 0, startY = 0, dragging = false, moved = false;
+      track.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = true; moved = false;
+      }, { passive: true });
+      track.addEventListener('touchmove', (e) => {
+        if (!dragging) return;
+        const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) moved = true;
+      }, { passive: true });
+      track.addEventListener('touchend', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        if (!moved) return;
+        const dx = e.changedTouches[0].clientX - startX;
+        if (dx < -40 && currentIndex < entries.length - 1) currentIndex++;
+        else if (dx > 40 && currentIndex > 0) currentIndex--;
+        renderFrame();
+      });
+    }
+
     document.body.appendChild(overlay);
-    document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-    wireInteractiveButtons(overlay, chat.id);
+    renderFrame();
   }
 
   async function handleHeaderClick() {

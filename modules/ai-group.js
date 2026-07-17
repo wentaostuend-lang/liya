@@ -484,6 +484,17 @@ ${(() => {
       : { text: '', forced: false };
     const hijackPromptForBg = hijackInjectionForBg.text;
 
+    // ===== 新增：后台活动同样支持"状态栏"功能，跟心声一个待遇 =====
+    let statusBarPromptForBg = '';
+    if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
+      try {
+        const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
+        if (sbPresetForBg && sbPresetForBg.promptSuffix) {
+          statusBarPromptForBg = `\n# 状态栏输出要求\n${sbPresetForBg.promptSuffix}\n`;
+        }
+      } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
+    }
+
     // ===== 新增：后台活动同样注入"思维链"预设内容 =====
     let thoughtChainContextHeadForBg = '';
     let thoughtChainContextMiddleForBg = '';
@@ -567,6 +578,7 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
 ${thoughtsPromptForBg}
 ${thoughtChainContextMiddleForBg}
 ${hijackPromptForBg}
+${statusBarPromptForBg}
         ${contentTabooPrompt}
         ${myPostsContext}
         ${kinshipContext}
