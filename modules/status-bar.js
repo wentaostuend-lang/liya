@@ -185,7 +185,7 @@
         font-size: 18px; cursor: pointer;
         box-shadow: 0 4px 14px rgba(0,0,0,0.25);
       }
-  #sb-viewer-edit {
+      #sb-viewer-edit {
         position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 999999;
         background: #f2f2f2; color: #333;
       }
@@ -193,10 +193,6 @@
         position: fixed; left: 50%; bottom: max(28px, env(safe-area-inset-bottom));
         transform: translateX(-50%); z-index: 999999;
         background: #f2f2f2; color: #333;
-      }
-      #sb-viewer-counter {
-        position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%);
-        z-index: 999999; color: rgba(255,255,255,0.75); font-size: 13px;
       }
     `;
     document.head.appendChild(style);
@@ -215,7 +211,9 @@
     overlay.id = 'sb-viewer-overlay';
 
     function renderFrame() {
-      const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
+      const counterHtml = entries.length > 1
+  ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>`
+  : '';
 
       overlay.innerHTML = `
         <div id="sb-viewer-track">
