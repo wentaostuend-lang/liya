@@ -185,7 +185,7 @@
         font-size: 18px; cursor: pointer;
         box-shadow: 0 4px 14px rgba(0,0,0,0.25);
       }
-      #sb-viewer-edit {
+  #sb-viewer-edit {
         position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 999999;
         background: #f2f2f2; color: #333;
       }
@@ -194,12 +194,6 @@
         transform: translateX(-50%); z-index: 999999;
         background: #f2f2f2; color: #333;
       }
-      #sb-viewer-dots {
-        position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
-        z-index: 999999; display: flex; gap: 6px;
-      }
-      #sb-viewer-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); }
-      #sb-viewer-dots .dot.active { background: rgba(255,255,255,0.9); }
       #sb-viewer-counter {
         position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%);
         z-index: 999999; color: rgba(255,255,255,0.75); font-size: 13px;
@@ -221,9 +215,6 @@
     overlay.id = 'sb-viewer-overlay';
 
     function renderFrame() {
-      const dotsHtml = entries.length > 1
-        ? `<div id="sb-viewer-dots">${entries.map((_, i) => `<div class="dot ${i === currentIndex ? 'active' : ''}"></div>`).join('')}</div>`
-        : '';
       const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
@@ -234,7 +225,7 @@
         </div>
         <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
         <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
-        ${dotsHtml}${counterHtml}
+        ${counterHtml}
       `;
 
       const track = document.getElementById('sb-viewer-track');
