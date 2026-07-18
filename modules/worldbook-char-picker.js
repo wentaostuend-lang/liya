@@ -100,7 +100,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     function tryInit(retries) {
-      if (window.state && window.db && typeof window.showScreen === 'function' && document.getElementById('world-book-editor-screen')) {
+      if (window.state && window.state.globalSettings && window.db && typeof window.showScreen === 'function' && document.getElementById('world-book-editor-screen')) {
         init();
       } else if (retries > 0) {
         setTimeout(() => tryInit(retries - 1), 300);

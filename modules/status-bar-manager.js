@@ -240,7 +240,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     function tryInit(retries) {
-      if (window.state && window.db && typeof Dexie !== 'undefined' && document.getElementById('status-bar-app-content')) {
+      if (window.state && window.state.globalSettings && window.db && typeof Dexie !== 'undefined' && document.getElementById('status-bar-app-content')) {
         init();
       } else if (retries > 0) {
         setTimeout(() => tryInit(retries - 1), 300);

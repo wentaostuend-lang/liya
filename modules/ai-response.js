@@ -3426,7 +3426,7 @@ ${getActiveThoughtsPrompt()}
             try {
               const sbPreset = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
               if (sbPreset && sbPreset.promptSuffix) {
-                systemPrompt += `\n\n# 状态栏输出要求\n${sbPreset.promptSuffix}`;
+                systemPrompt += `\n\n## 状态栏输出 (必须执行)\n在本轮回复的最后，必须严格按照下面描述的格式输出状态栏标记（这是强制要求，绝对不能遗漏，也不能只在"合适的时候"才输出——每一轮都要输出）：\n${sbPreset.promptSuffix}\n**再次强调：无论对话内容是什么、无论你觉得要不要输出，本轮回复结尾都必须包含这个标记，格式必须和上面描述的完全一致。**`;
               }
             } catch (e) { console.warn('[状态栏] 读取预设失败，跳过本次注入', e); }
           }

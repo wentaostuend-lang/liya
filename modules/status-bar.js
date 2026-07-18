@@ -160,10 +160,10 @@
       .sb-select-card.checked { border-color: rgba(255,255,255,0.8); }
       .sb-select-card .sb-select-mark {
         position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; border-radius: 50%;
-        background: rgba(0,0,0,0.4); border: 1.5px solid rgba(255,255,255,0.7);
-        display: flex; align-items: center; justify-content: center; color: #fff; font-size: 13px;
+        background: #fff; color: #333; box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+        display: flex; align-items: center; justify-content: center; font-size: 13px;
       }
-      .sb-select-card.checked .sb-select-mark { background: #0A84FF; border-color: #0A84FF; }
+      .sb-select-card.checked .sb-select-mark { background: #0A84FF; color: #fff; }
       #sb-select-bottom-bar {
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 999999;
         background: rgba(28,28,30,0.92); backdrop-filter: blur(16px);
@@ -177,26 +177,21 @@
       #sb-select-bottom-bar button.sb-delete-selected { color: #ff453a; font-weight: 600; }
       #sb-select-bottom-bar button.sb-delete-selected:disabled { color: rgba(255,69,58,0.35); }
 
-      /* 玻璃质感按钮：参考色值来自你自己项目里v7/v8那套暗色玻璃面板变量 */
+      /* 实色按钮，仿图上那种白色圆形✕ / 蓝色圆形✓ 的风格，不做玻璃透明效果 */
       .sb-glass-btn {
         width: 46px; height: 46px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        color: rgba(255,255,255,0.9); font-size: 18px; cursor: pointer;
-        background: linear-gradient(160deg, rgba(60,60,70,0.45) 0%, rgba(25,25,32,0.30) 100%);
-        border: 1px solid rgba(255,255,255,0.05);
-        border-top: 0.8px solid rgba(255,255,255,0.18);
-        border-left: 0.8px solid rgba(255,255,255,0.08);
-        box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3),
-          inset 0 0.5px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.22);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
+        font-size: 18px; cursor: pointer;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.25);
       }
       #sb-viewer-edit {
         position: fixed; top: max(16px, env(safe-area-inset-top)); right: 16px; z-index: 999999;
+        background: #f2f2f2; color: #333;
       }
       #sb-viewer-close-round {
         position: fixed; left: 50%; bottom: max(28px, env(safe-area-inset-bottom));
         transform: translateX(-50%); z-index: 999999;
+        background: #f2f2f2; color: #333;
       }
       #sb-viewer-dots {
         position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
@@ -205,10 +200,8 @@
       #sb-viewer-dots .dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.35); }
       #sb-viewer-dots .dot.active { background: rgba(255,255,255,0.9); }
       #sb-viewer-counter {
-        position: fixed; left: 50%; bottom: 88px; transform: translateX(-50%);
-        z-index: 999999; color: rgba(255,255,255,0.7); font-size: 11px;
-        background: rgba(0,0,0,0.3); padding: 3px 10px; border-radius: 20px;
-        backdrop-filter: blur(6px);
+        position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%);
+        z-index: 999999; color: rgba(255,255,255,0.75); font-size: 13px;
       }
     `;
     document.head.appendChild(style);
@@ -488,7 +481,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     function tryInit(retries) {
-      if (window.state && window.db && typeof window.showScreen === 'function' && typeof Dexie !== 'undefined' && document.getElementById('chat-settings-screen')) {
+      if (window.state && window.state.globalSettings && window.db && typeof window.showScreen === 'function' && typeof Dexie !== 'undefined' && document.getElementById('chat-settings-screen')) {
         init();
       } else if (retries > 0) {
         setTimeout(() => tryInit(retries - 1), 300);
