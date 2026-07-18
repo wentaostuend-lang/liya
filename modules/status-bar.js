@@ -101,16 +101,17 @@
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
-    const history = (chat.history || []).filter(m => m.role !== 'user' && typeof m.content === 'string');
-    for (let i = history.length - 1; i >= 0 && results.length < limit; i--) {
-      const msg = history[i];
-      if (dismissed.has(msg.timestamp)) continue; // 被"删除"过的状态栏跳过，但消息本身还在聊天记录里
+    // 现在状态栏数据来自专门的 update_status_bar 指令日志，不再从聊天正文里抠
+    const log = chat.statusBarLog || [];
+    for (let i = log.length - 1; i >= 0 && results.length < limit; i--) {
+      const entry = log[i];
+      if (dismissed.has(entry.timestamp)) continue; // 被"删除"过的跳过
       regex.lastIndex = 0;
-      const m = regex.exec(msg.content);
+      const m = regex.exec(entry.raw);
       if (m) {
         results.push({
           html: renderOne(m.slice(1), preset.replacePattern, chat),
-          timestamp: msg.timestamp
+          timestamp: entry.timestamp
         });
       }
     }
@@ -363,35 +364,8 @@
     titleEl.addEventListener('click', handleHeaderClick);
   }
 
-  // ---------------- 全局开关（API设置页，心声功能开关下面） ----------------
-  function injectGlobalToggle() {
-    if (document.getElementById('status-bar-global-toggle')) return;
-    const anchor = document.getElementById('global-enable-thoughts-switch');
-    if (!anchor) { console.warn('[状态栏] 未找到心声全局开关，全局开关未注入'); return; }
-    const settingsItem = anchor.closest('.settings-item');
-    if (!settingsItem) return;
-
-    const row = document.createElement('div');
-    row.className = 'settings-item';
-    row.innerHTML = `
-      <div>
-        <div style="font-weight: 500;">启用状态栏功能</div>
-        <div style="font-size: 12px; color: var(--text-secondary);">开启后，绑定了状态栏预设的角色会自动生成状态数据</div>
-      </div>
-      <label class="toggle-switch">
-        <input type="checkbox" id="status-bar-global-toggle">
-        <span class="slider"></span>
-      </label>
-    `;
-    settingsItem.parentNode.insertBefore(row, settingsItem.nextSibling);
-
-    const toggle = document.getElementById('status-bar-global-toggle');
-    toggle.checked = !!state.globalSettings.statusBarEnabled;
-    toggle.addEventListener('change', async () => {
-      state.globalSettings.statusBarEnabled = toggle.checked;
-      if (window.db && window.db.globalSettings) await db.globalSettings.put(state.globalSettings);
-    });
-  }
+  // ---------------- 全局开关：改成默认开启，且开关本体挪到"状态栏"App自己界面里管理，
+  // 不再依赖注入进API设置页那种做法（之前那种方式一直没能稳定生效）
 
   // ---------------- 聊天设置：单角色面板 ----------------
   async function injectChatSettingsPanel() {
@@ -458,7 +432,7 @@
 
   // ---------------- 初始化 ----------------
   function init() {
-    injectGlobalToggle();
+    if (state.globalSettings.statusBarEnabled === undefined) state.globalSettings.statusBarEnabled = true; // 默认开启
     injectChatSettingsPanel();
     bindHeaderClick();
 

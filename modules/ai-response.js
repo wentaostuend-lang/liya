@@ -3426,7 +3426,7 @@ ${getActiveThoughtsPrompt()}
             try {
               const sbPreset = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
               if (sbPreset && sbPreset.promptSuffix) {
-                systemPrompt += `\n\n## 状态栏输出 (必须执行)\n在本轮回复的最后，必须严格按照下面描述的格式输出状态栏标记（这是强制要求，绝对不能遗漏，也不能只在"合适的时候"才输出——每一轮都要输出）：\n${sbPreset.promptSuffix}\n**再次强调：无论对话内容是什么、无论你觉得要不要输出，本轮回复结尾都必须包含这个标记，格式必须和上面描述的完全一致。**`;
+                systemPrompt += `\n\n## 状态栏输出 (必须执行)\n你必须在本轮回复的JSON动作数组里，额外追加一条独立的指令对象，格式如下：\n{"type": "update_status_bar", "content": "这里放状态栏原始文本"}\n\ncontent字段的具体格式要求：\n${sbPreset.promptSuffix}\n\n**极其重要的格式规则（必须严格遵守）：**\n1. 这个 update_status_bar 指令必须是JSON数组里的一个独立元素，跟其他动作(比如普通回复文字)平级并列，绝对不能把状态栏内容混进普通聊天文字里当成一句话说出来。\n2. 每一轮回复都必须包含这条指令，不能省略，不能"觉得没必要"就不写。\n3. content字段只放状态栏本身的原始文本，不要加解释、不要加多余的话。`;
               }
             } catch (e) { console.warn('[状态栏] 读取预设失败，跳过本次注入', e); }
           }
@@ -4163,6 +4163,24 @@ ${getActiveThoughtsPrompt()}
               };
 
               console.log(`AI 设置提醒: ${reminderNote} @ ${triggerDate}`);
+            }
+            break;
+          }
+          case 'update_status_bar': {
+            if (!state.globalSettings.statusBarEnabled || !chat.settings.enableStatusBar) continue;
+
+            const rawStatusContent = msgData.content;
+            if (rawStatusContent) {
+              if (!chat.statusBarLog) chat.statusBarLog = [];
+              chat.statusBarLog.push({
+                raw: String(rawStatusContent),
+                timestamp: Date.now()
+              });
+              // 只留最近200条，避免无限膨胀（真正显示几条由聊天设置里的历史条数决定）
+              if (chat.statusBarLog.length > 200) {
+                chat.statusBarLog = chat.statusBarLog.slice(-200);
+              }
+              console.log(`AI 更新状态栏: ${rawStatusContent}`);
             }
             break;
           }

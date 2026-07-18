@@ -64,6 +64,8 @@
 
   async function renderList() {
     const presets = await db_().presets.toArray();
+    if (state.globalSettings.statusBarEnabled === undefined) state.globalSettings.statusBarEnabled = true;
+
     content().innerHTML = `
       <div class="sbm-header">
         <span class="back" id="sbm-close">✕</span>
@@ -72,6 +74,14 @@
       </div>
       <input type="file" id="sbm-import-file" accept=".json" style="display:none;">
       <div class="sbm-body">
+        <div class="sbm-card" style="cursor:default;">
+          <span class="name">启用状态栏功能</span>
+          <label style="position:relative; display:inline-block; width:44px; height:24px;">
+            <input type="checkbox" id="sbm-global-toggle" style="opacity:0; width:0; height:0;">
+            <span id="sbm-global-toggle-track" style="position:absolute; inset:0; border-radius:24px; transition:0.2s; cursor:pointer;"></span>
+            <span id="sbm-global-toggle-knob" style="position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:0.2s; pointer-events:none;"></span>
+          </label>
+        </div>
         ${presets.length === 0 ? `<div style="color:#8e8e93; font-size:13px; text-align:center; padding:30px 0;">还没有预设，新建一个，或者导入别人分享的.json文件</div>` : ''}
         ${presets.map(p => `
           <div class="sbm-card" data-id="${p.id}">
@@ -86,6 +96,24 @@
     document.getElementById('sbm-new-btn').addEventListener('click', () => renderEditor(null));
     document.getElementById('sbm-import-btn').addEventListener('click', () => document.getElementById('sbm-import-file').click());
     document.getElementById('sbm-import-file').addEventListener('change', handleImportFile);
+
+    const globalToggle = document.getElementById('sbm-global-toggle');
+    const track = document.getElementById('sbm-global-toggle-track');
+    const knob = document.getElementById('sbm-global-toggle-knob');
+    function syncToggleVisual(checked) {
+      track.style.background = checked ? '#34C759' : '#3a3a3c';
+      knob.style.transform = checked ? 'translateX(20px)' : 'translateX(0)';
+    }
+    globalToggle.checked = !!state.globalSettings.statusBarEnabled;
+    syncToggleVisual(globalToggle.checked);
+    track.addEventListener('click', async () => {
+      globalToggle.checked = !globalToggle.checked;
+      syncToggleVisual(globalToggle.checked);
+      state.globalSettings.statusBarEnabled = globalToggle.checked;
+      if (window.db && window.db.globalSettings) await db.globalSettings.put(state.globalSettings);
+      if (typeof showToast === 'function') showToast(globalToggle.checked ? '状态栏功能已启用' : '状态栏功能已关闭');
+    });
+
     content().querySelectorAll('.sbm-card[data-id]').forEach(el => {
       el.addEventListener('click', async () => renderEditor(await db_().presets.get(parseInt(el.dataset.id, 10))));
     });
@@ -240,7 +268,7 @@
 
   document.addEventListener('DOMContentLoaded', () => {
     function tryInit(retries) {
-      if (window.state && window.state.globalSettings && window.db && typeof Dexie !== 'undefined' && document.getElementById('status-bar-app-content')) {
+      if (window.state && window.db && typeof Dexie !== 'undefined' && document.getElementById('status-bar-app-content')) {
         init();
       } else if (retries > 0) {
         setTimeout(() => tryInit(retries - 1), 300);
