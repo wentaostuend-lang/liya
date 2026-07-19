@@ -7,10 +7,55 @@
 // ============================================================
 
 (function () {
+  // 根因：项目全局CSS里有一条 `.form-group input { width:100%; padding:12px; border:1px solid ...; }`
+  // 规则，是给"文本输入框"用的，但因为我们这个复选框列表也包在 `.form-group` 容器里，
+  // 复选框的 <input> 会被这条规则一起套上——变成一个100%宽、带内边距和边框的大方块，
+  // 备注名一长，行内空间不够，复选框和文字就挤在一起乱掉了。
+  // 解决办法：单独注入一份作用域样式，把复选框和这一行的样式明确覆盖回来，不依赖全局规则。
+  function injectPickerStyle() {
+    if (document.getElementById('wb-char-picker-style')) return;
+    const style = document.createElement('style');
+    style.id = 'wb-char-picker-style';
+    style.textContent = `
+      #wb-char-picker-list { display: flex; flex-direction: column; }
+      #wb-char-picker-list .wb-char-picker-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        font-size: 14px;
+        margin-bottom: 0; /* 覆盖 .form-group label 的 margin-bottom:8px，行距交给 padding 统一管 */
+      }
+      #wb-char-picker-list .wb-char-picker-row input.wb-char-checkbox {
+        /* 覆盖 .form-group input 里的 width:100%/padding:12px/border:1px solid，还原成普通勾选框 */
+        width: 16px !important;
+        height: 16px !important;
+        min-width: 16px;
+        flex: 0 0 16px;
+        padding: 0 !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 4px;
+        margin: 0;
+        box-sizing: border-box;
+        accent-color: var(--accent-color, #07C160);
+      }
+      #wb-char-picker-list .wb-char-picker-row .wb-char-picker-name {
+        flex: 1 1 auto;
+        min-width: 0; /* 允许在flex容器里正常收缩，配合ellipsis */
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
   function injectChecklistContainer() {
     if (document.getElementById('wb-char-picker-group')) return;
     const anchor = document.getElementById('world-book-inject-position-group');
     if (!anchor) { console.warn('[世界书角色挂载] 未找到注入位置分组，跳过注入'); return; }
+
+    injectPickerStyle();
 
     const group = document.createElement('div');
     group.className = 'form-group';
@@ -41,10 +86,11 @@
       ? `<div style="color: var(--text-secondary); font-size: 13px; padding: 8px 0;">还没有角色</div>`
       : chats.map(c => {
           const checked = (c.settings.linkedWorldBookIds || []).includes(bookId);
+          const nameEscaped = String(c.name || '').replace(/"/g, '&quot;');
           return `
-            <label style="display:flex; align-items:center; gap:10px; padding:8px 0; font-size:14px; ${isGlobal ? 'opacity:0.5;' : ''}">
+            <label class="wb-char-picker-row" title="${nameEscaped}" style="${isGlobal ? 'opacity:0.5;' : ''}">
               <input type="checkbox" class="wb-char-checkbox" data-chat-id="${c.id}" ${checked ? 'checked' : ''} ${isGlobal ? 'disabled' : ''}>
-              <span>${c.name}</span>
+              <span class="wb-char-picker-name">${c.name}</span>
             </label>
           `;
         }).join('');
