@@ -96,10 +96,15 @@
   }
 
   function renderOne(matchGroups, replacePattern, chat) {
-    let html = replacePattern;
-    matchGroups.forEach((g, i) => {
-      const re = new RegExp('\\$' + (i + 1), 'g');
-      html = html.replace(re, g !== undefined ? g : '');
+    // 修复：之前是按 $1、$2...$9、$10、$11 这样顺序逐个用 new RegExp('\\$'+n) 替换，
+    // 但 "$1" 是 "$10"/"$11"/"$13"...的前缀，先替换 $1 会把 $10~$19、$1X 这些也提前吃掉一部分
+    // （比如 $13 会被 $1 的替换啃掉一半，变成 "值3"）。字段数一旦超过9个（这个预设有33个）就会开始出错，
+    // 这也是"只能渲染出一部分"的根因。改成一次性用 \$(\d+) 整体匹配，数字部分交给正则自己贪婪匹配，
+    // 就不会有 $1 抢跑吃掉 $10/$13 的问题了。
+    const html = replacePattern.replace(/\$(\d+)/g, (match, numStr) => {
+      const idx = parseInt(numStr, 10) - 1;
+      const g = matchGroups[idx];
+      return g !== undefined ? g : '';
     });
     return applyVariables(html, chat);
   }
