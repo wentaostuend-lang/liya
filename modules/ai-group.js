@@ -476,25 +476,26 @@ ${(() => {
     const enableThoughtsInBg = chat.settings.enableThoughts !== null
       ? chat.settings.enableThoughts
       : state.globalSettings.enableThoughts;
-    const thoughtsPromptForBg = enableThoughtsInBg ? `\n${getActiveThoughtsPrompt()}\n` : '';
+    let thoughtsPromptForBg = enableThoughtsInBg ? `\n${getActiveThoughtsPrompt()}\n` : '';
+
+    // ===== 新增：后台活动同样支持"状态栏"功能，跟心声一个待遇 =====
+    // 同单聊：改为随 update_thoughts 指令一起输出，不再写进正文，天然不会出现在气泡里
+    // 这段紧接在心声prompt后面拼起来（而不是隔着顶号prompt分开注入），是同一件事的两句话，
+    // 连在一起模型更不容易漏看后面这句"顺便加个status_bar字段"。
+    if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
+      try {
+        const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
+        if (sbPresetForBg && sbPresetForBg.promptSuffix) {
+          thoughtsPromptForBg += `\n## 状态栏更新（必须执行）\n状态栏内容【禁止】写进正文，请作为 \`update_thoughts\` 指令的额外字段，跟心声/散记放进【同一个】JSON对象里输出：\n\`{"type": "update_thoughts", "heartfelt_voice": "...", "random_jottings": "...", "status_bar": "..."}\`\n（心声没开也请单独补一条，heartfelt_voice/random_jottings留空，status_bar必须给。）\n- **status_bar** 字段的内容格式为：\n${sbPresetForBg.promptSuffix}\n（只填这一轮确实明确发生的信息，没有明确信息的字段就填"未知"，不要编造，也不要写成"角色1"、"xxx2"这类占位编号。字段没变可保留原值，但不要整条原样照抄上一轮。）\n`;
+        }
+      } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
+    }
 
     // ===== 新增：后台活动同样支持"顶号"功能 =====
     const hijackInjectionForBg = (typeof HijackManager !== 'undefined')
       ? HijackManager.getPromptInjection(chat)
       : { text: '', forced: false };
     const hijackPromptForBg = hijackInjectionForBg.text;
-
-    // ===== 新增：后台活动同样支持"状态栏"功能，跟心声一个待遇 =====
-    // 同单聊：改为随 update_thoughts 指令一起输出，不再写进正文，天然不会出现在气泡里
-    let statusBarPromptForBg = '';
-    if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
-      try {
-        const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
-        if (sbPresetForBg && sbPresetForBg.promptSuffix) {
-          statusBarPromptForBg = `\n## 状态栏更新（必须执行）\n状态栏内容【禁止】写进正文，请作为 \`update_thoughts\` 指令的额外字段，跟心声/散记放进【同一个】JSON对象里输出：\n\`{"type": "update_thoughts", "heartfelt_voice": "...", "random_jottings": "...", "status_bar": "..."}\`\n（心声没开也请单独补一条，heartfelt_voice/random_jottings留空，status_bar必须给。）\n- **status_bar** 字段的内容格式为：\n${sbPresetForBg.promptSuffix}\n（只填这一轮确实明确发生的信息，没有明确信息的字段就填"未知"，不要编造，也不要写成"角色1"、"xxx2"这类占位编号。字段没变可保留原值，但不要整条原样照抄上一轮。）\n`;
-        }
-      } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
-    }
 
     // ===== 新增：后台活动同样注入"思维链"预设内容 =====
     let thoughtChainContextHeadForBg = '';
@@ -579,7 +580,6 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
 ${thoughtsPromptForBg}
 ${thoughtChainContextMiddleForBg}
 ${hijackPromptForBg}
-${statusBarPromptForBg}
         ${contentTabooPrompt}
         ${myPostsContext}
         ${kinshipContext}

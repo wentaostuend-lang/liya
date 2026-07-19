@@ -233,9 +233,8 @@
     overlay.id = 'sb-viewer-overlay';
 
     function renderFrame() {
-      const dotsHtml = entries.length > 1
-        ? `<div id="sb-viewer-dots">${entries.map((_, i) => `<div class="dot ${i === currentIndex ? 'active' : ''}"></div>`).join('')}</div>`
-        : '';
+      // 之前这里有个 dotsHtml 轮播圆点指示器，但一直没配对应CSS（没定位没大小），
+      // 显示出来就是一坨乱七八糟的默认方块。下面已经有"1/8"文字计数器了，圆点纯属冗余，直接去掉。
       const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
@@ -246,7 +245,7 @@
         </div>
         <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
         <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
-        ${dotsHtml}${counterHtml}
+        ${counterHtml}
       `;
 
       const track = document.getElementById('sb-viewer-track');
