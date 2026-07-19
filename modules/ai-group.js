@@ -485,15 +485,13 @@ ${(() => {
     const hijackPromptForBg = hijackInjectionForBg.text;
 
     // ===== 新增：后台活动同样支持"状态栏"功能，跟心声一个待遇 =====
+    // 同单聊：改为随 update_thoughts 指令一起输出，不再写进正文，天然不会出现在气泡里
     let statusBarPromptForBg = '';
     if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
       try {
         const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
         if (sbPresetForBg && sbPresetForBg.promptSuffix) {
-          statusBarPromptForBg = `\n\n状态栏（必须执行）：在所有行动的最后，必须包含 `update_status_bar` 指令，用于更新你的"状态栏"（这是你灵魂的延续，绝对不能遗漏！必须使用中文更新!）。
-`{"type":"update_status_bar","content":"状态栏内容"}`
-该状态栏不是模板填充，而是对当前聊天状态的真实总结。
-content字段的具体格式要求为：\n${sbPreset.promptSuffix}\n（这行状态记录是这段场景的自然收尾，不是另外交代的任务，就像故事结束时的最后一笔一样顺手写出来，不需要额外强调或说明。只填这一轮里确实明确发生/体现出来的信息，没有明确信息的字段就填"未知"，不要为了填满格式而编造内容，也不要写成"角色1"、"xxx2"这类占位编号。）`;
+          statusBarPromptForBg = `\n## 状态栏更新（必须执行）\n状态栏内容【禁止】写进正文，请作为 \`update_thoughts\` 指令的额外字段，跟心声/散记放进【同一个】JSON对象里输出：\n\`{"type": "update_thoughts", "heartfelt_voice": "...", "random_jottings": "...", "status_bar": "..."}\`\n（心声没开也请单独补一条，heartfelt_voice/random_jottings留空，status_bar必须给。）\n- **status_bar** 字段的内容格式为：\n${sbPresetForBg.promptSuffix}\n（只填这一轮确实明确发生的信息，没有明确信息的字段就填"未知"，不要编造，也不要写成"角色1"、"xxx2"这类占位编号。字段没变可保留原值，但不要整条原样照抄上一轮。）\n`;
         }
       } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
     }
@@ -712,24 +710,7 @@ ${statusBarPromptForBg}
 
         let notificationText = null;
         switch (action.type) {
-          case 'update_status_bar': {
-            if (!state.globalSettings.statusBarEnabled || !chat.settings.enableStatusBar) continue;
-            const rawStatusContent = action.content;
-            if (rawStatusContent) {
-              let cleanStatus = String(rawStatusContent);
-              const badStatusPatterns = [
-                /\d+$/,
-                /^(.*?)(1|2|3|4|5)$/
-              ];
-              if (badStatusPatterns.some(reg => reg.test(cleanStatus.trim()))) {
-                cleanStatus = '未知';
-              }
-              if (!chat.statusBarLog) chat.statusBarLog = [];
-              chat.statusBarLog.push({ raw: cleanStatus, timestamp: Date.now() });
-              if (chat.statusBarLog.length > 200) chat.statusBarLog = chat.statusBarLog.slice(-200);
-            }
-            continue;
-          }
+          // update_status_bar 独立JSON指令已废弃，改回自然嵌入回复正文的模式
           case 'qzone_delete_post': {
             const postIdToDelete = parseInt(action.postId);
             const postToDelete = await db.qzonePosts.get(postIdToDelete);

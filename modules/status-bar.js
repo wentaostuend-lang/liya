@@ -5,6 +5,15 @@
 // 变量命名沿用 ai-response.js 里 contextMap 已经在用的那套
 // (char_avatar/user_avatar/char_name/char_remark/user_name/user_remark)。
 //
+// 数据来源（重要，和早期版本不一样）：
+//   状态栏的原始文本不再是"AI自然写在回复正文里、前端正则去聊天气泡里扫"，
+//   而是跟着 update_thoughts 指令（心声/散记）一起，作为 status_bar 字段输出，
+//   存在 chat.thoughtsHistory[i].customThoughts.status_bar 里。
+//   这样天然不会出现在聊天气泡里（不用碰聊天气泡的渲染函数），
+//   也复用了 update_thoughts 已经验证过比较稳定、不容易被复读的生成方式。
+//   正则(regexPattern)和HTML模板(replacePattern)还是原来那套，只是现在拿去匹配
+//   status_bar 字符串，而不是匹配聊天消息正文。
+//
 // 数据结构：
 //   StatusBarDB.presets: {id, name, promptSuffix, regexPattern, replacePattern}
 //   （字段名对齐社区通用的状态栏预设JSON格式，regexPattern是"/pattern/flags"这种JS正则字面量字符串）
@@ -101,13 +110,17 @@
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
-    // 现在状态栏数据来自专门的 update_status_bar 指令日志，不再从聊天正文里抠
-    const log = chat.statusBarLog || [];
-    for (let i = log.length - 1; i >= 0 && results.length < limit; i--) {
-      const entry = log[i];
-      if (dismissed.has(entry.timestamp)) continue; // 被"删除"过的跳过
+    // 不再扫描聊天正文：状态栏内容现在跟着 update_thoughts 指令一起生成，存在 chat.thoughtsHistory
+    // 里每一条的 customThoughts.status_bar 字段上，天然不会出现在聊天气泡里，也复用了心声那套
+    // 已经验证过很稳定、不容易重复的生成机制。
+    const thoughtsHistory = chat.thoughtsHistory || [];
+    for (let i = thoughtsHistory.length - 1; i >= 0 && results.length < limit; i--) {
+      const entry = thoughtsHistory[i];
+      const raw = entry && entry.customThoughts && entry.customThoughts.status_bar;
+      if (!raw || typeof raw !== 'string') continue;
+      if (dismissed.has(entry.timestamp)) continue;
       regex.lastIndex = 0;
-      const m = regex.exec(entry.raw);
+      const m = regex.exec(raw);
       if (m) {
         results.push({
           html: renderOne(m.slice(1), preset.replacePattern, chat),

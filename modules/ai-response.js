@@ -3422,14 +3422,14 @@ ${getActiveThoughtsPrompt()}
           systemPrompt += reminderInstruction;
 
           // 新增：状态栏功能（全局开关 + 该角色绑定了预设才生效）
+          // 改为随 update_thoughts 指令一起输出（跟心声同一个JSON对象），不再写进聊天正文：
+          // 1）不会出现在聊天气泡里，天然解决"气泡里能看见标记"的问题，不用碰 chat-interface.js 的气泡渲染；
+          // 2）复用 update_thoughts 这套已经很稳定、每轮必带的机制，比"自己在正文里顺手写一句"更不容易漏、不容易被复读。
           if (state.globalSettings.statusBarEnabled && chat.settings.enableStatusBar && chat.settings.statusBarPresetId && window.__statusBarDB) {
             try {
               const sbPreset = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
               if (sbPreset && sbPreset.promptSuffix) {
-                systemPrompt += `\n\n状态栏（必须执行）：在所有行动的最后，必须包含 `update_status_bar` 指令，用于更新你的"状态栏"（这是你灵魂的延续，绝对不能遗漏！必须使用中文更新!）。
-`{"type":"update_status_bar","content":"状态栏内容"}`
-该状态栏不是模板填充，而是对当前聊天状态的真实总结。
-content字段的具体格式要求为：\n${sbPreset.promptSuffix}\n（这行状态记录是这段场景的自然收尾，不是另外交代的任务，就像故事结束时的最后一笔一样顺手写出来，不需要额外强调或说明。只填这一轮里确实明确发生/体现出来的信息，没有明确信息的字段就填"未知"，不要为了填满格式而编造内容，也不要写成"角色1"、"xxx2"这类占位编号。）`;
+                systemPrompt += `\n\n## 状态栏更新（必须执行）\n状态栏内容【禁止】写进聊天正文/回复里，它不是说给对方听的话，对方也看不到。请把它作为 \`update_thoughts\` 指令里的一个额外字段，跟心声/散记一起放进【同一个】JSON对象里输出：\n\`{"type": "update_thoughts", "heartfelt_voice": "...", "random_jottings": "...", "status_bar": "..."}\`\n（如果心声功能没开、本轮没有别的理由输出update_thoughts，也请单独补一条这个指令，heartfelt_voice/random_jottings可以留空，但status_bar必须给。）\n- **status_bar** 字段的内容格式为：\n${sbPreset.promptSuffix}\n（这是对当前场景状态的真实总结，不是台词。只填这一轮里确实明确发生/体现出来的信息，没有明确信息的字段就填"未知"，不要为了填满格式而编造内容，也不要写成"角色1"、"xxx2"这类占位编号。）\n- 【重要-防止重复】status_bar要基于这一轮最新剧情重新判断，某个字段确实没变可以保留原值，但不要整条原样照抄上一轮，要体现出随剧情推进的变化。`;
               }
             } catch (e) { console.warn('[状态栏] 读取预设失败，跳过本次注入', e); }
           }
@@ -4169,35 +4169,8 @@ content字段的具体格式要求为：\n${sbPreset.promptSuffix}\n（这行状
             }
             break;
           }
-          case 'update_status_bar': {
-            if (!state.globalSettings.statusBarEnabled || !chat.settings.enableStatusBar) continue;
-
-            const rawStatusContent = msgData.content;
-            if (rawStatusContent) {
-              // 防瞎编过滤：命中"名词+数字编号"这类占位凑数文字，就整体替换成"未知"，
-              // 避免把 代码修理工1/xxx1/角色2 这类AI瞎编的内容存进日志
-              let cleanStatus = String(rawStatusContent);
-              const badStatusPatterns = [
-                /\d+$/,
-                /^(.*?)(1|2|3|4|5)$/
-              ];
-              if (badStatusPatterns.some(reg => reg.test(cleanStatus.trim()))) {
-                cleanStatus = '未知';
-              }
-
-              if (!chat.statusBarLog) chat.statusBarLog = [];
-              chat.statusBarLog.push({
-                raw: cleanStatus,
-                timestamp: Date.now()
-              });
-              // 只留最近200条，避免无限膨胀（真正显示几条由聊天设置里的历史条数决定）
-              if (chat.statusBarLog.length > 200) {
-                chat.statusBarLog = chat.statusBarLog.slice(-200);
-              }
-              console.log(`AI 更新状态栏: ${cleanStatus}`);
-            }
-            break;
-          }
+          // update_status_bar 独立JSON指令已废弃：改回"自然嵌入回复正文，前端正则扫描"的模式，
+          // 详见下面 prompt 注入部分的说明
           case 'narration':
             aiMessage = {
               role: 'system', // 强制设为 system 角色以便居中显示
@@ -7127,7 +7100,7 @@ ${linkedContents}
             if (msgData.heartfelt_voice) chat.heartfeltVoice = String(msgData.heartfelt_voice);
             if (msgData.random_jottings) chat.randomJottings = String(msgData.random_jottings);
             
-            // 推进时也动态收集自定义心声变量
+            // 推进时也动态收集自定义心声变量（包含状态栏的 status_bar 字段）
             if (!chat.customThoughts) {
               chat.customThoughts = {};
             }
@@ -7135,6 +7108,21 @@ ${linkedContents}
               if (key !== 'type' && key !== 'heartfelt_voice' && key !== 'random_jottings') {
                 chat.customThoughts[key] = String(msgData[key]);
               }
+            }
+
+            // 补上之前这里漏掉的 thoughtsHistory 记录（另外两处 update_thoughts 处理都有推入历史，
+            // 这里之前没推，会导致"推进剧情"生成的状态栏内容在状态弹窗历史里看不到）
+            if (!Array.isArray(chat.thoughtsHistory)) {
+              chat.thoughtsHistory = [];
+            }
+            chat.thoughtsHistory.push({
+              heartfeltVoice: chat.heartfeltVoice,
+              randomJottings: chat.randomJottings,
+              customThoughts: JSON.parse(JSON.stringify(chat.customThoughts)),
+              timestamp: Date.now()
+            });
+            if (chat.thoughtsHistory.length > 50) {
+              chat.thoughtsHistory.shift();
             }
           }
           continue;
