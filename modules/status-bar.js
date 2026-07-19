@@ -101,17 +101,17 @@
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
-    // 改回扫描聊天正文（跟最初版一致）：状态记录是AI自然写在回复文字里的，不再走独立JSON指令/独立日志
-    const history = (chat.history || []).filter(m => m.role !== 'user' && typeof m.content === 'string');
-    for (let i = history.length - 1; i >= 0 && results.length < limit; i--) {
-      const msg = history[i];
-      if (dismissed.has(msg.timestamp)) continue;
+    // 现在状态栏数据来自专门的 update_status_bar 指令日志，不再从聊天正文里抠
+    const log = chat.statusBarLog || [];
+    for (let i = log.length - 1; i >= 0 && results.length < limit; i--) {
+      const entry = log[i];
+      if (dismissed.has(entry.timestamp)) continue; // 被"删除"过的跳过
       regex.lastIndex = 0;
-      const m = regex.exec(msg.content);
+      const m = regex.exec(entry.raw);
       if (m) {
         results.push({
           html: renderOne(m.slice(1), preset.replacePattern, chat),
-          timestamp: msg.timestamp
+          timestamp: entry.timestamp
         });
       }
     }

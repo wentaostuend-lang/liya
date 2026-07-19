@@ -490,7 +490,10 @@ ${(() => {
       try {
         const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
         if (sbPresetForBg && sbPresetForBg.promptSuffix) {
-          statusBarPromptForBg = `\n额外输出要求：在这一轮回复正文的最后，自然地接续着写完这段场景，附上一行状态记录，格式为：\n${sbPresetForBg.promptSuffix}\n（这行状态记录是场景的自然收尾，不是另外交代的任务。只填这一轮里确实明确发生的信息，没有明确信息的字段就填"未知"，不要编造，也不要写成"角色1"、"xxx2"这类占位编号。）\n`;
+          statusBarPromptForBg = `\n\n状态栏（必须执行）：在所有行动的最后，必须包含 `update_status_bar` 指令，用于更新你的"状态栏"（这是你灵魂的延续，绝对不能遗漏！必须使用中文更新!）。
+`{"type":"update_status_bar","content":"状态栏内容"}`
+该状态栏不是模板填充，而是对当前聊天状态的真实总结。
+content字段的具体格式要求为：\n${sbPreset.promptSuffix}\n（这行状态记录是这段场景的自然收尾，不是另外交代的任务，就像故事结束时的最后一笔一样顺手写出来，不需要额外强调或说明。只填这一轮里确实明确发生/体现出来的信息，没有明确信息的字段就填"未知"，不要为了填满格式而编造内容，也不要写成"角色1"、"xxx2"这类占位编号。）`;
         }
       } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
     }
@@ -709,7 +712,24 @@ ${statusBarPromptForBg}
 
         let notificationText = null;
         switch (action.type) {
-          // update_status_bar 独立JSON指令已废弃，改回自然嵌入回复正文的模式
+          case 'update_status_bar': {
+            if (!state.globalSettings.statusBarEnabled || !chat.settings.enableStatusBar) continue;
+            const rawStatusContent = action.content;
+            if (rawStatusContent) {
+              let cleanStatus = String(rawStatusContent);
+              const badStatusPatterns = [
+                /\d+$/,
+                /^(.*?)(1|2|3|4|5)$/
+              ];
+              if (badStatusPatterns.some(reg => reg.test(cleanStatus.trim()))) {
+                cleanStatus = '未知';
+              }
+              if (!chat.statusBarLog) chat.statusBarLog = [];
+              chat.statusBarLog.push({ raw: cleanStatus, timestamp: Date.now() });
+              if (chat.statusBarLog.length > 200) chat.statusBarLog = chat.statusBarLog.slice(-200);
+            }
+            continue;
+          }
           case 'qzone_delete_post': {
             const postIdToDelete = parseInt(action.postId);
             const postToDelete = await db.qzonePosts.get(postIdToDelete);
