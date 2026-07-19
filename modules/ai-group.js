@@ -490,7 +490,7 @@ ${(() => {
       try {
         const sbPresetForBg = await window.__statusBarDB.presets.get(chat.settings.statusBarPresetId);
         if (sbPresetForBg && sbPresetForBg.promptSuffix) {
-          statusBarPromptForBg = `\n## 状态栏输出 (必须执行)\n你必须在本轮回复的JSON动作数组里，额外追加一条独立的指令对象：\n{"type": "update_status_bar", "content": "这里放状态栏原始文本"}\n\ncontent字段的具体格式要求：\n${sbPresetForBg.promptSuffix}\n\n这条指令必须跟其他动作平级并列放在数组里，绝对不能混进普通文字里说出来，每一轮都必须包含，不能省略。\n`;
+          statusBarPromptForBg = `\n额外输出要求：在这一轮回复正文的最后，自然地接续着写完这段场景，附上一行状态记录，格式为：\n${sbPresetForBg.promptSuffix}\n（这行状态记录是场景的自然收尾，不是另外交代的任务。只填这一轮里确实明确发生的信息，没有明确信息的字段就填"未知"，不要编造，也不要写成"角色1"、"xxx2"这类占位编号。）\n`;
         }
       } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
     }
@@ -709,16 +709,7 @@ ${statusBarPromptForBg}
 
         let notificationText = null;
         switch (action.type) {
-          case 'update_status_bar': {
-            if (!state.globalSettings.statusBarEnabled || !chat.settings.enableStatusBar) continue;
-            const rawStatusContent = action.content;
-            if (rawStatusContent) {
-              if (!chat.statusBarLog) chat.statusBarLog = [];
-              chat.statusBarLog.push({ raw: String(rawStatusContent), timestamp: Date.now() });
-              if (chat.statusBarLog.length > 200) chat.statusBarLog = chat.statusBarLog.slice(-200);
-            }
-            continue;
-          }
+          // update_status_bar 独立JSON指令已废弃，改回自然嵌入回复正文的模式
           case 'qzone_delete_post': {
             const postIdToDelete = parseInt(action.postId);
             const postToDelete = await db.qzonePosts.get(postIdToDelete);

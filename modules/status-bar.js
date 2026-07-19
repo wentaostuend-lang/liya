@@ -101,17 +101,17 @@
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
-    // 现在状态栏数据来自专门的 update_status_bar 指令日志，不再从聊天正文里抠
-    const log = chat.statusBarLog || [];
-    for (let i = log.length - 1; i >= 0 && results.length < limit; i--) {
-      const entry = log[i];
-      if (dismissed.has(entry.timestamp)) continue; // 被"删除"过的跳过
+    // 改回扫描聊天正文（跟最初版一致）：状态记录是AI自然写在回复文字里的，不再走独立JSON指令/独立日志
+    const history = (chat.history || []).filter(m => m.role !== 'user' && typeof m.content === 'string');
+    for (let i = history.length - 1; i >= 0 && results.length < limit; i--) {
+      const msg = history[i];
+      if (dismissed.has(msg.timestamp)) continue;
       regex.lastIndex = 0;
-      const m = regex.exec(entry.raw);
+      const m = regex.exec(msg.content);
       if (m) {
         results.push({
           html: renderOne(m.slice(1), preset.replacePattern, chat),
-          timestamp: entry.timestamp
+          timestamp: msg.timestamp
         });
       }
     }
@@ -194,6 +194,10 @@
         transform: translateX(-50%); z-index: 999999;
         background: #f2f2f2; color: #333;
       }
+      #sb-viewer-counter {
+        position: fixed; left: 50%; bottom: 82px; transform: translateX(-50%);
+        z-index: 999999; color: rgba(255,255,255,0.75); font-size: 13px;
+      }
     `;
     document.head.appendChild(style);
   }
@@ -211,9 +215,10 @@
     overlay.id = 'sb-viewer-overlay';
 
     function renderFrame() {
-      const counterHtml = entries.length > 1
-  ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>`
-  : '';
+      const dotsHtml = entries.length > 1
+        ? `<div id="sb-viewer-dots">${entries.map((_, i) => `<div class="dot ${i === currentIndex ? 'active' : ''}"></div>`).join('')}</div>`
+        : '';
+      const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
         <div id="sb-viewer-track">
@@ -223,7 +228,7 @@
         </div>
         <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
         <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
-        ${counterHtml}
+        ${dotsHtml}${counterHtml}
       `;
 
       const track = document.getElementById('sb-viewer-track');
