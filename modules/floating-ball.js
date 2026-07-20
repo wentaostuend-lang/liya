@@ -1318,6 +1318,7 @@
     // 2. 应用到所有角色/群聊：已经单独设置过起止时间的保留原值，没设置过的给个默认 23:00~07:00
     const allChats = Object.values(state.chats || {});
     let count = 0;
+    let failCount = 0;
     for (const chat of allChats) {
       if (!chat.settings) continue;
       chat.settings.dndEnabled = enabled;
@@ -1328,13 +1329,35 @@
       try {
         await db.chats.put(chat);
         count++;
-      } catch (e) { /* 单个角色存失败不影响其他角色 */ }
+      } catch (e) {
+        failCount++;
+        console.error(`[勿扰] 保存角色 "${chat.name}"(id=${chat.id}) 失败:`, e);
+      }
     }
 
     if (typeof showToast === 'function') {
-      showToast(enabled
+      let msg = enabled
         ? `已对 ${count} 个角色/群聊开启勿扰`
-        : `已对 ${count} 个角色/群聊关闭勿扰`);
+        : `已对 ${count} 个角色/群聊关闭勿扰`;
+      if (failCount > 0) {
+        msg += `，${failCount} 个保存失败（看控制台日志）`;
+      }
+      showToast(msg);
+    }
+
+    // 如果"聊天设置"弹窗当前正好开着（悬浮球是悬浮在所有页面上面的，用户很可能就是开着设置页时点的这个开关），
+    // 顺手把弹窗里那几个勿扰相关的控件也同步一下，不然用户会看到"悬浮球说开了，但设置页那个开关还是灰的"，
+    // 以为没生效。这几个元素只要存在就同步，不用管弹窗是不是真的在最上层显示。
+    const chatDndSwitchEl = document.getElementById('chat-dnd-enabled-switch');
+    const chatDndStartEl = document.getElementById('chat-dnd-start-input');
+    const chatDndEndEl = document.getElementById('chat-dnd-end-input');
+    if (chatDndSwitchEl) {
+      chatDndSwitchEl.checked = enabled;
+    }
+    if (enabled && state.activeChatId && state.chats[state.activeChatId]) {
+      const activeChatSettings = state.chats[state.activeChatId].settings;
+      if (chatDndStartEl) chatDndStartEl.value = activeChatSettings.dndStart || '23:00';
+      if (chatDndEndEl) chatDndEndEl.value = activeChatSettings.dndEnd || '07:00';
     }
   }
 
