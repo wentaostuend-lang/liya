@@ -148,6 +148,22 @@
         </svg>
         <span>批量随机间隔</span>
       </div>
+      <div class="fb-menu-item" data-action="batch-dnd">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <span>批量勿扰时间段</span>
+      </div>
+      <div class="fb-menu-item fb-menu-item-switch" id="fb-global-dnd-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <span style="flex: 1;">全局勿扰（一键应用到所有角色）</span>
+        <label class="toggle-switch" style="margin-left: 8px;" onclick="event.stopPropagation();">
+          <input type="checkbox" id="fb-global-dnd-switch">
+          <span class="slider"></span>
+        </label>
+      </div>
       <div class="fb-menu-item" data-action="role-api">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="3"></circle>
@@ -298,8 +314,18 @@
       if (!item) return;
       
       const action = item.dataset.action;
+      if (!action) return; // 比如全局勿扰这一行本身没有data-action，交给下面单独的change监听处理
       handleMenuAction(action);
     });
+
+    // 全局勿扰快捷开关：切换即时应用到所有角色，并把开关本身的状态持久化下来
+    const fbGlobalDndSwitch = document.getElementById('fb-global-dnd-switch');
+    if (fbGlobalDndSwitch) {
+      fbGlobalDndSwitch.addEventListener('change', async () => {
+        await applyGlobalDndQuickToggle(fbGlobalDndSwitch.checked);
+      });
+    }
+
 
     // 全局点击事件，用于点击外部收起菜单
     document.addEventListener('mousedown', handleOutsideClick);
@@ -387,6 +413,13 @@
   // 打开菜单
   function openMenu() {
     floatingBallState.menuOpen = true;
+
+    // 每次打开菜单都从持久化的 state.globalSettings 里同步一下全局勿扰开关的显示状态，
+    // 这样不管是刷新页面还是在别处改过，这里显示的都是真实当前状态，不会跟实际状态脱节。
+    const fbGlobalDndSwitch = document.getElementById('fb-global-dnd-switch');
+    if (fbGlobalDndSwitch) {
+      fbGlobalDndSwitch.checked = !!state.globalSettings.dndGlobalQuickToggle;
+    }
     
     // 先临时显示菜单以获取真实尺寸（但保持透明）
     menuEl.style.visibility = 'hidden';
@@ -798,6 +831,10 @@
         closeMenu();
         openBatchRandomIntervalPanel();
         break;
+      case 'batch-dnd':
+        closeMenu();
+        openBatchDndPanel();
+        break;
       case 'role-api':
         closeMenu(); // 关闭菜单
         openRoleApiConfig();
@@ -1137,7 +1174,170 @@
     });
   }
 
-  // 启用三击唤起
+  // 打开批量勿扰时间段面板：勾选若干角色/群聊，统一设置勿扰开关和起止时间
+  // 跟"批量随机间隔"是同一套交互，只是改成了时间段(HH:mm)而不是数字分钟
+  function openBatchDndPanel() {
+    const allChats = Object.values(state.chats || {});
+    if (allChats.length === 0) {
+      if (typeof showToast === 'function') showToast('还没有任何角色或群聊');
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'batch-dnd-panel';
+    panel.className = 'role-api-panel';
+    panel.innerHTML = `
+      <div class="role-api-content">
+        <div class="role-api-header">
+          <span class="role-api-back">‹</span>
+          <span class="role-api-title">批量设置勿扰时间段</span>
+          <span class="role-api-save">应用</span>
+        </div>
+        <div class="role-api-body">
+          <div class="role-api-section">
+            <div class="role-api-switch-item">
+              <div class="role-api-switch-left">
+                <div class="role-api-switch-label">开启勿扰</div>
+                <div class="role-api-switch-desc">开启后，勾选的角色/群聊在下面时段内不会主动发后台消息（你主动找TA聊天不受影响）</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="batch-dnd-enabled" checked>
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="role-api-field">
+              <label class="role-api-label">勿扰开始时间</label>
+              <input type="time" id="batch-dnd-start" class="role-api-input" value="23:00">
+            </div>
+            <div class="role-api-field">
+              <label class="role-api-label">勿扰结束时间</label>
+              <input type="time" id="batch-dnd-end" class="role-api-input" value="07:00">
+            </div>
+            <div class="role-api-switch-desc" style="padding: 4px 0 0;">结束时间比开始时间早（比如 23:00~07:00）会按跨天处理，不用担心。</div>
+          </div>
+          <div class="role-api-section">
+            <div class="role-api-switch-item">
+              <div class="role-api-switch-left">
+                <div class="role-api-switch-label">全选 / 全不选</div>
+                <div class="role-api-switch-desc">勾选下面想要批量应用的角色或群聊</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="batch-dnd-select-all">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="role-api-section" id="batch-dnd-chat-list" style="max-height: 50vh; overflow-y: auto;">
+            ${allChats.map(chat => `
+              <div class="role-api-switch-item">
+                <div class="role-api-switch-left">
+                  <div class="role-api-switch-label">${chat.name || '(未命名)'}${chat.isGroup ? '（群聊）' : ''}</div>
+                  <div class="role-api-switch-desc">当前：${chat.settings?.dndEnabled ? `${chat.settings?.dndStart || '23:00'}~${chat.settings?.dndEnd || '07:00'}` : '未开启'}</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="batch-dnd-chat-checkbox" data-chat-id="${chat.id}">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const selectAllCheckboxDnd = document.getElementById('batch-dnd-select-all');
+    const dndChatCheckboxes = () => Array.from(panel.querySelectorAll('.batch-dnd-chat-checkbox'));
+
+    selectAllCheckboxDnd.addEventListener('change', function() {
+      dndChatCheckboxes().forEach(cb => { cb.checked = selectAllCheckboxDnd.checked; });
+    });
+
+    panel.querySelector('.role-api-back').addEventListener('click', () => {
+      panel.remove();
+      openMenu();
+    });
+
+    panel.querySelector('.role-api-save').addEventListener('click', async () => {
+      const enabled = document.getElementById('batch-dnd-enabled').checked;
+      const start = document.getElementById('batch-dnd-start').value || '23:00';
+      const end = document.getElementById('batch-dnd-end').value || '07:00';
+      const selectedIds = dndChatCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.chatId);
+
+      if (selectedIds.length === 0) {
+        if (typeof showToast === 'function') showToast('请至少勾选一个角色或群聊');
+        return;
+      }
+
+      let appliedCount = 0;
+      for (const chatId of selectedIds) {
+        const chat = state.chats[chatId];
+        if (!chat) continue;
+        chat.settings.dndEnabled = enabled;
+        chat.settings.dndStart = start;
+        chat.settings.dndEnd = end;
+        try {
+          await db.chats.put(chat);
+          appliedCount++;
+        } catch (e) {}
+      }
+
+      if (typeof showToast === 'function') {
+        showToast(enabled
+          ? `已应用到 ${appliedCount} 个角色/群聊（勿扰 ${start}~${end}）`
+          : `已应用到 ${appliedCount} 个角色/群聊（已关闭勿扰）`);
+      }
+      panel.remove();
+      openMenu();
+    });
+
+    // 点击面板外关闭
+    panel.addEventListener('click', (e) => {
+      if (e.target === panel) {
+        panel.remove();
+        openMenu();
+      }
+    });
+  }
+
+
+  // 全局勿扰快捷开关：一键把"勿扰"应用/取消到所有角色和群聊，并把开关本身的状态存起来
+  // （之前反馈"总开关一刷新就掉"，根因就是这种开关如果只存在内存里的checkbox.checked上，
+  // 不写回state.globalSettings+db.globalSettings.put，页面一刷新自然就没了。这里改成开关自己
+  // 的状态也持久化，跟批量应用到每个角色的设置分开存，两边都不会丢。）
+  async function applyGlobalDndQuickToggle(enabled) {
+    // 1. 开关自身状态持久化
+    state.globalSettings.dndGlobalQuickToggle = enabled;
+    try {
+      await db.globalSettings.put(state.globalSettings);
+    } catch (e) {
+      console.warn('[勿扰] 保存全局开关状态失败', e);
+    }
+
+    // 2. 应用到所有角色/群聊：已经单独设置过起止时间的保留原值，没设置过的给个默认 23:00~07:00
+    const allChats = Object.values(state.chats || {});
+    let count = 0;
+    for (const chat of allChats) {
+      if (!chat.settings) continue;
+      chat.settings.dndEnabled = enabled;
+      if (enabled) {
+        chat.settings.dndStart = chat.settings.dndStart || '23:00';
+        chat.settings.dndEnd = chat.settings.dndEnd || '07:00';
+      }
+      try {
+        await db.chats.put(chat);
+        count++;
+      } catch (e) { /* 单个角色存失败不影响其他角色 */ }
+    }
+
+    if (typeof showToast === 'function') {
+      showToast(enabled
+        ? `已对 ${count} 个角色/群聊开启勿扰`
+        : `已对 ${count} 个角色/群聊关闭勿扰`);
+    }
+  }
+
   function enableTripleTap() {
     document.addEventListener('click', handleTripleTap);
   }
