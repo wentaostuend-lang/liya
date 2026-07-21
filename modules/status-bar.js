@@ -163,6 +163,7 @@
       }
       .sb-page::-webkit-scrollbar { display: none; } /* Chrome/Safari 隐藏滚动条 */
       .sb-page-inner { width: 100%; }
+      .sb-page-iframe { width: 100%; border: none; display: block; min-height: 200px; background: transparent; }
       .sb-empty { text-align:center; color: rgba(255,255,255,0.6); font-size:13px; }
 
       /* ---- 多选删除模式 ---- */
@@ -233,20 +234,55 @@
     overlay.id = 'sb-viewer-overlay';
 
     function renderFrame() {
-      // 之前这里有个 dotsHtml 轮播圆点指示器，但一直没配对应CSS（没定位没大小），
-      // 显示出来就是一坨乱七八糟的默认方块。下面已经有"1/8"文字计数器了，圆点纯属冗余，直接去掉。
+      const dotsHtml = entries.length > 1
+        ? `<div id="sb-viewer-dots">${entries.map((_, i) => `<div class="dot ${i === currentIndex ? 'active' : ''}"></div>`).join('')}</div>`
+        : '';
       const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
         <div id="sb-viewer-track">
           ${entries.length === 0
             ? `<div class="sb-page"><div class="sb-empty">还没有匹配到状态栏数据，可能AI还没按格式回复过</div></div>`
-            : entries.map(e => `<div class="sb-page"><div class="sb-page-inner">${e.html}</div></div>`).join('')}
+            : entries.map((e, i) => `<div class="sb-page"><div class="sb-page-inner" data-page-index="${i}"></div></div>`).join('')}
         </div>
         <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
         <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
-        ${counterHtml}
+        ${dotsHtml}${counterHtml}
       `;
+
+      // 之前这里是直接把预设渲染出来的HTML用 innerHTML 塞进 .sb-page-inner，
+      // 但不少预设（比如"情侣空间"、"知乎"、"ins帖子热评"）写的其实是一份完整的独立网页，
+      // 自带 <style> 和 <script>——用 innerHTML 插入的 <script> 浏览器根本不会执行，
+      // <style> 也变成没有隔离的全局样式，很容易被app自己的样式覆盖/冲突，
+      // 表现出来就是"样式全乱、看起来像默认气泡"或者"评论点了没反应"。
+      // 改成用 iframe（srcdoc）加载，每个预设的页面在自己独立的文档里跑，
+      // style 天然隔离，script 也能正常执行，跟预设作者本来的设计意图一致。
+      entries.forEach((e, i) => {
+        const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
+        if (!container) return;
+        const iframe = document.createElement('iframe');
+        iframe.className = 'sb-page-iframe';
+        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+        iframe.setAttribute('scrolling', 'no');
+        iframe.srcdoc = e.html;
+        iframe.addEventListener('load', () => {
+          try {
+            const doc = iframe.contentDocument;
+            const h = Math.max(
+              doc.documentElement ? doc.documentElement.scrollHeight : 0,
+              doc.body ? doc.body.scrollHeight : 0
+            );
+            if (h > 0) iframe.style.height = h + 'px';
+            // 预设HTML里可能有 data-send-msg 这种"点了帮你发消息"的按钮，
+            // 之前是靠 wireInteractiveButtons(overlay,...) 在外层文档里找，但现在
+            // 这些按钮都在iframe自己的文档里，外层找不到了，改成在iframe文档里重新绑一次。
+            wireInteractiveButtons(doc, chat.id);
+          } catch (err) {
+            // 沙盒/跨域读不到内容就算了，保留默认高度，按钮绑不上也不至于整个弹窗报错
+          }
+        });
+        container.appendChild(iframe);
+      });
 
       const track = document.getElementById('sb-viewer-track');
       track.style.transform = `translateX(${-currentIndex * 100}%)`;
@@ -267,10 +303,33 @@
       listEl.id = 'sb-select-list';
       listEl.innerHTML = entries.map((e, i) => `
         <div class="sb-select-card" data-idx="${i}">
-          <div class="sb-page-inner">${e.html}</div>
+          <div class="sb-page-inner" data-select-page-index="${i}"></div>
           <div class="sb-select-mark">✓</div>
         </div>
       `).join('');
+      // 预览卡片同样用iframe装，样式才不会跟主文档冲突/丢失；这里纯预览不需要交互，
+      // 所以sandbox不给allow-scripts，省得预览列表里一堆脚本重复跑。
+      entries.forEach((e, i) => {
+        const container = listEl.querySelector(`[data-select-page-index="${i}"]`);
+        if (!container) return;
+        const iframe = document.createElement('iframe');
+        iframe.className = 'sb-page-iframe';
+        iframe.setAttribute('sandbox', 'allow-same-origin');
+        iframe.setAttribute('scrolling', 'no');
+        iframe.srcdoc = e.html;
+        iframe.style.pointerEvents = 'none'; // 预览卡片本来就是靠外层div接收点击来选中，iframe不用响应点击
+        iframe.addEventListener('load', () => {
+          try {
+            const doc = iframe.contentDocument;
+            const h = Math.max(
+              doc.documentElement ? doc.documentElement.scrollHeight : 0,
+              doc.body ? doc.body.scrollHeight : 0
+            );
+            if (h > 0) iframe.style.height = h + 'px';
+          } catch (err) {}
+        });
+        container.appendChild(iframe);
+      });
 
       const barEl = document.createElement('div');
       barEl.id = 'sb-select-bottom-bar';
