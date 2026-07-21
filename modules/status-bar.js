@@ -48,10 +48,15 @@
     return out;
   }
 
-  // 给iframe要加载的HTML默认兜上app本身的字体——如果预设自己在<style>里声明了font-family，
-  // 那条规则出现在后面，层叠优先级一样时"后面的赢"，所以预设自己的字体设置不受影响；
-  // 如果预设根本没提字体，就用这个默认值兜底，不会退回手机系统默认字体。
-  const SB_DEFAULT_FONT_STYLE = `<style>html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}</style>`;
+  // 给iframe要加载的HTML默认兜一些基础样式——字体走app本身的字体（预设自己声明了就用预设的），
+  // 顺便把手机浏览器点击链接/按钮时那个蓝色高亮框关掉（iframe是独立文档，app本身设置的
+  // -webkit-tap-highlight-color:transparent 影响不到里面，得单独兜一份）。
+  const SB_DEFAULT_FONT_STYLE = `<style>
+    html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+    * { -webkit-tap-highlight-color: transparent; }
+    a, button, [onclick] { outline: none; -webkit-tap-highlight-color: transparent; }
+    *:focus { outline: none; }
+  </style>`;
   function wrapHtmlWithDefaultFont(html) {
     if (!html) return html;
     const headMatch = html.match(/<head[^>]*>/i);
@@ -179,7 +184,7 @@
       }
       .sb-page::-webkit-scrollbar { display: none; } /* Chrome/Safari 隐藏滚动条 */
       .sb-page-inner { width: 100%; }
-      .sb-page-iframe { width: 100%; border: none; display: block; min-height: 200px; background: transparent; }
+      .sb-page-iframe { width: 100%; border: none; display: block; min-height: 200px; background: transparent; -webkit-tap-highlight-color: transparent; }
       .sb-empty { text-align:center; color: rgba(255,255,255,0.6); font-size:13px; }
 
       /* ---- 多选删除模式 ---- */
