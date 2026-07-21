@@ -67,6 +67,10 @@
       * { -webkit-tap-highlight-color: transparent; }
       a, button, [onclick] { outline: none; -webkit-tap-highlight-color: transparent; }
       *:focus { outline: none; }
+      /* iframe是独立文档，外层app隐藏滚动条的CSS影响不到里面，这里单独隐藏一份，
+         包括预设自己内部可能有的可滚动区域（比如相册详情页那种） */
+      html { scrollbar-width: none; -ms-overflow-style: none; }
+      ::-webkit-scrollbar { display: none; width: 0; height: 0; }
     </style>`;
   }
   function wrapHtmlWithDefaultFont(html) {
@@ -271,10 +275,12 @@
     const overlay = document.createElement('div');
     overlay.id = 'sb-viewer-overlay';
 
-    function renderFrame() {
-      // 之前这里有个 dotsHtml 轮播圆点指示器，一直没配对应CSS，显示出来就是一坨乱七八糟的默认方块。
-      // 之前修过一次，但那次改的是另一份临时文件、没同步回这份实际在用的文件，这次直接删干净。
-      // 下面的"1/12"文字计数器已经够用了，不需要圆点。
+    // 之前每次翻页都调用 renderFrame() 整个重建一遍DOM——包括把所有iframe的srcdoc重新赋值一次，
+    // 这会让iframe整个重新加载，看起来就是"翻一下闪一下"。改成：
+    // buildViewer() 只在弹窗刚打开时执行一次，把所有页面/iframe一次性建好；
+    // 之后翻页只调用 updateFrame()，只改 track 的位移和"1/12"计数器文字，iframe完全不动，
+    // 配合CSS过渡，才能做到你说的"只有内容和计数器在动"。
+    function buildViewer() {
       const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
@@ -340,8 +346,16 @@
 
       document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
       document.getElementById('sb-viewer-edit').addEventListener('click', enterSelectMode);
-      wireInteractiveButtons(overlay, chat.id);
       bindSwipe(track);
+    }
+
+    // 翻页时只调这个：只更新位移(带过渡动画)和计数器文字，iframe/手势层全都不重建
+    function updateFrame() {
+      const track = document.getElementById('sb-viewer-track');
+      if (!track) return;
+      track.style.transform = `translateX(${-currentIndex * 100}%)`;
+      const counterEl = document.getElementById('sb-viewer-counter');
+      if (counterEl) counterEl.textContent = `${currentIndex + 1} / ${entries.length}`;
     }
 
     // ---- 多选删除模式：只把状态栏标记为"隐藏"，不动背后的聊天消息 ----
@@ -428,7 +442,7 @@
         exitSelectMode();
         if (entries.length === 0) { overlay.remove(); return; }
         overlay.style.display = 'flex';
-        renderFrame();
+        buildViewer();
       }
 
       function exitSelectMode() {
@@ -444,8 +458,8 @@
 
     // 翻页判断+执行，供 track 本身(bindSwipe) 和每页iframe上方的手势层(bindPageGesture) 共用
     function trySwipeTurnPage(dx) {
-      if (dx < -40 && currentIndex < entries.length - 1) { currentIndex++; renderFrame(); return true; }
-      if (dx > 40 && currentIndex > 0) { currentIndex--; renderFrame(); return true; }
+      if (dx < -40 && currentIndex < entries.length - 1) { currentIndex++; updateFrame(); return true; }
+      if (dx > 40 && currentIndex > 0) { currentIndex--; updateFrame(); return true; }
       return false;
     }
 
@@ -521,7 +535,7 @@
     }
 
     document.body.appendChild(overlay);
-    renderFrame();
+    buildViewer();
   }
 
   async function handleHeaderClick() {
