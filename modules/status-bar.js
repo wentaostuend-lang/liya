@@ -475,16 +475,19 @@
     function bindPageGesture(layer, iframe) {
       let startX = 0, startY = 0, startTime = 0, dragging = false, isSwipe = false;
       layer.addEventListener('touchstart', (e) => {
+        e.stopPropagation(); // 手势层和track不是隔着iframe的，事件会正常冒泡上去，不挡住就会被track的bindSwipe重复处理一次
         const t = e.touches[0];
         startX = t.clientX; startY = t.clientY; startTime = Date.now(); dragging = true; isSwipe = false;
       }, { passive: true });
       layer.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
         if (!dragging) return;
         const t = e.touches[0];
         const dx = t.clientX - startX, dy = t.clientY - startY;
         if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) isSwipe = true;
       }, { passive: true });
       layer.addEventListener('touchend', (e) => {
+        e.stopPropagation();
         if (!dragging) return;
         dragging = false;
         const t = e.changedTouches[0];
