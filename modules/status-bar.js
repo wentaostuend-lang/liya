@@ -48,6 +48,22 @@
     return out;
   }
 
+  // 给iframe要加载的HTML默认兜上app本身的字体——如果预设自己在<style>里声明了font-family，
+  // 那条规则出现在后面，层叠优先级一样时"后面的赢"，所以预设自己的字体设置不受影响；
+  // 如果预设根本没提字体，就用这个默认值兜底，不会退回手机系统默认字体。
+  const SB_DEFAULT_FONT_STYLE = `<style>html,body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}</style>`;
+  function wrapHtmlWithDefaultFont(html) {
+    if (!html) return html;
+    const headMatch = html.match(/<head[^>]*>/i);
+    if (headMatch) {
+      // 完整文档：插到<head>开头，让预设自己后面的<style>能顺理成章地覆盖它
+      const idx = html.indexOf(headMatch[0]) + headMatch[0].length;
+      return html.slice(0, idx) + SB_DEFAULT_FONT_STYLE + html.slice(idx);
+    }
+    // 没有<head>，大概率是纯片段（比如只用了行内style），直接在最前面加就行，不用担心DOCTYPE位置
+    return SB_DEFAULT_FONT_STYLE + html;
+  }
+
   function wireInteractiveButtons(container, chatId) {
     container.querySelectorAll('[data-send-msg]').forEach(el => {
       el.addEventListener('click', () => {
@@ -264,7 +280,7 @@
         iframe.className = 'sb-page-iframe';
         iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
         iframe.setAttribute('scrolling', 'no');
-        iframe.srcdoc = e.html;
+        iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
         iframe.addEventListener('load', () => {
           try {
             const doc = iframe.contentDocument;
@@ -316,7 +332,7 @@
         iframe.className = 'sb-page-iframe';
         iframe.setAttribute('sandbox', 'allow-same-origin');
         iframe.setAttribute('scrolling', 'no');
-        iframe.srcdoc = e.html;
+        iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
         iframe.style.pointerEvents = 'none'; // 预览卡片本来就是靠外层div接收点击来选中，iframe不用响应点击
         iframe.addEventListener('load', () => {
           try {
