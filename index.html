@@ -69,8 +69,8 @@
   <script src="modules/chat-interface.js?v=0.0.36" defer></script>
   <script src="modules/chat-input.js?v=0.0.36" defer></script>
   <!-- 第四层：AI 核心 -->
-  <script src="modules/ai-response.js?v=0.0.38" defer></script>
-  <script src="modules/ai-group.js?v=0.0.39" defer></script>
+  <script src="modules/ai-response.js?v=0.0.37" defer></script>
+  <script src="modules/ai-group.js?v=0.0.38" defer></script>
   <!-- 第五层：功能模块 -->
   <script src="modules/music-player.js?v=0.0.36" defer></script>
   <script src="modules/qzone.js?v=0.0.36" defer></script>
@@ -80,13 +80,13 @@
   <script src="modules/message-actions.js?v=0.0.36" defer></script>
   <script src="modules/nai-imagen.js?v=0.0.36" defer></script>
   <script src="modules/backup-import-export.js?v=0.0.36" defer></script>
-  <script src="modules/settings-presets.js?v=0.0.37" defer></script>
+  <script src="modules/settings-presets.js?v=0.0.36" defer></script>
   <script src="modules/chat-settings-presets.js?v=0.0.36" defer></script>
   <script src="modules/desktop-pet.js?v=0.0.1" defer></script>
   <script src="modules/reminder-manager.js?v=0.0.1" defer></script>
   <script src="modules/prank-app.js?v=0.0.1" defer></script>
   <script src="modules/theater-app.js?v=0.0.1" defer></script>
-  <script src="modules/status-bar.js?v=0.0.11" defer></script>
+  <script src="modules/status-bar.js?v=0.0.4" defer></script>
   <script src="modules/status-bar-manager.js?v=0.0.1" defer></script>
   <script src="modules/worldbook-char-picker.js?v=0.0.1" defer></script>
   <script src="modules/shopping.js?v=0.0.36" defer></script>
@@ -124,7 +124,7 @@
   <!-- PIN/城市（依赖 DOM） -->
   <script src="modules/init-pin-city.js?v=0.0.36" defer></script>
   <!-- 事件绑定和功能（依赖 state, db） -->
-  <script src="modules/init-event-bindingsA.js?v=0.0.38" defer></script>
+  <script src="modules/init-event-bindingsA.js?v=0.0.37" defer></script>
   <script src="modules/init-event-bindingsB.js?v=0.0.36" defer></script>
   <script src="modules/init-features.js?v=0.0.36" defer></script>
   <!-- 主入口（最后加载，调用 init） -->
@@ -141,7 +141,7 @@
   <script src="couple-space.js?v=0.0.36"></script>
   <script src="helper-assistant.js?v=0.0.36" defer></script>
   <script src="force-update.js?v=0.0.36" defer></script>
-  <script src="modules/floating-ball.js?v=0.0.40" defer></script>
+  <script src="modules/floating-ball.js?v=0.0.37" defer></script>
   <script src="modules/keyboard-fix.js?v=0.0.36" defer></script>
   <script src="modules/smart-sticker-v7.js?v=0.0.1" defer></script>
   <script src="modules/account-hijack.js?v=0.0.1" defer></script>
@@ -2695,17 +2695,6 @@
                 </div>
                 <label class="toggle-switch">
                     <input type="checkbox" id="global-enable-qzone-actions-switch">
-                    <span class="slider"></span>
-                </label>
-            </div>
-
-            <div class="settings-item">
-                <div>
-                    <div style="font-weight: 500;">启用论坛自主发帖</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在委屈/求助/想分享时去论坛发帖（复用豆瓣帖子库），单个角色可以在角色设置里单独覆盖</div>
-                </div>
-                <label class="toggle-switch">
-                    <input type="checkbox" id="global-enable-forum-post-switch" checked>
                     <span class="slider"></span>
                 </label>
             </div>
@@ -5607,18 +5596,6 @@
                     <div style="font-size: 12px; color: var(--text-secondary);">AI可以主动发动态、评论、点赞</div>
                 </div>
                 <select id="chat-enable-qzone-actions-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
-                    <option value="null">使用全局设置</option>
-                    <option value="true">开启</option>
-                    <option value="false">关闭</option>
-                </select>
-            </div>
-
-            <div class="settings-item" id="ai-behavior-forum-post-item">
-                <div>
-                    <div style="font-weight: 500;">启用论坛自主发帖</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在委屈/求助/想分享时去论坛发帖（复用豆瓣帖子库）</div>
-                </div>
-                <select id="chat-enable-forum-post-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
                     <option value="null">使用全局设置</option>
                     <option value="true">开启</option>
                     <option value="false">关闭</option>
