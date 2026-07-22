@@ -337,11 +337,21 @@
               // 关键内容被切掉看不见。这里加个 ResizeObserver 持续盯着内容实际高度变化，
               // 后面不管是图片、字体哪个晚加载完，都会再更新一次高度，不会再卡死在早期的错误尺寸上。
               if (doc.body && typeof ResizeObserver !== 'undefined') {
+                let rafPending = false;
                 const ro = new ResizeObserver(() => {
-                  const newH = measureHeight();
-                  if (newH > 0 && Math.abs(newH - parseFloat(iframe.style.height || '0')) > 1) {
-                    iframe.style.height = newH + 'px';
-                  }
+                  // 标准解法：不要在ResizeObserver回调里同步改尺寸（改了又会立刻触发新一轮通知，
+                  // 容易导致"loop completed with undelivered notifications"这个报错，严重的话
+                  // 浏览器可能会直接跳过这一批通知不处理，表现出来就是高度没更新上、内容显示不全）。
+                  // 挪到下一帧再改，把这个同步反馈环断开。
+                  if (rafPending) return;
+                  rafPending = true;
+                  requestAnimationFrame(() => {
+                    rafPending = false;
+                    const newH = measureHeight();
+                    if (newH > 0 && Math.abs(newH - parseFloat(iframe.style.height || '0')) > 1) {
+                      iframe.style.height = newH + 'px';
+                    }
+                  });
                 });
                 ro.observe(doc.body);
               }
