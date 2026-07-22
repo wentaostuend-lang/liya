@@ -320,27 +320,62 @@
           iframe.className = 'sb-page-iframe';
           iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
           iframe.setAttribute('scrolling', 'no');
-          // 加载完成前先隐身，避免"先出现一半高度、resize时跳一下"这种视觉卡顿；
-          // 等下面 onload 里量完真实高度、设置好了，再一次性显示出来，观感上是一步到位而不是分两步跳。
+          // 加载完成前先隐身，避免"先出现一半高度、resize时跳一下"这种视觉卡顿。
+          // 但不等图片这些外部资源全部下载完——只要HTML结构和样式解析好了（readyState不是loading了）
+          // 就先显示出来，图片各自异步加载、自己"填进"对应位置，不用干等一两秒的空白。
           iframe.style.visibility = 'hidden';
           iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
-          // 保险丝：正常情况靠 load 事件里的 finally 显示出来；但万一某个预设的内容比较特殊，
-          // load 事件迟迟不触发（或者压根不触发），前面就会一直卡在隐身状态、什么都看不见。
-          // 这里加一道兜底：3秒后不管load有没有触发，强制显示出来，至少不会永远空白。
+
+          const measureHeight = () => {
+            const doc = iframe.contentDocument;
+            if (!doc) return 0;
+            return Math.max(
+              doc.documentElement ? doc.documentElement.scrollHeight : 0,
+              doc.body ? doc.body.scrollHeight : 0
+            );
+          };
+
+          let revealed = false;
+          function revealNow() {
+            if (revealed) return;
+            revealed = true;
+            clearTimeout(revealTimeout);
+            const h = measureHeight();
+            if (h > 0) iframe.style.height = h + 'px';
+            iframe.style.visibility = 'visible';
+          }
+
+          // 轮询：结构解析完（readyState变成interactive/complete）就提前显示，不用等图片下载完的load事件
+          let pollCount = 0;
+          function pollForEarlyReveal() {
+            if (revealed) return;
+            const doc = iframe.contentDocument;
+            if (doc && doc.readyState !== 'loading') {
+              revealNow();
+              return;
+            }
+            pollCount++;
+            if (pollCount < 120) { // 最多轮询2秒左右（120*~16ms），轮询不到就交给下面的load事件兜底
+              requestAnimationFrame(pollForEarlyReveal);
+            }
+          }
+          requestAnimationFrame(pollForEarlyReveal);
+
+          // 保险丝：正常情况早显示靠上面的轮询，晚一点还有下面的load事件；
+          // 但万一某个预设的内容比较特殊，两边都没触发，前面就会一直卡在隐身状态、什么都看不见。
+          // 这里加一道兜底：3秒后不管有没有触发，强制显示出来，至少不会永远空白。
           const revealTimeout = setTimeout(() => {
             if (iframe.style.visibility === 'hidden') {
-              console.warn('[状态栏] 这一页iframe超过3秒没触发load事件，强制显示（内容可能不完整）', e.html.slice(0, 80));
-              iframe.style.visibility = 'visible';
+              console.warn('[状态栏] 这一页iframe超过3秒没能显示，强制显示（内容可能不完整）', e.html.slice(0, 80));
+              revealNow();
             }
           }, 3000);
           iframe.addEventListener('load', () => {
-            clearTimeout(revealTimeout);
+            // load事件这时候图片基本都下载完了，不管前面有没有提前显示过，这里都重新量一次精确高度，
+            // 顺便把ResizeObserver、按钮绑定这些"正式收尾"的工作做掉。
+            revealNow();
             try {
               const doc = iframe.contentDocument;
-              const measureHeight = () => Math.max(
-                doc.documentElement ? doc.documentElement.scrollHeight : 0,
-                doc.body ? doc.body.scrollHeight : 0
-              );
               const h = measureHeight();
               if (h > 0) iframe.style.height = h + 'px';
               // load事件触发时，图片/自定义字体不一定已经加载完——之前只在这一刻量一次高度，
