@@ -86,6 +86,13 @@
     return defaultStyle + html;
   }
 
+  // 判断一个预设是不是"完整/半完整网页"：带独立<script>或<style>标签才需要iframe隔离，
+  // 纯行内style=""写的简单预设不需要，直接走最早那种innerHTML的老办法更稳。
+  function needsIframeIsolation(html) {
+    if (!html) return false;
+    return /<script[\s>]/i.test(html) || /<style[\s>]/i.test(html);
+  }
+
   function wireInteractiveButtons(container, chatId) {
     container.querySelectorAll('[data-send-msg]').forEach(el => {
       el.addEventListener('click', () => {
@@ -294,17 +301,21 @@
         ${counterHtml}
       `;
 
-      // 之前这里是直接把预设渲染出来的HTML用 innerHTML 塞进 .sb-page-inner，
-      // 但不少预设（比如"情侣空间"、"知乎"、"ins帖子热评"）写的其实是一份完整的独立网页，
-      // 自带 <style> 和 <script>——用 innerHTML 插入的 <script> 浏览器根本不会执行，
-      // <style> 也变成没有隔离的全局样式，很容易被app自己的样式覆盖/冲突，
-      // 表现出来就是"样式全乱、看起来像默认气泡"或者"评论点了没反应"。
-      // 改成用 iframe（srcdoc）加载，每个预设的页面在自己独立的文档里跑，
-      // style 天然隔离，script 也能正常执行，跟预设作者本来的设计意图一致。
+      // 分层处理：只有预设自己带 <script> 或独立 <style> 标签（说明它设计成一份完整/半完整网页，
+      // 需要脚本执行、样式隔离）才走iframe这一整套；纯用行内 style="" 写的简单预设，
+      // 直接用回最早那种 innerHTML 的老办法——没有load时机、没有ResizeObserver、没有手势层，
+      // 也就不会有这些新引入的边缘问题，跟之前能正常显示的时候一样稳。
       entries.forEach((e, i) => {
         try {
           const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
           if (!container) return;
+
+          if (!needsIframeIsolation(e.html)) {
+            container.innerHTML = e.html;
+            wireInteractiveButtons(container, chat.id);
+            return;
+          }
+
           const iframe = document.createElement('iframe');
           iframe.className = 'sb-page-iframe';
           iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
