@@ -302,57 +302,73 @@
       // 改成用 iframe（srcdoc）加载，每个预设的页面在自己独立的文档里跑，
       // style 天然隔离，script 也能正常执行，跟预设作者本来的设计意图一致。
       entries.forEach((e, i) => {
-        const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
-        if (!container) return;
-        const iframe = document.createElement('iframe');
-        iframe.className = 'sb-page-iframe';
-        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
-        iframe.setAttribute('scrolling', 'no');
-        // 加载完成前先隐身，避免"先出现一半高度、resize时跳一下"这种视觉卡顿；
-        // 等下面 onload 里量完真实高度、设置好了，再一次性显示出来，观感上是一步到位而不是分两步跳。
-        iframe.style.visibility = 'hidden';
-        iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
-        iframe.addEventListener('load', () => {
-          try {
-            const doc = iframe.contentDocument;
-            const measureHeight = () => Math.max(
-              doc.documentElement ? doc.documentElement.scrollHeight : 0,
-              doc.body ? doc.body.scrollHeight : 0
-            );
-            const h = measureHeight();
-            if (h > 0) iframe.style.height = h + 'px';
-            // load事件触发时，图片/自定义字体不一定已经加载完——之前只在这一刻量一次高度，
-            // 图片晚一步撑开内容的话，iframe高度就定死在小了的那个值上，看起来像"只显示一半"甚至
-            // 关键内容被切掉看不见。这里加个 ResizeObserver 持续盯着内容实际高度变化，
-            // 后面不管是图片、字体哪个晚加载完，都会再更新一次高度，不会再卡死在早期的错误尺寸上。
-            if (doc.body && typeof ResizeObserver !== 'undefined') {
-              const ro = new ResizeObserver(() => {
-                const newH = measureHeight();
-                if (newH > 0 && Math.abs(newH - parseFloat(iframe.style.height || '0')) > 1) {
-                  iframe.style.height = newH + 'px';
-                }
-              });
-              ro.observe(doc.body);
+        try {
+          const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
+          if (!container) return;
+          const iframe = document.createElement('iframe');
+          iframe.className = 'sb-page-iframe';
+          iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+          iframe.setAttribute('scrolling', 'no');
+          // 加载完成前先隐身，避免"先出现一半高度、resize时跳一下"这种视觉卡顿；
+          // 等下面 onload 里量完真实高度、设置好了，再一次性显示出来，观感上是一步到位而不是分两步跳。
+          iframe.style.visibility = 'hidden';
+          iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
+          // 保险丝：正常情况靠 load 事件里的 finally 显示出来；但万一某个预设的内容比较特殊，
+          // load 事件迟迟不触发（或者压根不触发），前面就会一直卡在隐身状态、什么都看不见。
+          // 这里加一道兜底：3秒后不管load有没有触发，强制显示出来，至少不会永远空白。
+          const revealTimeout = setTimeout(() => {
+            if (iframe.style.visibility === 'hidden') {
+              console.warn('[状态栏] 这一页iframe超过3秒没触发load事件，强制显示（内容可能不完整）', e.html.slice(0, 80));
+              iframe.style.visibility = 'visible';
             }
-            // 预设HTML里可能有 data-send-msg 这种"点了帮你发消息"的按钮，
-            // 之前是靠 wireInteractiveButtons(overlay,...) 在外层文档里找，但现在
-            // 这些按钮都在iframe自己的文档里，外层找不到了，改成在iframe文档里重新绑一次。
-            wireInteractiveButtons(doc, chat.id);
-          } catch (err) {
-            // 沙盒/跨域读不到内容就算了，保留默认高度，按钮绑不上也不至于整个弹窗报错
-          } finally {
-            iframe.style.visibility = 'visible';
-          }
-        });
-        container.appendChild(iframe);
+          }, 3000);
+          iframe.addEventListener('load', () => {
+            clearTimeout(revealTimeout);
+            try {
+              const doc = iframe.contentDocument;
+              const measureHeight = () => Math.max(
+                doc.documentElement ? doc.documentElement.scrollHeight : 0,
+                doc.body ? doc.body.scrollHeight : 0
+              );
+              const h = measureHeight();
+              if (h > 0) iframe.style.height = h + 'px';
+              // load事件触发时，图片/自定义字体不一定已经加载完——之前只在这一刻量一次高度，
+              // 图片晚一步撑开内容的话，iframe高度就定死在小了的那个值上，看起来像"只显示一半"甚至
+              // 关键内容被切掉看不见。这里加个 ResizeObserver 持续盯着内容实际高度变化，
+              // 后面不管是图片、字体哪个晚加载完，都会再更新一次高度，不会再卡死在早期的错误尺寸上。
+              if (doc.body && typeof ResizeObserver !== 'undefined') {
+                const ro = new ResizeObserver(() => {
+                  const newH = measureHeight();
+                  if (newH > 0 && Math.abs(newH - parseFloat(iframe.style.height || '0')) > 1) {
+                    iframe.style.height = newH + 'px';
+                  }
+                });
+                ro.observe(doc.body);
+              }
+              // 预设HTML里可能有 data-send-msg 这种"点了帮你发消息"的按钮，
+              // 之前是靠 wireInteractiveButtons(overlay,...) 在外层文档里找，但现在
+              // 这些按钮都在iframe自己的文档里，外层找不到了，改成在iframe文档里重新绑一次。
+              wireInteractiveButtons(doc, chat.id);
+            } catch (err) {
+              console.warn('[状态栏] 读取iframe内容失败', err);
+              // 沙盒/跨域读不到内容就算了，保留默认高度，按钮绑不上也不至于整个弹窗报错
+            } finally {
+              iframe.style.visibility = 'visible';
+            }
+          });
+          container.appendChild(iframe);
 
-        // 手势层盖在iframe上面：touchstart/move/end 在这里判断是"滑动翻页"还是"单纯点一下"。
-        // 是滑动就走翻页逻辑；不是的话（几乎没怎么移动），把这次点击转发到iframe里对应位置的元素上，
-        // 不然iframe里的按钮/链接全点不到了。
-        const gestureLayer = document.createElement('div');
-        gestureLayer.className = 'sb-gesture-layer';
-        container.appendChild(gestureLayer);
-        bindPageGesture(gestureLayer, iframe);
+          // 手势层盖在iframe上面：touchstart/move/end 在这里判断是"滑动翻页"还是"单纯点一下"。
+          // 是滑动就走翻页逻辑；不是的话（几乎没怎么移动），把这次点击转发到iframe里对应位置的元素上，
+          // 不然iframe里的按钮/链接全点不到了。
+          const gestureLayer = document.createElement('div');
+          gestureLayer.className = 'sb-gesture-layer';
+          container.appendChild(gestureLayer);
+          bindPageGesture(gestureLayer, iframe);
+        } catch (err) {
+          // 某一页预设内容有问题导致构建过程直接报错的话，只影响这一页，不要让其他页也跟着显示不出来
+          console.error('[状态栏] 第' + (i + 1) + '页构建失败', err);
+        }
       });
 
       const track = document.getElementById('sb-viewer-track');
