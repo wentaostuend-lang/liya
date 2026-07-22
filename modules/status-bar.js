@@ -48,6 +48,44 @@
     return out;
   }
 
+  // 给iframe要加载的HTML默认兜一些基础样式：
+  // 1）字体优先跟随你在"外观设置"里自己传的自定义字体（跟主文档用的是同一套 @font-face），
+  //    没设置自定义字体的话才退回系统字体栈；预设自己声明了字体的话，那条规则在后面，还是预设的赢。
+  // 2）顺便把手机浏览器点击链接/按钮时那个蓝色高亮框关掉（iframe是独立文档，app本身设置的
+  //    -webkit-tap-highlight-color:transparent 影响不到里面，得单独兜一份）。
+  function buildSbDefaultStyle() {
+    const fontSrc = (state.globalSettings && (state.globalSettings.fontLocalData || state.globalSettings.fontUrl)) || '';
+    const fontFaceRule = fontSrc
+      ? `@font-face { font-family: 'sb-custom-font'; src: url('${fontSrc}'); font-display: swap; }`
+      : '';
+    const fontFamilyStack = fontSrc
+      ? `'sb-custom-font', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`
+      : `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+    return `<style>
+      ${fontFaceRule}
+      html,body{font-family:${fontFamilyStack};}
+      * { -webkit-tap-highlight-color: transparent; }
+      a, button, [onclick] { outline: none; -webkit-tap-highlight-color: transparent; }
+      *:focus { outline: none; }
+      /* iframe是独立文档，外层app隐藏滚动条的CSS影响不到里面，这里单独隐藏一份，
+         包括预设自己内部可能有的可滚动区域（比如相册详情页那种） */
+      html { scrollbar-width: none; -ms-overflow-style: none; }
+      ::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    </style>`;
+  }
+  function wrapHtmlWithDefaultFont(html) {
+    if (!html) return html;
+    const defaultStyle = buildSbDefaultStyle();
+    const headMatch = html.match(/<head[^>]*>/i);
+    if (headMatch) {
+      // 完整文档：插到<head>开头，让预设自己后面的<style>能顺理成章地覆盖它
+      const idx = html.indexOf(headMatch[0]) + headMatch[0].length;
+      return html.slice(0, idx) + defaultStyle + html.slice(idx);
+    }
+    // 没有<head>，大概率是纯片段（比如只用了行内style），直接在最前面加就行，不用担心DOCTYPE位置
+    return defaultStyle + html;
+  }
+
   function wireInteractiveButtons(container, chatId) {
     container.querySelectorAll('[data-send-msg]').forEach(el => {
       el.addEventListener('click', () => {
@@ -162,7 +200,12 @@
         -ms-overflow-style: none;
       }
       .sb-page::-webkit-scrollbar { display: none; } /* Chrome/Safari 隐藏滚动条 */
-      .sb-page-inner { width: 100%; }
+      .sb-page-inner { width: 100%; position: relative; }
+      .sb-page-iframe { width: 100%; border: none; display: block; min-height: 200px; background: transparent; -webkit-tap-highlight-color: transparent; }
+      /* 手势捕获层：盖在iframe上面专门接左右滑动翻页的touch事件（iframe是独立文档，
+         触摸事件不会冒泡出来给外层的swipe监听，所以单独盖一层来接）。
+         正常情况下不挡点击——判断出不是滑动手势(只是单纯点了一下)时会把点击转发进iframe里。 */
+      .sb-gesture-layer { position: absolute; inset: 0; z-index: 5; touch-action: pan-y; }
       .sb-empty { text-align:center; color: rgba(255,255,255,0.6); font-size:13px; }
 
       /* ---- 多选删除模式 ---- */
@@ -232,29 +275,101 @@
     const overlay = document.createElement('div');
     overlay.id = 'sb-viewer-overlay';
 
-    function renderFrame() {
-      // 之前这里有个 dotsHtml 轮播圆点指示器，但一直没配对应CSS（没定位没大小），
-      // 显示出来就是一坨乱七八糟的默认方块。下面已经有"1/8"文字计数器了，圆点纯属冗余，直接去掉。
+    // 之前每次翻页都调用 renderFrame() 整个重建一遍DOM——包括把所有iframe的srcdoc重新赋值一次，
+    // 这会让iframe整个重新加载，看起来就是"翻一下闪一下"。改成：
+    // buildViewer() 只在弹窗刚打开时执行一次，把所有页面/iframe一次性建好；
+    // 之后翻页只调用 updateFrame()，只改 track 的位移和"1/12"计数器文字，iframe完全不动，
+    // 配合CSS过渡，才能做到你说的"只有内容和计数器在动"。
+    function buildViewer() {
       const counterHtml = entries.length > 1 ? `<div id="sb-viewer-counter">${currentIndex + 1} / ${entries.length}</div>` : '';
 
       overlay.innerHTML = `
         <div id="sb-viewer-track">
           ${entries.length === 0
             ? `<div class="sb-page"><div class="sb-empty">还没有匹配到状态栏数据，可能AI还没按格式回复过</div></div>`
-            : entries.map(e => `<div class="sb-page"><div class="sb-page-inner">${e.html}</div></div>`).join('')}
+            : entries.map((e, i) => `<div class="sb-page"><div class="sb-page-inner" data-page-index="${i}"></div></div>`).join('')}
         </div>
         <div id="sb-viewer-edit" class="sb-glass-btn">✓</div>
         <div id="sb-viewer-close-round" class="sb-glass-btn">✕</div>
         ${counterHtml}
       `;
 
+      // 之前这里是直接把预设渲染出来的HTML用 innerHTML 塞进 .sb-page-inner，
+      // 但不少预设（比如"情侣空间"、"知乎"、"ins帖子热评"）写的其实是一份完整的独立网页，
+      // 自带 <style> 和 <script>——用 innerHTML 插入的 <script> 浏览器根本不会执行，
+      // <style> 也变成没有隔离的全局样式，很容易被app自己的样式覆盖/冲突，
+      // 表现出来就是"样式全乱、看起来像默认气泡"或者"评论点了没反应"。
+      // 改成用 iframe（srcdoc）加载，每个预设的页面在自己独立的文档里跑，
+      // style 天然隔离，script 也能正常执行，跟预设作者本来的设计意图一致。
+      entries.forEach((e, i) => {
+        const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
+        if (!container) return;
+        const iframe = document.createElement('iframe');
+        iframe.className = 'sb-page-iframe';
+        iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+        iframe.setAttribute('scrolling', 'no');
+        // 加载完成前先隐身，避免"先出现一半高度、resize时跳一下"这种视觉卡顿；
+        // 等下面 onload 里量完真实高度、设置好了，再一次性显示出来，观感上是一步到位而不是分两步跳。
+        iframe.style.visibility = 'hidden';
+        iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
+        iframe.addEventListener('load', () => {
+          try {
+            const doc = iframe.contentDocument;
+            const measureHeight = () => Math.max(
+              doc.documentElement ? doc.documentElement.scrollHeight : 0,
+              doc.body ? doc.body.scrollHeight : 0
+            );
+            const h = measureHeight();
+            if (h > 0) iframe.style.height = h + 'px';
+            // load事件触发时，图片/自定义字体不一定已经加载完——之前只在这一刻量一次高度，
+            // 图片晚一步撑开内容的话，iframe高度就定死在小了的那个值上，看起来像"只显示一半"甚至
+            // 关键内容被切掉看不见。这里加个 ResizeObserver 持续盯着内容实际高度变化，
+            // 后面不管是图片、字体哪个晚加载完，都会再更新一次高度，不会再卡死在早期的错误尺寸上。
+            if (doc.body && typeof ResizeObserver !== 'undefined') {
+              const ro = new ResizeObserver(() => {
+                const newH = measureHeight();
+                if (newH > 0 && Math.abs(newH - parseFloat(iframe.style.height || '0')) > 1) {
+                  iframe.style.height = newH + 'px';
+                }
+              });
+              ro.observe(doc.body);
+            }
+            // 预设HTML里可能有 data-send-msg 这种"点了帮你发消息"的按钮，
+            // 之前是靠 wireInteractiveButtons(overlay,...) 在外层文档里找，但现在
+            // 这些按钮都在iframe自己的文档里，外层找不到了，改成在iframe文档里重新绑一次。
+            wireInteractiveButtons(doc, chat.id);
+          } catch (err) {
+            // 沙盒/跨域读不到内容就算了，保留默认高度，按钮绑不上也不至于整个弹窗报错
+          } finally {
+            iframe.style.visibility = 'visible';
+          }
+        });
+        container.appendChild(iframe);
+
+        // 手势层盖在iframe上面：touchstart/move/end 在这里判断是"滑动翻页"还是"单纯点一下"。
+        // 是滑动就走翻页逻辑；不是的话（几乎没怎么移动），把这次点击转发到iframe里对应位置的元素上，
+        // 不然iframe里的按钮/链接全点不到了。
+        const gestureLayer = document.createElement('div');
+        gestureLayer.className = 'sb-gesture-layer';
+        container.appendChild(gestureLayer);
+        bindPageGesture(gestureLayer, iframe);
+      });
+
       const track = document.getElementById('sb-viewer-track');
       track.style.transform = `translateX(${-currentIndex * 100}%)`;
 
       document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
       document.getElementById('sb-viewer-edit').addEventListener('click', enterSelectMode);
-      wireInteractiveButtons(overlay, chat.id);
       bindSwipe(track);
+    }
+
+    // 翻页时只调这个：只更新位移(带过渡动画)和计数器文字，iframe/手势层全都不重建
+    function updateFrame() {
+      const track = document.getElementById('sb-viewer-track');
+      if (!track) return;
+      track.style.transform = `translateX(${-currentIndex * 100}%)`;
+      const counterEl = document.getElementById('sb-viewer-counter');
+      if (counterEl) counterEl.textContent = `${currentIndex + 1} / ${entries.length}`;
     }
 
     // ---- 多选删除模式：只把状态栏标记为"隐藏"，不动背后的聊天消息 ----
@@ -267,10 +382,33 @@
       listEl.id = 'sb-select-list';
       listEl.innerHTML = entries.map((e, i) => `
         <div class="sb-select-card" data-idx="${i}">
-          <div class="sb-page-inner">${e.html}</div>
+          <div class="sb-page-inner" data-select-page-index="${i}"></div>
           <div class="sb-select-mark">✓</div>
         </div>
       `).join('');
+      // 预览卡片同样用iframe装，样式才不会跟主文档冲突/丢失；这里纯预览不需要交互，
+      // 所以sandbox不给allow-scripts，省得预览列表里一堆脚本重复跑。
+      entries.forEach((e, i) => {
+        const container = listEl.querySelector(`[data-select-page-index="${i}"]`);
+        if (!container) return;
+        const iframe = document.createElement('iframe');
+        iframe.className = 'sb-page-iframe';
+        iframe.setAttribute('sandbox', 'allow-same-origin');
+        iframe.setAttribute('scrolling', 'no');
+        iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
+        iframe.style.pointerEvents = 'none'; // 预览卡片本来就是靠外层div接收点击来选中，iframe不用响应点击
+        iframe.addEventListener('load', () => {
+          try {
+            const doc = iframe.contentDocument;
+            const h = Math.max(
+              doc.documentElement ? doc.documentElement.scrollHeight : 0,
+              doc.body ? doc.body.scrollHeight : 0
+            );
+            if (h > 0) iframe.style.height = h + 'px';
+          } catch (err) {}
+        });
+        container.appendChild(iframe);
+      });
 
       const barEl = document.createElement('div');
       barEl.id = 'sb-select-bottom-bar';
@@ -318,7 +456,7 @@
         exitSelectMode();
         if (entries.length === 0) { overlay.remove(); return; }
         overlay.style.display = 'flex';
-        renderFrame();
+        buildViewer();
       }
 
       function exitSelectMode() {
@@ -330,6 +468,13 @@
       document.body.appendChild(listEl);
       document.body.appendChild(barEl);
       updateBar();
+    }
+
+    // 翻页判断+执行，供 track 本身(bindSwipe) 和每页iframe上方的手势层(bindPageGesture) 共用
+    function trySwipeTurnPage(dx) {
+      if (dx < -40 && currentIndex < entries.length - 1) { currentIndex++; updateFrame(); return true; }
+      if (dx > 40 && currentIndex > 0) { currentIndex--; updateFrame(); return true; }
+      return false;
     }
 
     function bindSwipe(track) {
@@ -347,14 +492,65 @@
         dragging = false;
         if (!moved) return;
         const dx = e.changedTouches[0].clientX - startX;
-        if (dx < -40 && currentIndex < entries.length - 1) currentIndex++;
-        else if (dx > 40 && currentIndex > 0) currentIndex--;
-        renderFrame();
+        trySwipeTurnPage(dx);
+      });
+    }
+
+    // iframe把touch事件"吃"在自己的文档里，不会冒泡给外层的track，所以左右滑动翻页在iframe范围内
+    // 之前直接失效了。这里在每个iframe上方盖一层透明手势层单独接住touch：判断出是明显的左右滑动就翻页；
+    // 如果只是普通点一下（没什么位移），就把这次点击"转发"进iframe里对应坐标的元素，不然iframe里所有
+    // 按钮/链接都点不到了。
+    function bindPageGesture(layer, iframe) {
+      let startX = 0, startY = 0, startTime = 0, dragging = false, isSwipe = false;
+      layer.addEventListener('touchstart', (e) => {
+        // 这里不再无条件stopPropagation——上次为了防止翻页翻两次把touchstart/touchmove也拦了，
+        // 结果连累了上下滚动（滚动手势也是从这里冒泡上去让.sb-page识别的）。
+        // 改成只有真的判定为"左右滑动翻页"时才在touchend里拦一下，其余情况完全不干预。
+        const t = e.touches[0];
+        startX = t.clientX; startY = t.clientY; startTime = Date.now(); dragging = true; isSwipe = false;
+      }, { passive: true });
+      layer.addEventListener('touchmove', (e) => {
+        if (!dragging) return;
+        const t = e.touches[0];
+        const dx = t.clientX - startX, dy = t.clientY - startY;
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) isSwipe = true;
+      }, { passive: true });
+      layer.addEventListener('touchend', (e) => {
+        if (!dragging) return;
+        dragging = false;
+        const t = e.changedTouches[0];
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const elapsed = Date.now() - startTime;
+
+        if (isSwipe) {
+          e.stopPropagation(); // 只有确认是翻页滑动才拦一下，避免track那边的bindSwipe再重复翻一次
+          trySwipeTurnPage(dx);
+          return;
+        }
+
+        // 不是滑动：当成一次单纯的点击，转发进iframe里对应坐标的元素上
+        // （点太久/移动太多就不当成点击处理，避免长按选字之类的操作被误转发）
+        if (elapsed > 600 || Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
+        try {
+          const rect = iframe.getBoundingClientRect();
+          const localX = t.clientX - rect.left;
+          const localY = t.clientY - rect.top;
+          const doc = iframe.contentDocument;
+          const target = doc && doc.elementFromPoint(localX, localY);
+          if (target) {
+            target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+            target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
+            target.click();
+          }
+        } catch (err) {
+          // 沙盒/跨域读不到iframe内容就算了，退化成"这一下点了但没转发进去"
+        }
       });
     }
 
     document.body.appendChild(overlay);
-    renderFrame();
+    buildViewer();
   }
 
   async function handleHeaderClick() {
