@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="vector-memory.css?v=0.0.36">
   <link rel="stylesheet" href="online-app.css?v=0.0.36">
   <link rel="stylesheet" href="period-tracker.css?v=0.0.36">
+  <link rel="stylesheet" href="css/kk-checkin.css?v=0.0.1">
   <link rel="stylesheet" href="focus-timer.css?v=0.0.36">
   <link rel="stylesheet" href="extra.css?v=0.0.36">
   <link rel="apple-touch-icon" href="https://i.postimg.cc/nMbyyt1t/D7CD735A73F5FD1D7B8407E0EB8BBAC0.png">
@@ -86,7 +87,8 @@
   <script src="modules/reminder-manager.js?v=0.0.1" defer></script>
   <script src="modules/prank-app.js?v=0.0.1" defer></script>
   <script src="modules/theater-app.js?v=0.0.3" defer></script>
-  <script src="modules/status-bar.js?v=0.0.16" defer></script>
+  <script src="modules/kk-checkin.js?v=0.0.1" defer></script>
+  <script src="modules/status-bar.js?v=0.0.17" defer></script>
   <script src="modules/status-bar-manager.js?v=0.0.1" defer></script>
   <script src="modules/worldbook-char-picker.js?v=0.0.1" defer></script>
   <script src="modules/shopping.js?v=0.0.36" defer></script>
@@ -559,6 +561,10 @@
               <div class="desktop-app-icon" onclick="showScreen('theater-app-screen')">
                 <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🎭</div>
                 <span class="label">小剧场</span>
+              </div>
+              <div class="desktop-app-icon" onclick="openKkCheckin()">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🕵️</div>
+                <span class="label">查岗</span>
               </div>
               <div class="desktop-app-icon" onclick="showScreen('status-bar-app-screen')">
                 <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">📊</div>
@@ -4534,6 +4540,190 @@
     <div id="prank-app-screen" class="screen">
       <div id="prank-app-content" style="width:100%; height:100%; display:flex; flex-direction:column; background:#000;"></div>
     </div>
+
+    <!-- ▼▼▼ KK查岗 功能 (与原项目 -k--main 完全一致的真实markup) ▼▼▼ -->
+    <div id="kk-char-selection-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>要查谁的岗？</span>
+        <span style="width: 30px"></span>
+      </div>
+      <div id="kk-char-selection-list" class="list-container"></div>
+    </div>
+
+    <!-- 2. 查岗 - 房屋总览屏幕 -->
+    <div id="kk-house-view-screen" class="screen">
+      <div id="kk-house-background"></div>
+      <div class="header" style="background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent); border-bottom: none;">
+        <span class="back-btn" id="kk-back-from-house-view">‹</span>
+        <span id="kk-house-owner-name"></span>
+        <div class="header-actions">
+          <span class="action-btn" id="kk-continue-search-btn" title="继续翻找">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <span class="action-btn" id="kk-reset-search-btn" title="重新翻找">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div id="kk-scene-toolbar" style="position: absolute; top: 110px; right: 20px; display: flex; flex-direction: column; gap: 16px; z-index: 10;">
+        <div id="kk-wardrobe-btn" title="查看衣柜" style="width: 48px; height: 48px; border-radius: 50%; margin: 0; padding: 0; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ff9a9e; transition: transform 0.2s;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(255, 154, 158, 0.3))">
+            <path d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"></path>
+          </svg>
+        </div>
+        <div id="kk-surveillance-icon" title="查看监控" style="width: 48px; height: 48px; border-radius: 50%; position: static; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.6); box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; color: #ff9a9e; transition: transform 0.2s;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="filter: drop-shadow(0 2px 4px rgba(255, 154, 158, 0.3))">
+            <path d="M23 7l-7 5 7 5V7z"></path>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+      </div>
+      <div id="kk-house-info-panel">
+        <h2 id="kk-house-location"></h2>
+        <p id="kk-house-description"></p>
+        <div id="kk-house-areas"></div>
+      </div>
+    </div>
+
+    <!-- 3. 查岗 - 区域探索屏幕 -->
+    <div id="kk-area-view-screen" class="screen">
+      <div id="kk-area-background"></div>
+      <div class="header" style="background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent); border-bottom: none;">
+        <span class="back-btn" id="kk-back-from-area-view">‹</span>
+        <span id="kk-area-name"></span>
+        <span style="width: 30px"></span>
+      </div>
+      <div class="kk-item-list-container">
+        <h3 id="kk-area-description"></h3>
+        <p class="kk-instruction-text">点击下方物品进行翻找：</p>
+        <div id="kk-area-items-grid"></div>
+      </div>
+    </div>
+
+    <!-- kk查岗-监控屏幕 -->
+    <div id="kk-monitor-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="kk-back-from-monitor">‹</span>
+        <span id="kk-monitor-title">监控中心</span>
+        <div class="header-actions">
+          <span class="action-btn" id="kk-refresh-monitor-btn" title="刷新监控画面">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 4v6h-6"></path>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div id="kk-monitor-grid" class="list-container"></div>
+    </div>
+
+    <!-- 4. 查岗 - 电脑屏幕 (模态框) -->
+    <div id="kk-computer-modal" class="modal">
+      <div class="modal-content" style="width: 95%; height: 90%; max-width: 500px; background-color: #e0e0e0; background-image: url('https://i.postimg.cc/k495F4W5/profile-banner.jpg'); background-size: cover; background-position: center;">
+        <div class="modal-header" id="kk-computer-header" style="background-color: rgba(0, 0, 0, 0.3); color: white; text-shadow: 0 1px 2px black;">
+          <span>的电脑</span>
+          <span id="close-kk-computer-modal" style="cursor: pointer">×</span>
+        </div>
+        <div class="modal-body" id="kk-computer-desktop"></div>
+      </div>
+    </div>
+
+    <!-- 6. 查岗 - 文件浏览器模态框 -->
+    <div id="kk-file-explorer-modal" class="modal" style="z-index: 1003">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header"><span>私人文件</span></div>
+        <div class="modal-body" id="kk-file-list"></div>
+        <div class="modal-footer">
+          <button class="cancel" id="close-file-explorer-modal-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- "kk查岗"文件查看器弹窗 -->
+    <div id="kk-file-viewer-modal" class="modal" style="z-index: 1004">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span id="kk-file-viewer-title"></span>
+          <span id="close-kk-file-viewer-btn" style="cursor: pointer; font-size: 24px">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 15px; background-color: #f0f2f5; overflow-y: auto">
+          <pre id="kk-file-viewer-content" style="white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 14px;"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Steam游戏库弹窗 -->
+    <div id="kk-steam-modal" class="modal" style="z-index: 1003">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span>Steam 游戏库</span>
+          <div class="header-actions">
+            <span class="action-btn" id="kk-generate-more-games-btn" title="生成更多游戏">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </span>
+          </div>
+        </div>
+        <div class="modal-body" id="kk-steam-games-list"></div>
+        <div class="modal-footer">
+          <button class="cancel" id="close-kk-steam-modal-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KK查岗物品详情专用弹窗 -->
+    <div id="kk-item-share-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 80%">
+        <div class="modal-header"><span id="kk-item-share-title">物品详情</span></div>
+        <div class="modal-body" style="padding: 15px">
+          <div id="kk-item-share-content" style="text-align: left; white-space: pre-wrap; background: #f9f9f9; padding: 15px; border-radius: 8px; font-size: 14px; line-height: 1.6; border: 1px solid #eee; color: #333;"></div>
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 10px">
+          <button class="form-button-secondary" id="kk-item-share-close-btn" style="flex: 1; margin: 0">关闭</button>
+          <button class="form-button" id="kk-item-share-confirm-btn" style="flex: 1; margin: 0; background-color: #ff9800; border-color: #ff9800;">📤 分享给Ta</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- KK查岗 - 沉浸式衣帽间屏幕 -->
+    <div id="kk-wardrobe-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="kk-back-from-wardrobe">‹</span>
+        <span>Ta的衣帽间</span>
+        <div class="header-actions">
+          <span class="action-btn" id="kk-wardrobe-add-btn" title="添置新衣" style="font-size: 24px; font-weight: 300; margin-right: 10px">+</span>
+          <span class="action-btn" id="kk-wardrobe-refresh-btn" title="重置衣柜 (清空重来)">↻</span>
+        </div>
+      </div>
+      <div id="wardrobe-container">
+        <div id="wardrobe-preview-area">
+          <img id="wardrobe-char-avatar" src="" alt="角色" />
+          <div id="wardrobe-comment-bubble" style="display: block; background: #fff; padding: 10px; border-radius: 12px; margin: 10px; font-size: 13px; color: #555; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); min-height: 40px; position: relative;">
+            <span class="content">点击下面的衣服，看看我怎么说~</span>
+            <div style="position: absolute; bottom: -6px; left: 20px; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid #fff;"></div>
+          </div>
+          <div id="wardrobe-reaction-bubble" style="display: none">
+            <div class="content"></div>
+          </div>
+          <div id="current-outfit-display"></div>
+          <button id="wardrobe-try-on-btn" class="form-button" disabled>让Ta穿上</button>
+        </div>
+        <div id="wardrobe-inventory-area">
+          <div class="wardrobe-tabs"></div>
+          <div id="wardrobe-grid" class="wardrobe-grid"></div>
+        </div>
+      </div>
+    </div>
+    <!-- ▲▲▲ KK查岗 功能结束 ▲▲▲ -->
 
     <!-- 短信 App -->
     <div id="sms-app-screen" class="screen ios-settings-screen">
@@ -9401,6 +9591,19 @@
 
 <!-- EPhone 验证系统（从内联 script 拆分） -->
 <script src="js/auth-system.js?v=0.0.36"></script>
+
+<!-- KK查岗 - 全局生成中遮罩 (与原项目一致的猫爪加载动画) -->
+<div id="generation-overlay" class="modal">
+  <div class="loading-content">
+    <div class="cat-paw">
+      <div class="pad main"></div>
+      <div class="pad toe t1"></div>
+      <div class="pad toe t2"></div>
+      <div class="pad toe t3"></div>
+    </div>
+    <p id="generation-text">少女祈祷中...</p>
+  </div>
+</div>
 
 </body>
 </html>
