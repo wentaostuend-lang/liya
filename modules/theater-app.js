@@ -148,10 +148,11 @@ ${retryNote || ''}
     const style = document.createElement('style');
     style.id = 'theater-app-style';
     style.textContent = `
-      #theater-app-content { display:flex; flex-direction:column; width:100%; height:100%; background:#000; color:#fff; font-family:inherit; }
+      #theater-app-content { display:flex; flex-direction:column; width:100%; height:100%; background:#000; color:#fff; font-family:inherit; transition: background 0.25s ease, color 0.25s ease; }
       .th-header { display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid #2c2c2e; flex-shrink:0; }
       .th-header .th-back { font-size:22px; cursor:pointer; padding:4px 8px; }
       .th-header .th-title { font-size:16px; font-weight:700; flex:1; }
+      .th-theme-toggle { font-size:19px; cursor:pointer; padding:4px 6px; }
       .th-body { flex:1; overflow-y:auto; padding:14px 16px; }
       .th-story-card { display:flex; align-items:center; justify-content:space-between; background:#1c1c1e; border-radius:14px; padding:14px; margin-bottom:10px; cursor:pointer; }
       .th-story-card .name { font-size:14px; font-weight:600; }
@@ -176,8 +177,31 @@ ${retryNote || ''}
       .th-btn-generate { background:#fff; color:#000; font-weight:700; }
       .th-btn-immersive { background:#1c1c1e; color:#fff; }
       .th-btn-generate:disabled { background:#48484a; color:#8e8e93; }
-      #theater-immersive-view { position:fixed; inset:0; z-index:9999996; background:#000; color:#eee; overflow-y:auto; padding:40px 22px; font-size:16px; line-height:2.1; white-space:pre-wrap; }
+
+      /* ===== 日间模式（纸黄色，参考绿洲），覆盖整个小剧场App，不只沉浸阅读 ===== */
+      #theater-app-content.theater-day-mode { background:#F5EDD8; color:#4a4030; }
+      #theater-app-content.theater-day-mode .th-header { border-bottom-color:#e0d5b8; }
+      #theater-app-content.theater-day-mode .th-story-card { background:#ECE2C8; }
+      #theater-app-content.theater-day-mode .th-story-card .meta { color:#9c8c68; }
+      #theater-app-content.theater-day-mode .th-add-btn { border-color:#c9bc98; color:#9c8c68; }
+      #theater-app-content.theater-day-mode .th-form-row label { color:#8a7a58; }
+      #theater-app-content.theater-day-mode .th-form-row select,
+      #theater-app-content.theater-day-mode .th-form-row input[type="text"],
+      #theater-app-content.theater-day-mode .th-form-row input[type="number"],
+      #theater-app-content.theater-day-mode .th-form-row textarea { background:#ECE2C8; color:#4a4030; }
+      #theater-app-content.theater-day-mode .th-primary-btn { background:#4a4030; color:#F5EDD8; }
+      #theater-app-content.theater-day-mode .th-chapter-block { background:#EDE4CB; }
+      #theater-app-content.theater-day-mode .th-chapter-meta { color:#a89870; }
+      #theater-app-content.theater-day-mode .th-direction-bar { border-top-color:#e0d5b8; }
+      #theater-app-content.theater-day-mode .th-direction-bar textarea { background:#ECE2C8; color:#4a4030; }
+      #theater-app-content.theater-day-mode .th-btn-generate { background:#4a4030; color:#F5EDD8; }
+      #theater-app-content.theater-day-mode .th-btn-immersive { background:#ECE2C8; color:#4a4030; }
+
+      #theater-immersive-view { position:fixed; inset:0; z-index:9999996; background:#000; color:#eee; overflow-y:auto; padding:40px 22px; font-size:16px; line-height:2.1; white-space:pre-wrap; transition: background 0.25s ease, color 0.25s ease; }
+      #theater-immersive-view.theater-day-mode { background:#F5EDD8; color:#4a4030; }
       #theater-immersive-exit { position:fixed; top:16px; right:16px; z-index:9999997; color:#888; font-size:22px; }
+      #theater-immersive-view.theater-day-mode #theater-immersive-exit { color:#8a7d5f; }
+      #theater-immersive-theme-toggle { position:fixed; top:16px; right:56px; z-index:9999997; font-size:20px; cursor:pointer; }
       .th-loading { text-align:center; color:#8e8e93; font-size:13px; padding:30px 0; }
     `;
     document.head.appendChild(style);
@@ -185,12 +209,46 @@ ${retryNote || ''}
 
   // ---------------- 导航状态 ----------------
   let currentStory = null;
+  // ---------------- 日间/夜间模式（整个小剧场App通用，不只沉浸阅读） ----------------
+  // 用 state.globalSettings.theaterDayMode 统一存，小剧场App的列表/表单/写作页 + 沉浸阅读
+  // 共用同一个开关，哪里切都会同步，跟其他screen风格一样是"纸黄色"日间配色。
+  function themeToggleHtml(id) {
+    const isDay = !!(state.globalSettings && state.globalSettings.theaterDayMode);
+    return `<span class="th-theme-toggle" id="${id}">${isDay ? '☀️' : '🌙'}</span>`;
+  }
+
+  function applyTheaterDayModeClass() {
+    const isDay = !!(state.globalSettings && state.globalSettings.theaterDayMode);
+    const contentEl = content();
+    if (contentEl) contentEl.classList.toggle('theater-day-mode', isDay);
+    const immersiveEl = document.getElementById('theater-immersive-view');
+    if (immersiveEl) immersiveEl.classList.toggle('theater-day-mode', isDay);
+    document.querySelectorAll('.th-theme-toggle, #theater-immersive-theme-toggle').forEach(el => {
+      el.textContent = isDay ? '☀️' : '🌙';
+    });
+  }
+
+  async function toggleTheaterDayMode() {
+    const isDay = !(state.globalSettings && state.globalSettings.theaterDayMode);
+    if (!state.globalSettings) return;
+    state.globalSettings.theaterDayMode = isDay;
+    applyTheaterDayModeClass();
+    try { await db.globalSettings.put(state.globalSettings); } catch (err) { console.warn('[小剧场] 保存日间模式设置失败', err); }
+  }
+
+  // 每个header渲染完之后调一下这个，把切换按钮的点击绑上
+  function bindThemeToggleButtons() {
+    content().querySelectorAll('.th-theme-toggle').forEach(el => {
+      el.addEventListener('click', toggleTheaterDayMode);
+    });
+  }
+
   function content() { return document.getElementById('theater-app-content'); }
 
   async function renderStoryList() {
     const stories = await theaterDB.stories.orderBy('updatedAt').reverse().toArray();
     content().innerHTML = `
-      <div class="th-header"><span class="th-back" id="th-close-btn">✕</span><span class="th-title">小剧场</span></div>
+      <div class="th-header"><span class="th-back" id="th-close-btn">✕</span><span class="th-title">小剧场</span>${themeToggleHtml('th-theme-toggle-list')}</div>
       <div class="th-body">
         ${stories.length === 0 ? `<div style="color:#8e8e93; font-size:13px; text-align:center; padding:40px 0;">还没有任何剧场，新建一个开始吧</div>` : ''}
         ${stories.map(s => {
@@ -204,6 +262,8 @@ ${retryNote || ''}
         <button class="th-add-btn" id="th-new-story-btn">＋ 新建小剧场</button>
       </div>
     `;
+    applyTheaterDayModeClass();
+    bindThemeToggleButtons();
     document.getElementById('th-close-btn').addEventListener('click', () => showScreen('home-screen'));
     document.getElementById('th-new-story-btn').addEventListener('click', renderNewStoryForm);
     content().querySelectorAll('.th-story-card[data-id]').forEach(el => {
@@ -228,7 +288,7 @@ ${retryNote || ''}
     const personaPresets = state.personaPresets || (await db.personaPresets.toArray());
 
     content().innerHTML = `
-      <div class="th-header"><span class="th-back" id="th-back-list">‹</span><span class="th-title">新建小剧场</span></div>
+      <div class="th-header"><span class="th-back" id="th-back-list">‹</span><span class="th-title">新建小剧场</span>${themeToggleHtml('th-theme-toggle-form')}</div>
       <div class="th-body">
         <div class="th-form-row">
           <label>选择角色（只用人设+世界书，不带聊天记忆；可以只选一个，也可以多选一起演）</label>
@@ -278,6 +338,8 @@ ${retryNote || ''}
         <button class="th-primary-btn" id="th-create-btn">创建</button>
       </div>
     `;
+    applyTheaterDayModeClass();
+    bindThemeToggleButtons();
     document.getElementById('th-back-list').addEventListener('click', renderStoryList);
 
     document.querySelectorAll('input[name="th-persona-mode"]').forEach(r => r.addEventListener('change', () => {
@@ -325,7 +387,7 @@ ${retryNote || ''}
   function renderWritingScreen() {
     const names = (currentStory.chatIds || []).map(id => state.chats[id]?.name).filter(Boolean);
     content().innerHTML = `
-      <div class="th-header"><span class="th-back" id="th-back-list2">‹</span><span class="th-title">${names.join('、') || '未知角色'} · ${currentStory.styleName}</span><span id="th-export-btn" style="font-size:20px; cursor:pointer; padding:4px 6px;">⬇</span><span id="th-delete-story-btn" style="font-size:19px; cursor:pointer; padding:4px 6px; color:#ff6b6b;">🗑</span></div>
+      <div class="th-header"><span class="th-back" id="th-back-list2">‹</span><span class="th-title">${names.join('、') || '未知角色'} · ${currentStory.styleName}</span>${themeToggleHtml('th-theme-toggle-write')}<span id="th-export-btn" style="font-size:20px; cursor:pointer; padding:4px 6px;">⬇</span><span id="th-delete-story-btn" style="font-size:19px; cursor:pointer; padding:4px 6px; color:#ff6b6b;">🗑</span></div>
       <div class="th-body" id="th-chapters">
         ${(currentStory.chapters || []).map((ch, idx) => `
           <div class="th-chapter-block">
@@ -346,6 +408,8 @@ ${retryNote || ''}
         </div>
       </div>
     `;
+    applyTheaterDayModeClass();
+    bindThemeToggleButtons();
     document.getElementById('th-back-list2').addEventListener('click', renderStoryList);
     const chaptersEl = document.getElementById('th-chapters');
     chaptersEl.scrollTop = chaptersEl.scrollHeight;
@@ -480,9 +544,15 @@ ${retryNote || ''}
     const fullText = (currentStory.chapters || []).map(c => c.content).join('\n\n———\n\n');
     const view = document.createElement('div');
     view.id = 'theater-immersive-view';
-    view.innerHTML = `<div id="theater-immersive-exit">✕</div>${fullText || '（还没有正文）'}`;
+    view.innerHTML = `
+      ${themeToggleHtml('theater-immersive-theme-toggle')}
+      <div id="theater-immersive-exit">✕</div>
+      ${fullText || '（还没有正文）'}
+    `;
     document.body.appendChild(view);
+    applyTheaterDayModeClass(); // 跟主App共用同一个开关状态，进来就同步好
     view.querySelector('#theater-immersive-exit').addEventListener('click', () => view.remove());
+    view.querySelector('#theater-immersive-theme-toggle').addEventListener('click', toggleTheaterDayMode);
     // 默认滚动到最新一段，而不是停在开头——重新roll/接着写之后大家一般想看的是最新内容
     requestAnimationFrame(() => { view.scrollTop = view.scrollHeight; });
   }
