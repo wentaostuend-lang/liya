@@ -86,11 +86,20 @@
     return defaultStyle + html;
   }
 
-  // 判断一个预设是不是"完整/半完整网页"：带独立<script>或<style>标签才需要iframe隔离，
-  // 纯行内style=""写的简单预设不需要，直接走最早那种innerHTML的老办法更稳。
-  function needsIframeIsolation(html) {
+  // 三层判断，按需要的隔离程度选最轻的方案：
+  // 1. 啥都没有（纯行内style=""）→ 直接innerHTML，跟最早版本一样，最快最稳
+  // 2. 有<style>但没有真的<script>（比如靠<details>、:checked这种CSS/HTML原生技巧做交互）
+  //    → 用 Shadow DOM：样式一样能隔离不冲突，但没有iframe那个独立文档的问题——
+  //      不用等load事件、原生滚动/触摸完全不受影响，速度也是同步的、没有延迟。
+  // 3. 真的有<script>标签（要执行JS逻辑）→ 只有这种才上iframe，因为innerHTML/Shadow DOM
+  //    插入的<script>浏览器都不会执行，没有别的轻量办法能让脚本真的跑起来。
+  function needsScriptExecution(html) {
     if (!html) return false;
-    return /<script[\s>]/i.test(html) || /<style[\s>]/i.test(html);
+    return /<script[\s>]/i.test(html);
+  }
+  function needsStyleIsolation(html) {
+    if (!html) return false;
+    return /<style[\s>]/i.test(html);
   }
 
   function wireInteractiveButtons(container, chatId) {
@@ -310,9 +319,20 @@
           const container = overlay.querySelector(`.sb-page-inner[data-page-index="${i}"]`);
           if (!container) return;
 
-          if (!needsIframeIsolation(e.html)) {
-            container.innerHTML = e.html;
-            wireInteractiveButtons(container, chat.id);
+          if (!needsScriptExecution(e.html)) {
+            // 不需要真的执行脚本：有样式就用Shadow DOM隔离一下（同步渲染，没有iframe那个
+            // "要等文档加载"的延迟，滚动/触摸也是原生的，完全不用手势层这些补丁），
+            // 没样式的话直接innerHTML更省事。
+            if (needsStyleIsolation(e.html)) {
+              const shadowHost = document.createElement('div');
+              container.appendChild(shadowHost);
+              const shadow = shadowHost.attachShadow({ mode: 'open' });
+              shadow.innerHTML = wrapHtmlWithDefaultFont(e.html);
+              wireInteractiveButtons(shadow, chat.id);
+            } else {
+              container.innerHTML = e.html;
+              wireInteractiveButtons(container, chat.id);
+            }
             return;
           }
 
