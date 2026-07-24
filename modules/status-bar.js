@@ -73,9 +73,35 @@
       ::-webkit-scrollbar { display: none; width: 0; height: 0; }
     </style>`;
   }
-  function wrapHtmlWithDefaultFont(html) {
+  // iframe路径专用：注入一段小脚本，在iframe内部自己检测"明显的左右滑动"，通过postMessage
+  // 告诉外层"翻页"，而不是像之前那样在外面盖一层手势层拦所有touch——那样会连带把预设自己
+  // 内部的滚动区域也一起挡住。这段脚本只是"观察"touch，从来不调用preventDefault，
+  // 原生的滚动/点击完全不受影响。
+  const SB_SWIPE_SCRIPT = `<script>(function(){
+    var sx=0, sy=0, swiping=false, moved=false;
+    document.addEventListener('touchstart', function(e){
+      if (!e.touches || !e.touches[0]) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY; moved=false; swiping=false;
+    }, {passive:true});
+    document.addEventListener('touchmove', function(e){
+      if (!e.touches || !e.touches[0]) return;
+      var dx = e.touches[0].clientX - sx, dy = e.touches[0].clientY - sy;
+      if (!moved && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) { moved = true; swiping = true; }
+    }, {passive:true});
+    document.addEventListener('touchend', function(e){
+      if (!swiping) return;
+      var t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      var dx = t.clientX - sx;
+      if (Math.abs(dx) > 40) {
+        try { window.parent.postMessage({source:'sb-status-bar-viewer', type:'swipe', dx: dx}, '*'); } catch(err) {}
+      }
+    }, {passive:true});
+  })();<\/script>`;
+
+  function wrapHtmlWithDefaultFont(html, forIframe) {
     if (!html) return html;
-    const defaultStyle = buildSbDefaultStyle();
+    const defaultStyle = buildSbDefaultStyle() + (forIframe ? SB_SWIPE_SCRIPT : '');
     const headMatch = html.match(/<head[^>]*>/i);
     if (headMatch) {
       // 完整文档：插到<head>开头，让预设自己后面的<style>能顺理成章地覆盖它
@@ -221,7 +247,8 @@
       /* 手势捕获层：盖在iframe上面专门接左右滑动翻页的touch事件（iframe是独立文档，
          触摸事件不会冒泡出来给外层的swipe监听，所以单独盖一层来接）。
          正常情况下不挡点击——判断出不是滑动手势(只是单纯点了一下)时会把点击转发进iframe里。 */
-      .sb-gesture-layer { position: absolute; inset: 0; z-index: 5; touch-action: pan-y; }
+      /* 手势层已经去掉了（会连带挡住iframe内部预设自己的滚动区域），
+         翻页滑动改成iframe内部自己检测+postMessage通知外层，见JS里的说明 */
       .sb-empty { text-align:center; color: rgba(255,255,255,0.6); font-size:13px; }
 
       /* ---- 多选删除模式 ---- */
@@ -344,7 +371,7 @@
           // 但不等图片这些外部资源全部下载完——只要HTML结构和样式解析好了（readyState不是loading了）
           // 就先显示出来，图片各自异步加载、自己"填进"对应位置，不用干等一两秒的空白。
           iframe.style.visibility = 'hidden';
-          iframe.srcdoc = wrapHtmlWithDefaultFont(e.html);
+          iframe.srcdoc = wrapHtmlWithDefaultFont(e.html, true);
 
           const measureHeight = () => {
             const doc = iframe.contentDocument;
@@ -433,14 +460,10 @@
             }
           });
           container.appendChild(iframe);
-
-          // 手势层盖在iframe上面：touchstart/move/end 在这里判断是"滑动翻页"还是"单纯点一下"。
-          // 是滑动就走翻页逻辑；不是的话（几乎没怎么移动），把这次点击转发到iframe里对应位置的元素上，
-          // 不然iframe里的按钮/链接全点不到了。
-          const gestureLayer = document.createElement('div');
-          gestureLayer.className = 'sb-gesture-layer';
-          container.appendChild(gestureLayer);
-          bindPageGesture(gestureLayer, iframe);
+          // 之前这里会盖一层"手势层"接touch事件，但这样会连带挡住iframe内部预设自己的滚动区域
+          // （比如这个杂志预设每页自己就有 overflow-y:auto）。改成不盖任何东西，让iframe内部
+          // 该滚动滚动、该点击点击，完全原生；翻页滑动改成在iframe内部自己检测+postMessage通知外层，
+          // 见 wrapHtmlWithDefaultFont 里注入的那段小脚本和下面的 message 监听。
         } catch (err) {
           // 某一页预设内容有问题导致构建过程直接报错的话，只影响这一页，不要让其他页也跟着显示不出来
           console.error('[状态栏] 第' + (i + 1) + '页构建失败', err);
@@ -450,7 +473,10 @@
       const track = document.getElementById('sb-viewer-track');
       track.style.transform = `translateX(${-currentIndex * 100}%)`;
 
-      document.getElementById('sb-viewer-close-round').addEventListener('click', () => overlay.remove());
+      document.getElementById('sb-viewer-close-round').addEventListener('click', () => {
+        overlay.remove();
+        cleanupMessageListener();
+      });
       document.getElementById('sb-viewer-edit').addEventListener('click', enterSelectMode);
       bindSwipe(track);
     }
@@ -588,58 +614,17 @@
       });
     }
 
-    // iframe把touch事件"吃"在自己的文档里，不会冒泡给外层的track，所以左右滑动翻页在iframe范围内
-    // 之前直接失效了。这里在每个iframe上方盖一层透明手势层单独接住touch：判断出是明显的左右滑动就翻页；
-    // 如果只是普通点一下（没什么位移），就把这次点击"转发"进iframe里对应坐标的元素，不然iframe里所有
-    // 按钮/链接都点不到了。
-    function bindPageGesture(layer, iframe) {
-      let startX = 0, startY = 0, startTime = 0, dragging = false, isSwipe = false;
-      layer.addEventListener('touchstart', (e) => {
-        // 这里不再无条件stopPropagation——上次为了防止翻页翻两次把touchstart/touchmove也拦了，
-        // 结果连累了上下滚动（滚动手势也是从这里冒泡上去让.sb-page识别的）。
-        // 改成只有真的判定为"左右滑动翻页"时才在touchend里拦一下，其余情况完全不干预。
-        const t = e.touches[0];
-        startX = t.clientX; startY = t.clientY; startTime = Date.now(); dragging = true; isSwipe = false;
-      }, { passive: true });
-      layer.addEventListener('touchmove', (e) => {
-        if (!dragging) return;
-        const t = e.touches[0];
-        const dx = t.clientX - startX, dy = t.clientY - startY;
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) isSwipe = true;
-      }, { passive: true });
-      layer.addEventListener('touchend', (e) => {
-        if (!dragging) return;
-        dragging = false;
-        const t = e.changedTouches[0];
-        const dx = t.clientX - startX;
-        const dy = t.clientY - startY;
-        const elapsed = Date.now() - startTime;
-
-        if (isSwipe) {
-          e.stopPropagation(); // 只有确认是翻页滑动才拦一下，避免track那边的bindSwipe再重复翻一次
-          trySwipeTurnPage(dx);
-          return;
-        }
-
-        // 不是滑动：当成一次单纯的点击，转发进iframe里对应坐标的元素上
-        // （点太久/移动太多就不当成点击处理，避免长按选字之类的操作被误转发）
-        if (elapsed > 600 || Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
-        try {
-          const rect = iframe.getBoundingClientRect();
-          const localX = t.clientX - rect.left;
-          const localY = t.clientY - rect.top;
-          const doc = iframe.contentDocument;
-          const target = doc && doc.elementFromPoint(localX, localY);
-          if (target) {
-            target.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-            target.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, cancelable: true }));
-            target.click();
-          }
-        } catch (err) {
-          // 沙盒/跨域读不到iframe内容就算了，退化成"这一下点了但没转发进去"
-        }
-      });
+    // iframe是独立文档，之前靠"手势层"盖在上面接touch事件来做翻页，但这样会连带挡住
+    // iframe内部预设自己的可滚动区域（比如杂志预设每页自己就有内部滚动）。改成：
+    // 翻页滑动的检测挪到iframe内部自己做（见 wrapHtmlWithDefaultFont 注入的小脚本），
+    // 检测到明显的左右滑动就用 postMessage 告诉外层"翻页"；这里负责接收这个消息。
+    // 其余触摸完全不拦截，iframe内部滚动/点击都是原生的。
+    function handleSbSwipeMessage(event) {
+      if (!event.data || event.data.source !== 'sb-status-bar-viewer' || event.data.type !== 'swipe') return;
+      trySwipeTurnPage(event.data.dx);
     }
+    window.addEventListener('message', handleSbSwipeMessage);
+    const cleanupMessageListener = () => window.removeEventListener('message', handleSbSwipeMessage);
 
     document.body.appendChild(overlay);
     buildViewer();
