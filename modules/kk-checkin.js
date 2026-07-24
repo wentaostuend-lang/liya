@@ -17,7 +17,7 @@ async function openKkCheckin() {
       item.className = "character-select-item"; // 复用“查手机”的样式
       item.dataset.chatId = char.id;
       item.innerHTML = `
-                                <img src="${char.settings.aiAvatar || defaultAvatar}" alt="${char.name}">
+                                <img class="avatar" src="${char.settings.aiAvatar || defaultAvatar}" alt="${char.name}">
                                 <span class="name">${char.name}</span>
                             `;
       listEl.appendChild(item);
