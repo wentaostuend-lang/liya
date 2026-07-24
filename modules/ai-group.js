@@ -491,6 +491,15 @@ ${(() => {
       } catch (e) { console.warn('[状态栏] 后台活动读取预设失败，跳过本次注入', e); }
     }
 
+    // ===== 新增：论坛自主发帖功能，后台活动也支持（同单聊逻辑） =====
+    const enableForumPostBg = (chat.settings.enableForumPost !== null && chat.settings.enableForumPost !== undefined)
+      ? chat.settings.enableForumPost
+      : (state.globalSettings.enableForumPost !== false);
+    let forumPostPromptForBg = '';
+    if (enableForumPostBg) {
+      forumPostPromptForBg = `\n## 论坛发帖（可选行动）\n触发时机有两种：① ${userNickname}这一轮直接叫你去发帖/去论坛/去豆瓣up——这种情况必须照做；② 你自己这一轮有比较强烈的情绪想找人说说，比如${userNickname}已经很久没理你、你觉得委屈/生气/困惑，或者单纯有什么新鲜事想分享/请教网友——这种情况是【可选】的，自己判断要不要发。格式：\n\`{"type": "forum_post", "groupName": "帖子适合发在哪个版块", "postTitle": "帖子标题", "content": "帖子正文，可以带情绪、可以吐槽、可以求助"}\`\n`;
+    }
+
     // ===== 新增：后台活动同样支持"顶号"功能 =====
     const hijackInjectionForBg = (typeof HijackManager !== 'undefined')
       ? HijackManager.getPromptInjection(chat)
@@ -578,6 +587,7 @@ ${longTimeNoSee ? `【重要提示】你们已经很久没聊天了！你【必�
        - **使用亲属卡购物**:  '[{"type": "buy_item", "item_name": "商品名称", "price": 价格(数字), "reason": "购买理由/想法"}]'
         ${viewMyPhonePromptForBg}
 ${thoughtsPromptForBg}
+${forumPostPromptForBg}
 ${thoughtChainContextMiddleForBg}
 ${hijackPromptForBg}
         ${contentTabooPrompt}
@@ -785,6 +795,27 @@ ${hijackPromptForBg}
             chat.status.isBusy = action.is_busy || false;
             chat.status.lastUpdate = Date.now();
             break;
+          case 'forum_post': {
+            // 同单聊：后台活动也可以自主发论坛帖子，写入同一个db.doubanPosts
+            if (action.postTitle && action.content) {
+              const forumPost = {
+                groupName: action.groupName || '瞎聊',
+                postTitle: String(action.postTitle),
+                authorName: chat.name,
+                authorOriginalName: chat.originalName || chat.name,
+                content: String(action.content),
+                likesCount: Math.floor(Math.random() * 30),
+                commentsCount: 0,
+                comments: [],
+                timestamp: Date.now()
+              };
+              try {
+                await db.doubanPosts.add(forumPost);
+                console.log(`后台活动: 角色 "${chat.name}" 自主发了一条论坛帖子:《${action.postTitle}》`);
+              } catch (e) { console.warn('[论坛] 后台活动保存自主发帖失败', e); }
+            }
+            break;
+          }
           case 'qzone_post':
             const newPost = {
               type: action.postType || 'shuoshuo',

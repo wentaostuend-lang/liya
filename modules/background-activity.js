@@ -6,7 +6,130 @@
 //       startBackgroundKeepAlive, stopBackgroundKeepAlive, handleVisibilityChange,
 //       bindBackgroundKeepAliveEvents, loadBackgroundKeepAliveSettings
 
-  // 计算下一次后台活动触发前的等待时间（毫秒）
+  // ========== 勿扰时间段 ==========
+  // chat.settings.dndEnabled   boolean  该角色/群聊是否开启勿扰（默认false，不影响老用户）
+  // chat.settings.dndStart     string   勿扰开始时间 "HH:mm"，默认 "23:00"
+  // chat.settings.dndEnd       string   勿扰结束时间 "HH:mm"，默认 "07:00"
+  // 只挡"后台主动消息"（独立行动/群聊后台行动），不影响用户主动发消息时的正常回复。
+
+  // 判断 now 是否落在 [start, end) 这个"HH:mm"时间段里，start > end 时按跨天处理（比如 23:00~07:00）
+  function isWithinDndWindow(now, start, end) {
+    const parseHM = (hm) => {
+      const parts = String(hm || '').split(':');
+      const h = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      if (isNaN(h) || isNaN(m)) return null;
+      return h * 60 + m;
+    };
+    const startMin = parseHM(start);
+    const endMin = parseHM(end);
+    if (startMin === null || endMin === null) return false; // 时间格式不对就当没设置，不拦截
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+
+    if (startMin === endMin) return false; // 起止相同视为没有勿扰时段
+    if (startMin < endMin) {
+      // 同一天内的区间，比如 09:00~12:00
+      return nowMin >= startMin && nowMin < endMin;
+    }
+    // 跨天区间，比如 23:00~07:00：落在 [23:00,24:00) 或 [00:00,07:00) 都算
+    return nowMin >= startMin || nowMin < endMin;
+  }
+
+  // 判断某个角色/群聊现在是否处于勿扰时段（决定要不要拦截这次"主动发消息"的后台行动）
+  function isChatInDnd(chat) {
+    if (!chat || !chat.settings || !chat.settings.dndEnabled) return false;
+    const start = chat.settings.dndStart || '23:00';
+    const end = chat.settings.dndEnd || '07:00';
+    return isWithinDndWindow(new Date(), start, end);
+  }
+
+  // ========== 论坛帖子的"网友评论"：随后台心跳自然长出来 ==========
+  // 设计跟之前商量的一致：热帖（点赞数高）评论来得快、来得多；普通帖子慢慢来，
+  // 隔一阵子才可能有一条新评论——不跟你聊不聊天挂钩，纯粹随时间走，比较接近真实论坛的感觉。
+  function isGeminiUrlForForum(proxyUrl) {
+    return !!proxyUrl && proxyUrl.includes('generativelanguage.googleapis.com');
+  }
+
+  async function callForumCommentAI(prompt) {
+    // 复用"优先用后台API，没配置就用主API"这个已有的模式，保持跟其他后台功能一致
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const { proxyUrl, apiKey, model } = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : state.apiConfig;
+    if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+
+    const isGemini = isGeminiUrlForForum(proxyUrl);
+    let response;
+    if (isGemini) {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9 } })
+      });
+    } else {
+      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], temperature: 0.9 })
+      });
+    }
+    if (!response.ok) throw new Error(`论坛评论API请求失败(${response.status})`);
+    const data = await response.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    const text = isGemini ? data.candidates?.[0]?.content?.parts?.[0]?.text : data.choices?.[0]?.message?.content;
+    if (!text) throw new Error('论坛评论API返回空内容');
+    return text;
+  }
+
+  async function maybeGenerateForumComment() {
+    if (!state.globalSettings.enableForumPost) return;
+    if (!state.apiConfig || (!state.apiConfig.proxyUrl && !state.apiConfig.backgroundProxyUrl)) return;
+
+    // 只从最近的帖子里随机挑一个判断要不要长评论，不用每条帖子都判断一遍，省点调用
+    const posts = await db.doubanPosts.orderBy('timestamp').reverse().limit(30).toArray();
+    if (posts.length === 0) return;
+    const post = posts[Math.floor(Math.random() * posts.length)];
+
+    // 热帖：点赞数高（发帖时随机给的0~30，这里拿15做个粗略的热帖门槛）；也可以是评论已经很多的帖子
+    const isHot = (post.likesCount || 0) >= 15 || (post.comments || []).length >= 5;
+    const chance = isHot ? 0.35 : 0.06;
+    if (Math.random() >= chance) return;
+
+    const recentComments = (post.comments || []).slice(-5).map(c => `${c.commenter}: ${c.text}`).join('\n') || '（暂无评论）';
+    const prompt = `你在扮演一个论坛/豆瓣风格网站上刷到这条帖子的随机网友。看完下面这个帖子，写一条简短真实的评论回复（10~40字，符合网络论坛的语气，可以调侃、可以共情、可以抬杠、可以科普，不用太正式，不要写成客服式的礼貌回复）。
+
+帖子标题：${post.postTitle}
+帖子内容：${post.content}
+最近的评论：
+${recentComments}
+
+只输出一个JSON对象，不要有任何其他文字、不要用markdown代码块包裹：{"commenter":"随便起一个网友昵称","text":"评论内容"}`;
+
+    try {
+      const raw = await callForumCommentAI(prompt);
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('论坛评论返回内容里没找到JSON');
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!parsed.text) return;
+
+      const newComment = {
+        commenter: String(parsed.commenter || ('网友' + Math.floor(Math.random() * 9000 + 1000))),
+        text: String(parsed.text),
+        timestamp: Date.now()
+      };
+      const freshPost = await db.doubanPosts.get(post.id);
+      if (!freshPost) return; // 帖子在这期间被删了就算了
+      const comments = freshPost.comments || [];
+      comments.push(newComment);
+      await db.doubanPosts.update(post.id, {
+        comments,
+        commentsCount: (freshPost.commentsCount || 0) + 1
+      });
+      console.log(`[论坛] 帖子《${freshPost.postTitle}》收到一条新评论: ${newComment.commenter}`);
+    } catch (e) {
+      console.warn('[论坛] 生成后台评论失败，这次就算了', e);
+    }
+  }
+
+
   // 模式由 state.globalSettings.backgroundActivityMode 决定：
   //   'fixed'  → 固定间隔，读取 backgroundActivityInterval（单位：秒），未配置默认 60 秒
   //   'random' → 随机区间，读取 backgroundActivityIntervalMin / Max（单位：分钟），未配置默认 10~25 分钟
@@ -111,6 +234,10 @@
         if (!isDueForRandomIntervalCheck(chat)) {
           return;
         }
+        if (isChatInDnd(chat)) {
+          console.log(`角色 "${chat.name}" 处于勿扰时段(${chat.settings.dndStart || '23:00'}~${chat.settings.dndEnd || '07:00'})，本次跳过主动发消息。`);
+          return;
+        }
         if (Math.random() < 0.20) {
           console.log(`角色 "${chat.name}" 被唤醒，准备独立行动...`);
           triggerInactiveAiAction(chat.id);
@@ -135,11 +262,22 @@
       if (!isDueForRandomIntervalCheck(chat)) {
         return;
       }
+      if (isChatInDnd(chat)) {
+        console.log(`群聊 "${chat.name}" 处于勿扰时段(${chat.settings.dndStart || '23:00'}~${chat.settings.dndEnd || '07:00'})，本次跳过主动发消息。`);
+        return;
+      }
       if (chat.id !== state.activeChatId && Math.random() < 0.10) {
         console.log(`群聊 "${chat.name}" 被唤醒，准备独立行动...`);
         triggerGroupAiAction(chat.id);
       }
     });
+
+    // 论坛帖子的"网友评论"也挂在这个心跳上——随时间自然长出来，不跟你聊不聊天挂钩
+    try {
+      await maybeGenerateForumComment();
+    } catch (e) {
+      console.warn('[论坛] 后台生成评论出错', e);
+    }
 
 
 
@@ -967,6 +1105,8 @@ ${tasksString}
   }
 
   // ========== 全局暴露 ==========
+  window.isChatInDnd = isChatInDnd;
+  window.isWithinDndWindow = isWithinDndWindow;
   window.simulateBackgroundActivity = simulateBackgroundActivity;
   window.startBackgroundSimulation = startBackgroundSimulation;
   window.stopBackgroundSimulation = stopBackgroundSimulation;

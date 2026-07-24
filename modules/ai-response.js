@@ -3434,6 +3434,16 @@ ${getActiveThoughtsPrompt()}
             } catch (e) { console.warn('[状态栏] 读取预设失败，跳过本次注入', e); }
           }
 
+          // 新增：论坛自主发帖功能（复用豆瓣帖子库 db.doubanPosts）
+          // 默认开启，chat.settings.enableForumPost 可以单独覆盖某个角色（null/undefined = 跟全局走）
+          const enableForumPost = (chat.settings.enableForumPost !== null && chat.settings.enableForumPost !== undefined)
+            ? chat.settings.enableForumPost
+            : (state.globalSettings.enableForumPost !== false);
+          if (enableForumPost) {
+            const userLabelForForum = chat.settings.myNickname || '对方';
+            systemPrompt += `\n\n## 论坛发帖（可选行动）\n触发时机有两种：① ${userLabelForForum}这一轮直接叫你去发帖/去论坛/去豆瓣up——这种情况必须照做，不能揣着不发；② 你自己这一轮有比较强烈的情绪想找人说说，比如${userLabelForForum}已经很久没回你、你觉得委屈/生气/困惑，或者单纯有什么新鲜事想分享/请教网友——这种情况下是【可选】的，自己判断要不要发，不用每轮硬发。\n满足以上任一条件时用这个格式（可以跟其他行动一起输出，放进同一个数组）：\n\`{"type": "forum_post", "groupName": "帖子适合发在哪个版块，随手起一个贴切的名字就行", "postTitle": "帖子标题", "content": "帖子正文，可以带情绪、可以吐槽、可以求助"}\`\n（内容要符合你的人设和说话习惯，可以匿名/换个马甲的口吻写，但groupName/postTitle/content照常写就行。）`;
+          }
+
           // 小号/短信 伪装功能：同理直接追加
           if (typeof DisguiseManager !== 'undefined') {
             systemPrompt += DisguiseManager.getAltPersonaPromptInjection(chat);
@@ -4998,6 +5008,30 @@ ${getActiveThoughtsPrompt()}
               }
             }
             continue;
+
+          case 'forum_post': {
+            // 新增：AI可以在正常聊天中自主决定去论坛发帖（比如觉得委屈、想找网友吐槽/请教）
+            // 直接复用现有的豆瓣帖子库(db.doubanPosts)，字段对齐 handleGenerateDoubanPosts 里批量生成时用的schema，
+            // 这样发出来的帖子跟"生成"按钮批量生成的帖子在豆瓣列表/详情页里能正常混在一起显示。
+            if (msgData.postTitle && msgData.content) {
+              const forumPost = {
+                groupName: msgData.groupName || '瞎聊',
+                postTitle: String(msgData.postTitle),
+                authorName: chat.name,
+                authorOriginalName: chat.originalName || chat.name,
+                content: String(msgData.content),
+                likesCount: Math.floor(Math.random() * 30),
+                commentsCount: 0,
+                comments: [],
+                timestamp: Date.now()
+              };
+              try {
+                await db.doubanPosts.add(forumPost);
+                console.log(`角色 "${chat.name}" 自主发了一条论坛帖子:《${msgData.postTitle}》`);
+              } catch (e) { console.warn('[论坛] 保存自主发帖失败', e); }
+            }
+            continue;
+          }
 
           case 'qzone_post':
             const newPost = {
