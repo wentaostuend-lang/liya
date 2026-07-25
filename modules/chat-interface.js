@@ -603,6 +603,9 @@
       const senderNameDiv = document.createElement('div');
       senderNameDiv.className = 'sender-name';
       senderNameDiv.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
+      if (member && member.groupTitle) {
+        senderNameDiv.style.color = '#b45cf0';
+      }
       if (member && typeof getGroupTitleTag === 'function') {
         const tag = document.createElement('span');
         tag.className = 'group-level-title-tag';

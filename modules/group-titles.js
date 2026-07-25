@@ -208,6 +208,7 @@ function createMemberManagementItem(member, chat) {
 
   const titleText = member.id === 'user' ? (chat.settings.myGroupTitle || '') : (member.groupTitle || '');
   const titleTag = titleText ? `<span class="title-tag">${titleText}</span>` : '';
+  const nameStyle = titleText ? ' style="color:#b45cf0;"' : '';
 
   const muteTag = member.isMuted
     ? '<span class="title-tag" style="color:#ff3b30;background:#ffe5e5;">🚫已禁言</span>'
@@ -241,7 +242,7 @@ function createMemberManagementItem(member, chat) {
   item.innerHTML = `
     <img src="${member.avatar || defaultAvatar}" class="avatar">
     <div class="info">
-        <span class="name">${member.groupNickname}</span>
+        <span class="name"${nameStyle}>${member.groupNickname}</span>
         <div class="tags">
             ${levelTag}
             ${roleTag}
