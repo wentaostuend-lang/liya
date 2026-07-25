@@ -1644,6 +1644,9 @@ window.initEventBindingsA = async function(state, db) {
 
       (async () => {
         chat.history.push(msg);
+        if (chat.isGroup && typeof awardGroupActivity === 'function') {
+          await awardGroupActivity(chat, 'user');
+        }
         await db.chats.put(chat);
         renderChatList();
 

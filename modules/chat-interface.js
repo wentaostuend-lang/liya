@@ -169,6 +169,9 @@
     cleanupWaimaiTimers();
     const chat = state.chats[chatId];
     if (!chat) return;
+    if (chat.isGroup && typeof checkAndDecayChat === 'function') {
+      checkAndDecayChat(chat);
+    }
 
     exitSelectionMode();
 
@@ -600,6 +603,12 @@
       const senderNameDiv = document.createElement('div');
       senderNameDiv.className = 'sender-name';
       senderNameDiv.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
+      if (member && typeof getGroupTitleTag === 'function') {
+        const tag = document.createElement('span');
+        tag.className = 'group-level-title-tag';
+        tag.textContent = getGroupTitleTag(member.levelPoints || 0, member.groupTitle || '');
+        senderNameDiv.appendChild(tag);
+      }
       wrapper.appendChild(senderNameDiv);
     }
 
