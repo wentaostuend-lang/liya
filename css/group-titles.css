@@ -1,0 +1,102 @@
+/* ================= 群头衔 / 等级系统 (从原项目 -k--main 移植 + 新增等级功能) ================= */
+
+/* -- 群成员管理列表 -- */
+.member-management-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid var(--border-color, #eee);
+}
+.member-management-item .avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  margin-right: 12px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.member-management-item .info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.member-management-item .info .name {
+  font-weight: 500;
+}
+.member-management-item .info .tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.member-management-item .role-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: white;
+  flex-shrink: 0;
+}
+.role-tag.owner { background-color: #ffc107; }
+.role-tag.admin { background-color: #28a745; }
+.member-management-item .level-tag {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #fff;
+  background-color: #7c5cff;
+  flex-shrink: 0;
+}
+.member-management-item .title-tag {
+  font-size: 11px;
+  color: var(--text-secondary, #666);
+  background-color: #f0f2f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+#phone-screen.dark-mode .member-management-item .title-tag {
+  background-color: #3a3a3c;
+}
+.member-management-item .points-hint {
+  font-size: 10px;
+  color: #aaa;
+}
+.member-management-item .actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  max-width: 40%;
+}
+.member-management-item .actions .action-btn {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  background: #f7f7f9;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.member-management-item .actions .action-btn.danger {
+  color: #ff3b30;
+  border-color: #ffd0cd;
+  background: #fff2f1;
+}
+
+/* -- 聊天气泡里的 Lv+头衔 标签 (发言人名字后面) -- */
+.group-level-title-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #7c5cff;
+  background: rgba(124, 92, 255, 0.12);
+  padding: 1px 6px;
+  border-radius: 8px;
+  vertical-align: middle;
+}
