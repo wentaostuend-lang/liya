@@ -27,10 +27,53 @@ function getDecayRateForLevel(level) {
   return 5;
 }
 
-// 组合展示："Lv1群主" 这种格式(等级紧跟头衔文字,不加分隔符)
+// 组合展示："Lv1 群主" 这种格式(带一个空格)；有自定义头衔就显示头衔,没有就按身份兜底显示 群主/管理员/成员
 function getGroupTitleTag(points, title) {
   const level = getLevelFromPoints(points);
-  return `Lv${level}${title || ''}`;
+  return title ? `Lv${level} ${title}` : `Lv${level}`;
+}
+
+// 计算某人的完整徽章信息：显示文字 + 颜色档位/自定义色
+// entity 需要有: points, title, isOwner, isAdmin, customColor
+function getGroupBadge(entity) {
+  const level = getLevelFromPoints(entity.points || 0);
+  let word, tierClass;
+  if (entity.isOwner) {
+    word = '群主';
+    tierClass = 'tier-owner';
+  } else if (entity.isAdmin) {
+    word = '管理员';
+    tierClass = 'tier-admin';
+  } else if (entity.title) {
+    word = entity.title;
+    tierClass = 'tier-title';
+  } else {
+    word = '成员';
+    tierClass = 'tier-default';
+  }
+  const text = `Lv${level} ${entity.title || word}`;
+  if (entity.customColor) {
+    return { text, tierClass: '', style: `background:${entity.customColor};` };
+  }
+  return { text, tierClass, style: '' };
+}
+
+// 计算某个人的标签应该用哪一档颜色/自定义色。
+// entity 需要有: isOwner, isAdmin, title, customColor
+function resolveTagColor(entity) {
+  if (entity.customColor) {
+    return { tierClass: '', style: `background:${entity.customColor};` };
+  }
+  if (entity.isOwner) {
+    return { tierClass: 'tier-owner', style: '' };
+  }
+  if (entity.isAdmin) {
+    return { tierClass: 'tier-admin', style: '' };
+  }
+  if (entity.title) {
+    return { tierClass: 'tier-title', style: '' };
+  }
+  return { tierClass: 'tier-default', style: '' };
 }
 
 function todayDateStr() {
@@ -204,11 +247,18 @@ function createMemberManagementItem(member, chat) {
 
   const points = member.levelPoints || 0;
   const level = getLevelFromPoints(points);
-  const levelTag = `<span class="level-tag">Lv${level}</span>`;
+  const customColor = member.id === 'user' ? chat.settings.myTitleColor : member.titleColor;
+  const titleTextForColor = member.id === 'user' ? (chat.settings.myGroupTitle || '') : (member.groupTitle || '');
+  const colorInfo = resolveTagColor({
+    isOwner: isThisMemberOwner,
+    isAdmin: isThisMemberAdmin,
+    title: titleTextForColor,
+    customColor,
+  });
+  const levelTag = `<span class="level-tag ${colorInfo.tierClass}" style="${colorInfo.style}">Lv${level}</span>`;
 
-  const titleText = member.id === 'user' ? (chat.settings.myGroupTitle || '') : (member.groupTitle || '');
+  const titleText = titleTextForColor;
   const titleTag = titleText ? `<span class="title-tag">${titleText}</span>` : '';
-  const nameStyle = titleText ? ' style="color:#b45cf0;"' : '';
 
   const muteTag = member.isMuted
     ? '<span class="title-tag" style="color:#ff3b30;background:#ffe5e5;">🚫已禁言</span>'
@@ -223,6 +273,9 @@ function createMemberManagementItem(member, chat) {
   }
   if (canManageTitle) {
     actionsHtml += `<button class="action-btn" data-action="set-title" data-member-id="${member.id}">头衔</button>`;
+  }
+  if (isCurrentUserOwner) {
+    actionsHtml += `<button class="action-btn" data-action="set-color" data-member-id="${member.id}">改颜色</button>`;
   }
   if (canManageAdmin) {
     const adminActionText = isThisMemberAdmin ? '取消管理' : '设为管理';
@@ -242,7 +295,7 @@ function createMemberManagementItem(member, chat) {
   item.innerHTML = `
     <img src="${member.avatar || defaultAvatar}" class="avatar">
     <div class="info">
-        <span class="name"${nameStyle}>${member.groupNickname}</span>
+        <span class="name">${member.groupNickname}</span>
         <div class="tags">
             ${levelTag}
             ${roleTag}
@@ -421,6 +474,40 @@ async function handleMuteMember(memberId) {
   await logSystemMessage(chat.id, `"${myNickname}"将"${targetNickname}"${actionText}。`);
 }
 
+async function handleSetMemberColor(memberId) {
+  const chat = state.chats[state.activeChatId];
+  if (!chat || chat.ownerId !== 'user') {
+    await showCustomAlert('无权限', '只有群主才能自定义标识颜色！');
+    return;
+  }
+  const isUser = memberId === 'user';
+  const targetNickname = isUser ? (chat.settings.myNickname || '我') : (chat.members.find(m => m.id === memberId)?.groupNickname || '');
+  const oldColor = isUser ? (chat.settings.myTitleColor || '') : (chat.members.find(m => m.id === memberId)?.titleColor || '');
+
+  const newColor = await showCustomPrompt(
+    `为"${targetNickname}"设置标识颜色`,
+    '输入十六进制颜色值(如 #17c3b2)，留空则恢复默认三档配色',
+    oldColor
+  );
+  if (newColor === null) return;
+
+  const trimmed = newColor.trim();
+  if (trimmed && !/^#[0-9a-fA-F]{3,8}$/.test(trimmed)) {
+    await showCustomAlert('格式不对', '请输入合法的十六进制颜色值，例如 #ff6699');
+    return;
+  }
+
+  if (isUser) {
+    chat.settings.myTitleColor = trimmed;
+  } else {
+    const member = chat.members.find(m => m.id === memberId);
+    if (!member) return;
+    member.titleColor = trimmed;
+  }
+  await db.chats.put(chat);
+  renderMemberManagementList();
+}
+
 async function removeMemberFromGroup(memberId) {
   const chat = state.chats[state.activeChatId];
   if (!chat) return;
@@ -468,6 +555,7 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
     if (action === 'set-nickname') handleSetUserNickname();
     if (action === 'set-title') handleSetUserTitle();
     if (action === 'unmute-self') handleUserUnmute();
+    if (action === 'set-color') handleSetMemberColor('user');
     return;
   }
 
@@ -477,6 +565,9 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
       break;
     case 'set-title':
       handleSetMemberTitle(memberId);
+      break;
+    case 'set-color':
+      handleSetMemberColor(memberId);
       break;
     case 'transfer-owner':
       handleTransferOwnership(memberId);
@@ -492,6 +583,8 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
 
 window.getLevelFromPoints = getLevelFromPoints;
 window.getGroupTitleTag = getGroupTitleTag;
+window.getGroupBadge = getGroupBadge;
+window.resolveTagColor = resolveTagColor;
 window.awardGroupActivity = awardGroupActivity;
 window.checkAndDecayChat = checkAndDecayChat;
 window.openMemberManagementScreen = openMemberManagementScreen;

@@ -602,19 +602,44 @@
                   || chat.members.find(m => m.groupNickname === msg.senderName);
       const senderNameDiv = document.createElement('div');
       senderNameDiv.className = 'sender-name';
-      if (member && typeof getGroupTitleTag === 'function') {
+      if (member && typeof getGroupBadge === 'function') {
+        const badge = getGroupBadge({
+          points: member.levelPoints || 0,
+          title: member.groupTitle || '',
+          isOwner: member.id === chat.ownerId,
+          isAdmin: !!member.isAdmin,
+          customColor: member.titleColor || '',
+        });
         const tag = document.createElement('span');
-        tag.className = 'group-level-title-tag' + (member.groupTitle ? ' has-title' : '');
-        tag.textContent = getGroupTitleTag(member.levelPoints || 0, member.groupTitle || '');
+        tag.className = 'group-level-title-tag ' + badge.tierClass;
+        if (badge.style) tag.setAttribute('style', badge.style);
+        tag.textContent = badge.text;
         senderNameDiv.appendChild(tag);
       }
       const nameSpan = document.createElement('span');
       nameSpan.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
-      if (member && member.groupTitle) {
-        nameSpan.style.color = '#b45cf0';
-      }
       senderNameDiv.appendChild(nameSpan);
       wrapper.appendChild(senderNameDiv);
+    }
+    if (chat.isGroup && isUser && typeof getGroupBadge === 'function') {
+      const userSenderDiv = document.createElement('div');
+      userSenderDiv.className = 'sender-name user-sender-name';
+      const badge = getGroupBadge({
+        points: chat.settings.myLevelPoints || 0,
+        title: chat.settings.myGroupTitle || '',
+        isOwner: chat.ownerId === 'user',
+        isAdmin: !!chat.settings.isUserAdmin,
+        customColor: chat.settings.myTitleColor || '',
+      });
+      const tag = document.createElement('span');
+      tag.className = 'group-level-title-tag ' + badge.tierClass;
+      if (badge.style) tag.setAttribute('style', badge.style);
+      tag.textContent = badge.text;
+      userSenderDiv.appendChild(tag);
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = chat.settings.myNickname || '我';
+      userSenderDiv.appendChild(nameSpan);
+      wrapper.appendChild(userSenderDiv);
     }
 
     const bubble = document.createElement('div');
