@@ -94,15 +94,15 @@
 /* -- 聊天气泡里的 Lv+头衔 长条标签 (放在名字前面，仿参考图的直角长条风格) -- */
 .group-level-title-tag {
   display: inline-block;
-  margin-right: 6px;
+  margin-right: 5px;
   margin-bottom: 0;
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   font-style: italic;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   color: #fff;
-  padding: 3px 14px;
-  border-radius: 8px;
+  padding: 1px 7px;
+  border-radius: 6px;
   vertical-align: middle;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
 }
