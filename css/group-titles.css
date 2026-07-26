@@ -47,9 +47,12 @@
   border-radius: 4px;
   font-weight: bold;
   color: #fff;
-  background-color: #7c5cff;
   flex-shrink: 0;
 }
+.member-management-item .level-tag.tier-default { background: linear-gradient(135deg, #b9c1cc, #8b93a1); }
+.member-management-item .level-tag.tier-title { background: linear-gradient(135deg, #d79bff, #a238e0); }
+.member-management-item .level-tag.tier-admin { background: linear-gradient(135deg, #6fdc8c, #28a745); }
+.member-management-item .level-tag.tier-owner { background: linear-gradient(135deg, #ffd76a, #ffa726); }
 .member-management-item .title-tag {
   font-size: 11px;
   color: var(--text-secondary, #666);
@@ -88,23 +91,30 @@
   background: #fff2f1;
 }
 
-/* -- 聊天气泡里的 Lv+头衔 标签 (发言人名字后面) -- */
+/* -- 聊天气泡里的 Lv+头衔 长条标签 (放在名字前面，仿参考图的直角长条风格) -- */
 .group-level-title-tag {
   display: inline-block;
   margin-right: 6px;
   margin-bottom: 0;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   font-style: italic;
   letter-spacing: 0.3px;
   color: #fff;
-  padding: 2px 8px 2px 7px;
-  border-radius: 10px;
+  padding: 3px 14px;
+  border-radius: 8px;
   vertical-align: middle;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.15);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  background: linear-gradient(135deg, #b9c1cc, #8b93a1); /* 无头衔：灰银色 */
 }
-.group-level-title-tag.has-title {
-  background: linear-gradient(135deg, #d79bff, #a238e0); /* 有头衔：紫色 */
+/* 默认三档颜色：无头衔=灰 / 有头衔=紫 / 管理员或群主=绿；群主可通过自定义颜色覆盖这三档(内联style) */
+.group-level-title-tag.tier-default { background: linear-gradient(135deg, #b9c1cc, #8b93a1); }
+.group-level-title-tag.tier-title { background: linear-gradient(135deg, #d79bff, #a238e0); }
+.group-level-title-tag.tier-admin { background: linear-gradient(135deg, #6fdc8c, #28a745); }
+.group-level-title-tag.tier-owner { background: linear-gradient(135deg, #ffd76a, #ffa726); }
+
+/* -- 用户自己在群聊里发言时，气泡上方的同款标签(镜像显示在右侧) -- */
+.message-wrapper.user .user-sender-name {
+  text-align: right;
+  margin-bottom: 3px;
+  font-size: 11px;
 }
