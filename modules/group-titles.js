@@ -35,6 +35,37 @@ function getGroupTitleTag(points, title) {
 
 // 计算某人的完整徽章信息：显示文字 + 颜色档位/自定义色
 // entity 需要有: points, title, isOwner, isAdmin, customColor
+// 把十六进制颜色调亮/调暗一定比例，用于给自定义色自动配一个渐变
+function shadeHexColor(hex, percent) {
+  let color = hex.replace('#', '');
+  if (color.length === 3) {
+    color = color.split('').map(c => c + c).join('');
+  }
+  const num = parseInt(color, 16);
+  let r = (num >> 16) + Math.round(255 * percent);
+  let g = ((num >> 8) & 0x00ff) + Math.round(255 * percent);
+  let b = (num & 0x0000ff) + Math.round(255 * percent);
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return `#${(r << 16 | g << 8 | b).toString(16).padStart(6, '0')}`;
+}
+
+// 根据群主设置的单一色值，自动算出一个浅→深的渐变(135度，和其它三档保持同一种视觉风格)
+function buildCustomGradient(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    // 3位简写颜色先展开成6位再计算
+    if (/^#[0-9a-fA-F]{3}$/.test(hex)) {
+      hex = '#' + hex.slice(1).split('').map(c => c + c).join('');
+    } else {
+      return `background:${hex};`; // 非标准格式就不强行处理，直接用原值
+    }
+  }
+  const light = shadeHexColor(hex, 0.18);
+  const dark = shadeHexColor(hex, -0.12);
+  return `background: linear-gradient(135deg, ${light}, ${dark});`;
+}
+
 function getGroupBadge(entity) {
   const level = getLevelFromPoints(entity.points || 0);
   let word, tierClass;
@@ -53,7 +84,7 @@ function getGroupBadge(entity) {
   }
   const text = `Lv${level} ${entity.title || word}`;
   if (entity.customColor) {
-    return { text, tierClass: '', style: `background:${entity.customColor};` };
+    return { text, tierClass: '', style: buildCustomGradient(entity.customColor) };
   }
   return { text, tierClass, style: '' };
 }
@@ -62,7 +93,7 @@ function getGroupBadge(entity) {
 // entity 需要有: isOwner, isAdmin, title, customColor
 function resolveTagColor(entity) {
   if (entity.customColor) {
-    return { tierClass: '', style: `background:${entity.customColor};` };
+    return { tierClass: '', style: buildCustomGradient(entity.customColor) };
   }
   if (entity.isOwner) {
     return { tierClass: 'tier-owner', style: '' };
