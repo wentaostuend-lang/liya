@@ -602,16 +602,18 @@
                   || chat.members.find(m => m.groupNickname === msg.senderName);
       const senderNameDiv = document.createElement('div');
       senderNameDiv.className = 'sender-name';
-      senderNameDiv.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
-      if (member && member.groupTitle) {
-        senderNameDiv.style.color = '#b45cf0';
-      }
       if (member && typeof getGroupTitleTag === 'function') {
         const tag = document.createElement('span');
-        tag.className = 'group-level-title-tag';
+        tag.className = 'group-level-title-tag' + (member.groupTitle ? ' has-title' : '');
         tag.textContent = getGroupTitleTag(member.levelPoints || 0, member.groupTitle || '');
         senderNameDiv.appendChild(tag);
       }
+      const nameSpan = document.createElement('span');
+      nameSpan.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
+      if (member && member.groupTitle) {
+        nameSpan.style.color = '#b45cf0';
+      }
+      senderNameDiv.appendChild(nameSpan);
       wrapper.appendChild(senderNameDiv);
     }
 
