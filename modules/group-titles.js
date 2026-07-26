@@ -298,6 +298,7 @@ function createMemberManagementItem(member, chat) {
   let actionsHtml = '';
   if (member.id === 'user') {
     actionsHtml += `<button class="action-btn" data-action="set-nickname" data-member-id="user">改名</button>`;
+    actionsHtml += `<button class="action-btn" data-action="set-title" data-member-id="user">头衔</button>`;
     if (chat.settings.isUserMuted) {
       actionsHtml += `<button class="action-btn" data-action="unmute-self" data-member-id="user">解除禁言</button>`;
     }
@@ -515,11 +516,35 @@ async function handleSetMemberColor(memberId) {
   const targetNickname = isUser ? (chat.settings.myNickname || '我') : (chat.members.find(m => m.id === memberId)?.groupNickname || '');
   const oldColor = isUser ? (chat.settings.myTitleColor || '') : (chat.members.find(m => m.id === memberId)?.titleColor || '');
 
-  const newColor = await showCustomPrompt(
+  const previewBaseStyle = 'display:inline-block;font-size:10px;font-weight:800;font-style:italic;letter-spacing:0.2px;color:#fff;padding:1px 7px;border-radius:6px;text-shadow:0 1px 1px rgba(0,0,0,0.15);margin-bottom:10px;';
+  const extraHtml = `<div style="margin-bottom:10px;color:#999;font-size:12px;">预览效果：</div><span id="color-preview-swatch" style="${previewBaseStyle}background:#99a2b0;">Lv1 ${targetNickname}</span>`;
+
+  const promptPromise = showCustomPrompt(
     `为"${targetNickname}"设置标识颜色`,
     '输入十六进制颜色值(如 #17c3b2)，留空则恢复默认三档配色',
-    oldColor
+    oldColor,
+    'text',
+    extraHtml
   );
+
+  // 输入的同时实时更新预览条的颜色
+  const inputEl = document.getElementById('custom-prompt-input');
+  const previewEl = document.getElementById('color-preview-swatch');
+  const updatePreview = () => {
+    if (!inputEl || !previewEl) return;
+    const val = inputEl.value.trim();
+    if (val && /^#[0-9a-fA-F]{3}$|^#[0-9a-fA-F]{6}$/.test(val)) {
+      previewEl.setAttribute('style', previewBaseStyle + buildCustomGradient(val));
+    } else {
+      previewEl.setAttribute('style', previewBaseStyle + 'background:#99a2b0;');
+    }
+  };
+  if (inputEl) {
+    inputEl.addEventListener('input', updatePreview);
+    updatePreview();
+  }
+
+  const newColor = await promptPromise;
   if (newColor === null) return;
 
   const trimmed = newColor.trim();
