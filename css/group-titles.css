@@ -94,6 +94,7 @@
 /* -- 聊天气泡里的 Lv+头衔 长条标签 (放在名字前面，仿参考图的直角长条风格) -- */
 .group-level-title-tag {
   display: inline-block;
+  white-space: nowrap;
   margin-right: 5px;
   margin-bottom: 0;
   font-size: 10px;
