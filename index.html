@@ -71,7 +71,7 @@
   <script src="modules/chat-interface.js?v=0.0.41" defer></script>
   <script src="modules/chat-input.js?v=0.0.36" defer></script>
   <!-- 第四层：AI 核心 -->
-  <script src="modules/ai-response.js?v=0.0.39" defer></script>
+  <script src="modules/ai-response.js?v=0.0.40" defer></script>
   <script src="modules/ai-group.js?v=0.0.39" defer></script>
   <!-- 第五层：功能模块 -->
   <script src="modules/music-player.js?v=0.0.36" defer></script>
@@ -117,6 +117,7 @@
   <script src="modules/data-management.js?v=0.0.36" defer></script>
   <script src="modules/misc-features.js?v=0.0.36" defer></script>
   <script src="modules/group-titles.js?v=0.0.6" defer></script>
+  <script src="modules/banned-words.js?v=0.0.1" defer></script>
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
@@ -308,6 +309,9 @@
                   </div>
                   <div class="desktop-app-icon" onclick="showScreen('world-book-screen')">
                     <div class="icon-bg-desktop"><img id="icon-img-world-book" src="https://i.postimg.cc/HWf1JKzn/IMG-6435.jpg" alt="世界书"></div> <span class="label"data-lang-key="homeAppWorldBook">世界书</span>
+                  </div>
+                  <div class="desktop-app-icon" onclick="openBannedWordsScreen('global')">
+                    <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🚫</div> <span class="label">屏蔽词</span>
                   </div>
                   <div class="desktop-app-icon" onclick="showScreen('wallpaper-screen')">
                     <div class="icon-bg-desktop"><img id="icon-img-wallpaper" src="https://i.postimg.cc/T1j03pQr/IMG-6440.jpg" alt="外观设置"></div> <span class="label"data-lang-key="homeAppAppearance">外观设置</span>
@@ -1700,6 +1704,34 @@
           <div id="world-book-entries-container" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding: 5px; flex-grow: 1;"> </div>
         </div> <button id="add-world-book-entry-btn" class="form-button form-button-secondary"data-lang-key="worldBookAddEntryBtn"> [+] 添加新条目 </button>
       </div>
+    </div>
+
+    <!-- 屏蔽词管理界面 (全局 或 单个聊天，取决于打开时传入的 scope) -->
+    <div id="banned-words-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="banned-words-back-btn">‹</span>
+        <span id="banned-words-title">屏蔽词管理</span>
+        <span style="width: 30px;"></span>
+      </div>
+      <div class="form-container" style="flex-grow: 0;">
+        <div style="font-size:12px; color:var(--text-secondary,#888); margin-bottom:10px; line-height:1.6;" id="banned-words-scope-hint"></div>
+        <div class="form-group">
+          <label>屏蔽词 / 正则表达式(不勾选正则的话,可以用逗号一次填多个词)</label>
+          <input type="text" id="banned-word-input" placeholder="例如：某个词,另一个词 或 /某\d+词/gi">
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="banned-word-is-regex" style="width:auto;">
+            当作正则表达式解析
+          </label>
+        </div>
+        <div class="form-group">
+          <label>命中后替换为(留空=直接删除，让AI自己找近义词表达)</label>
+          <input type="text" id="banned-word-replacement" placeholder="留空即可">
+        </div>
+        <button class="form-button" id="add-banned-word-btn">+ 添加</button>
+      </div>
+      <div id="banned-words-list" class="list-container" style="flex-grow: 1; overflow-y: auto;"></div>
     </div>
     <div id="preset-screen" class="screen">
       <div class="header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span data-lang-key="presetTitle">预设</span>
@@ -5417,6 +5449,11 @@
                 <label>群成员管理</label>
                 <div id="group-members-settings" class="horizontal-scroll-list"></div> 
                 <button id="manage-members-btn" class="settings-full-btn">管理所有群成员</button>
+            </div>
+            <div class="settings-item-block" id="chat-banned-words-group">
+                <label>本聊天专属屏蔽词</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">这里加的词只对当前这个聊天生效，全局屏蔽词在主屏幕"屏蔽词"里管理。</div>
+                <button id="open-chat-banned-words-btn" class="settings-full-btn">管理本聊天屏蔽词</button>
             </div>
             <div class="settings-item-block" id="spectator-memory-settings-group" style="display: none;">
                 <label>旁观记忆设置</label>
