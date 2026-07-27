@@ -114,8 +114,15 @@
 .group-level-title-tag.tier-owner { background: linear-gradient(135deg, #ffd76a, #ffa726); }
 
 /* -- 用户自己在群聊里发言时，气泡上方的同款标签(镜像显示在右侧) -- */
+.sender-name {
+  white-space: nowrap;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+}
 .message-wrapper.user .user-sender-name {
   text-align: right;
   margin-bottom: 3px;
   font-size: 11px;
+  margin-left: auto;
 }
