@@ -779,6 +779,9 @@ ${linkedContents}
 `;
         }
       }
+      if (typeof buildBannedWordsPromptBlock === 'function') {
+        worldBookContent += buildBannedWordsPromptBlock(chat);
+      }
 
 
       let longTermMemoryContext = '# 长期记忆 (最高优先级，这是群内已经确立的事实，所有角色必须严格遵守)\n';
@@ -1039,6 +1042,9 @@ ${linkedContents}
         }
 
         if (aiMessage) {
+          if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
           chat.history.push(aiMessage);
           appendMessage(aiMessage, chat);
           await new Promise(resolve => setTimeout(resolve, Math.random() * 1200 + 800));
@@ -1217,7 +1223,10 @@ ${linkedContents}
                   content: '对方拒绝了你的视频通话请求。',
                   timestamp: Date.now()
                 };
-                chat.history.push(aiMessage);
+                if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
                 await db.chats.put(chat);
                 showScreen('chat-interface-screen');
                 renderChatInterface(chatId);
@@ -1273,7 +1282,10 @@ ${linkedContents}
               content: '对方拒绝了你的视频通话请求。',
               timestamp: Date.now()
             };
-            chat.history.push(aiMessage);
+            if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
             await db.chats.put(chat);
             showScreen('chat-interface-screen');
             renderChatInterface(chatId);
@@ -1393,7 +1405,10 @@ ${linkedContents}
                   content: '对方拒绝了你的语音通话请求。',
                   timestamp: Date.now()
                 };
-                chat.history.push(aiMessage);
+                if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
                 await db.chats.put(chat);
                 showScreen('chat-interface-screen');
                 renderChatInterface(chatId);
@@ -1470,7 +1485,10 @@ ${linkedContents}
               content: '对方拒绝了你的语音通话请求。',
               timestamp: Date.now()
             };
-            chat.history.push(aiMessage);
+            if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
             await db.chats.put(chat);
             showScreen('chat-interface-screen');
             renderChatInterface(chatId);
@@ -1691,6 +1709,9 @@ ${linkedContents}
 # --- 世界书设定结束 ---
 `;
         }
+      }
+      if (typeof buildBannedWordsPromptBlock === 'function') {
+        worldBookContent += buildBannedWordsPromptBlock(chat);
       }
 
 
@@ -4017,7 +4038,10 @@ ${getActiveThoughtsPrompt()}
               content: '对方拒绝了你的视频通话请求。',
               timestamp: Date.now()
             };
-            chat.history.push(aiMessage);
+            if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
             await db.chats.put(chat);
             showScreen('chat-interface-screen');
             renderChatInterface(chatId);
@@ -4036,7 +4060,10 @@ ${getActiveThoughtsPrompt()}
               content: '对方拒绝了你的语音通话请求。',
               timestamp: Date.now()
             };
-            chat.history.push(aiMessage);
+            if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
             await db.chats.put(chat);
             showScreen('chat-interface-screen');
             renderChatInterface(chatId);
@@ -6577,6 +6604,9 @@ ${getActiveThoughtsPrompt()}
         }
 
         if (aiMessage) {
+          if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
           chat.history.push(aiMessage);
           if (chat.isGroup && typeof awardGroupActivity === 'function') {
             const speakerMember = chat.members.find(m => m.originalName === aiMessage.senderName || m.groupNickname === aiMessage.senderName);
@@ -6898,6 +6928,9 @@ ${linkedContents}
 `;
         }
       }
+      if (typeof buildBannedWordsPromptBlock === 'function') {
+        worldBookContent += buildBannedWordsPromptBlock(chat);
+      }
       let musicContext = '';
       if (musicState.isActive && musicState.activeChatId === chat.id) {
         const currentTrack = musicState.currentIndex > -1 ? musicState.playlist[musicState.currentIndex] : null;
@@ -7131,7 +7164,10 @@ ${linkedContents}
           }
           continue;
         }
-        chat.history.push(aiMessage);
+        if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
+            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+          }
+          chat.history.push(aiMessage);
         appendMessage(aiMessage, chat);
         await new Promise(resolve => setTimeout(resolve, Math.random() * 1000 + 800));
       }
