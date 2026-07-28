@@ -223,6 +223,22 @@ function renderMemberManagementList() {
   ensureGroupOwnerDefault(chat);
   listEl.innerHTML = '';
 
+  // 群共用思维链入口(群主/管理员可见)
+  const isOwnerOrAdmin = chat.ownerId === 'user' || chat.settings.isUserAdmin;
+  if (isOwnerOrAdmin) {
+    const groupChainRow = document.createElement('div');
+    groupChainRow.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:12px 15px; background:#f7f5ff; border-bottom:1px solid var(--border-color,#eee);';
+    const hasChain = !!(chat.settings.groupThoughtChain && chat.settings.groupThoughtChain.trim());
+    groupChainRow.innerHTML = `
+      <div>
+        <div style="font-weight:500;">🧠 群共用思维链</div>
+        <div style="font-size:12px; color:#999; margin-top:2px;">${hasChain ? '已设置，全群角色都会参考' : '还没设置'}</div>
+      </div>
+      <button class="action-btn" id="edit-group-thought-chain-btn">编辑</button>
+    `;
+    listEl.appendChild(groupChainRow);
+  }
+
   const allParticipants = [
     {
       id: 'user',
@@ -308,6 +324,9 @@ function createMemberManagementItem(member, chat) {
   }
   if (isCurrentUserOwner) {
     actionsHtml += `<button class="action-btn" data-action="set-color" data-member-id="${member.id}">改颜色</button>`;
+  }
+  if (isCurrentUserOwner || isCurrentUserAdmin) {
+    actionsHtml += `<button class="action-btn" data-action="set-thought-chain" data-member-id="${member.id}">思维链</button>`;
   }
   if (canManageAdmin) {
     const adminActionText = isThisMemberAdmin ? '取消管理' : '设为管理';
@@ -564,6 +583,79 @@ async function handleSetMemberColor(memberId) {
   renderMemberManagementList();
 }
 
+async function handleSetGroupThoughtChain() {
+  const chat = state.chats[state.activeChatId];
+  if (!chat || (chat.ownerId !== 'user' && !chat.settings.isUserAdmin)) {
+    await showCustomAlert('无权限', '只有群主或管理员才能设置群共用思维链！');
+    return;
+  }
+  const newChain = await showCustomPrompt(
+    '群共用思维链',
+    '这里写的内容会作为额外的思考补充，提示给群里的【所有】角色，留空则不生效。',
+    chat.settings.groupThoughtChain || '',
+    'textarea'
+  );
+  if (newChain === null) return;
+  chat.settings.groupThoughtChain = newChain.trim();
+  await db.chats.put(chat);
+  renderMemberManagementList();
+}
+
+async function handleSetMemberThoughtChain(memberId) {
+  const chat = state.chats[state.activeChatId];
+  if (!chat || (chat.ownerId !== 'user' && !chat.settings.isUserAdmin)) {
+    await showCustomAlert('无权限', '只有群主或管理员才能设置角色专属思维链！');
+    return;
+  }
+  const isUser = memberId === 'user';
+  const targetNickname = isUser ? (chat.settings.myNickname || '我') : (chat.members.find(m => m.id === memberId)?.groupNickname || '');
+  const oldChain = isUser ? (chat.settings.myThoughtChain || '') : (chat.members.find(m => m.id === memberId)?.thoughtChain || '');
+
+  const newChain = await showCustomPrompt(
+    `"${targetNickname}" 的专属思维链`,
+    '这里写的内容只会提示给这一个角色，作为TA专属的思考侧重点，留空则不生效。',
+    oldChain,
+    'textarea'
+  );
+  if (newChain === null) return;
+
+  if (isUser) {
+    chat.settings.myThoughtChain = newChain.trim();
+  } else {
+    const member = chat.members.find(m => m.id === memberId);
+    if (!member) return;
+    member.thoughtChain = newChain.trim();
+  }
+  await db.chats.put(chat);
+  renderMemberManagementList();
+}
+
+// 供 ai-response.js 调用：把群共用思维链 + 各角色专属思维链拼成一段prompt
+function buildGroupThoughtChainBlock(chat) {
+  if (!chat || !chat.isGroup) return '';
+  const groupChain = (chat.settings.groupThoughtChain || '').trim();
+  const memberChains = [];
+  if ((chat.settings.myThoughtChain || '').trim()) {
+    memberChains.push(`- ${chat.settings.myNickname || '我'}(用户): ${chat.settings.myThoughtChain.trim()}`);
+  }
+  (chat.members || []).forEach(m => {
+    if ((m.thoughtChain || '').trim()) {
+      memberChains.push(`- ${m.groupNickname}: ${m.thoughtChain.trim()}`);
+    }
+  });
+  if (!groupChain && memberChains.length === 0) return '';
+
+  let block = '\n# --- 群聊思维链补充 ---\n';
+  if (groupChain) {
+    block += `## 全群角色都要参考的思考补充：\n${groupChain}\n`;
+  }
+  if (memberChains.length > 0) {
+    block += `## 各角色专属的思考侧重点(只在写这个角色的内容时参考对应这一条)：\n${memberChains.join('\n')}\n`;
+  }
+  block += '# --- 群聊思维链补充结束 ---\n';
+  return block;
+}
+
 async function removeMemberFromGroup(memberId) {
   const chat = state.chats[state.activeChatId];
   if (!chat) return;
@@ -612,6 +704,7 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
     if (action === 'set-title') handleSetUserTitle();
     if (action === 'unmute-self') handleUserUnmute();
     if (action === 'set-color') handleSetMemberColor('user');
+    if (action === 'set-thought-chain') handleSetMemberThoughtChain('user');
     return;
   }
 
@@ -625,6 +718,9 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
     case 'set-color':
       handleSetMemberColor(memberId);
       break;
+    case 'set-thought-chain':
+      handleSetMemberThoughtChain(memberId);
+      break;
     case 'transfer-owner':
       handleTransferOwnership(memberId);
       break;
@@ -637,6 +733,12 @@ document.getElementById('member-management-list')?.addEventListener('click', (e)
   }
 });
 
+document.getElementById('member-management-list')?.addEventListener('click', (e) => {
+  if (e.target.closest('#edit-group-thought-chain-btn')) {
+    handleSetGroupThoughtChain();
+  }
+});
+
 window.getLevelFromPoints = getLevelFromPoints;
 window.getGroupTitleTag = getGroupTitleTag;
 window.getGroupBadge = getGroupBadge;
@@ -646,3 +748,4 @@ window.checkAndDecayChat = checkAndDecayChat;
 window.openMemberManagementScreen = openMemberManagementScreen;
 window.renderMemberManagementList = renderMemberManagementList;
 window.removeMemberFromGroup = removeMemberFromGroup;
+window.buildGroupThoughtChainBlock = buildGroupThoughtChainBlock;
