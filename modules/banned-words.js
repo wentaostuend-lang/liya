@@ -132,10 +132,109 @@ function renderBannedWordsList() {
         <div style="font-weight:500; word-break:break-all;">${item.word}${item.isRegex ? ' <span style="font-size:10px;color:#999;">[正则]</span>' : ''}</div>
         <div style="font-size:12px; color:#999; margin-top:2px;">${replaceHint}</div>
       </div>
-      <button class="action-btn" data-id="${item.id}" style="color:#ff3b30; flex-shrink:0; margin-left:10px;">删除</button>
+      <div style="display:flex; gap:8px; flex-shrink:0; margin-left:10px;">
+        <button class="action-btn" data-edit-id="${item.id}">改替换词</button>
+        <button class="action-btn" data-id="${item.id}" style="color:#ff3b30;">删除</button>
+      </div>
     `;
     listEl.appendChild(row);
   });
+}
+
+async function addBannedWordEntries(entries) {
+  const list = getScopeList(bannedWordsEditScope);
+  const existingWords = new Set(list.map(item => item.word));
+  let addedCount = 0;
+  entries.forEach(entry => {
+    const word = (entry.word || '').trim();
+    if (!word || existingWords.has(word)) return;
+    existingWords.add(word);
+    list.push({
+      id: `bw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      word,
+      isRegex: false,
+      replacement: (entry.replacement || '').trim(),
+    });
+    addedCount++;
+  });
+  await saveScopeList(bannedWordsEditScope);
+  return addedCount;
+}
+
+async function extractBannedWordsWithAI() {
+  const textarea = document.getElementById('banned-words-bulk-import-text');
+  const rawText = textarea.value.trim();
+  if (!rawText) {
+    await showCustomAlert('提示', '请先把禁词说明文档粘贴到文本框里');
+    return;
+  }
+  const { proxyUrl, apiKey, model } = state.apiConfig || {};
+  if (!proxyUrl || !apiKey || !model) {
+    await showCustomAlert('未配置API', '请先在API设置里配置好接口，才能使用AI智能提取。');
+    return;
+  }
+
+  showGenerationOverlay('AI正在提取禁词...');
+  try {
+    const systemPrompt = `
+# 任务
+下面是一段用户整理的"禁词说明文档"，里面混杂了真正要禁止的词句、以及大量解释性文字(比如为什么禁止、举例说明、变体提示等)。
+请你仔细阅读，提取出所有【真正需要在AI回复中禁止出现的具体词语或短句】，忽略掉纯解释性、说明性的句子本身(比如"严禁XX式调情""必须保持XX"这类规则描述句不要整句提取，但其中举例列出的具体词句要提取出来)。
+
+# 规则
+1. 如果一行里用"、"或"/"分隔了多个并列的词(比如"管家婆/公"、"骚货、荡妇")，请拆成多个独立的词分别输出。
+2. 遇到"XX（及其他变体）"这种，只提取"XX"本身，忽略"及其他变体"这几个字。
+3. 遇到句子里举例的部分(通常在"如："、括号、引号里)，把举例的具体词句提取出来，忽略前面的解释文字。
+4. 不要把整条规则描述(比如"严禁XX与XX：绝对禁止XX"这种大标题式的句子)当成一个词条，只提取其中真正具体的词句。
+5. 如果原文提到某个词"必须替换成XX"或给出了替代说法，就把它填进 replacement 字段；大部分情况下没有指定替代词，replacement 留空字符串即可(意思是直接删除，让AI自己想近义表达)。
+6. 每个词条尽量简短、具体，不要包含多余的标点或语气词。
+
+# 待处理文档
+${rawText}
+
+# 输出格式
+只输出一个JSON数组，不要有任何其他文字、不要markdown代码块标记。格式如下：
+[{"word": "词语1", "replacement": ""}, {"word": "词语2", "replacement": "替代词"}]
+`;
+    const messagesForApi = [{ role: 'user', content: systemPrompt }];
+    const isGemini = proxyUrl === GEMINI_API_URL;
+    const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messagesForApi, isGemini);
+
+    const response = isGemini
+      ? await fetch(geminiConfig.url, geminiConfig.data)
+      : await fetch(`${proxyUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: messagesForApi,
+            temperature: 0.3,
+          }),
+        });
+
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+    const rawContent = (isGemini
+      ? data.candidates[0].content.parts[0].text
+      : data.choices[0].message.content
+    ).replace(/^```json\s*|```\s*$/g, '').trim();
+
+    const entries = JSON.parse(rawContent);
+    if (!Array.isArray(entries)) throw new Error('AI返回的格式不对');
+
+    const addedCount = await addBannedWordEntries(entries);
+    textarea.value = '';
+    renderBannedWordsList();
+    document.getElementById('generation-overlay').classList.remove('visible');
+    await showCustomAlert('提取完成', `成功提取并添加了 ${addedCount} 条屏蔽词(已自动跳过重复的)。`);
+  } catch (e) {
+    document.getElementById('generation-overlay').classList.remove('visible');
+    console.error('屏蔽词AI提取失败:', e);
+    await showCustomAlert('提取失败', `出错了，请重试或检查API配置：${e.message}`);
+  }
 }
 
 async function addBannedWord() {
@@ -150,11 +249,18 @@ async function addBannedWord() {
   const isRegex = isRegexEl.checked;
   const replacement = replacementEl.value.trim();
   const list = getScopeList(bannedWordsEditScope);
+  const existingWords = new Set(list.map(item => item.word));
 
   // 非正则模式下支持逗号分隔一次添加多个词；正则模式下整条输入当成一个规则
   const words = isRegex ? [rawValue] : rawValue.split(/[,，]/).map(w => w.trim()).filter(Boolean);
 
+  let skippedCount = 0;
   words.forEach(word => {
+    if (existingWords.has(word)) {
+      skippedCount++;
+      return;
+    }
+    existingWords.add(word);
     list.push({
       id: `bw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       word,
@@ -168,6 +274,9 @@ async function addBannedWord() {
   replacementEl.value = '';
   isRegexEl.checked = false;
   renderBannedWordsList();
+  if (skippedCount > 0) {
+    await showCustomAlert('提示', `已添加，其中 ${skippedCount} 条因为重复被跳过。`);
+  }
 }
 
 async function removeBannedWord(id) {
@@ -177,6 +286,17 @@ async function removeBannedWord(id) {
   const confirmed = await showCustomConfirm('删除屏蔽词', `确定要删除"${list[idx].word}"吗？`, { confirmButtonClass: 'btn-danger' });
   if (!confirmed) return;
   list.splice(idx, 1);
+  await saveScopeList(bannedWordsEditScope);
+  renderBannedWordsList();
+}
+
+async function editBannedWordReplacement(id) {
+  const list = getScopeList(bannedWordsEditScope);
+  const item = list.find(i => i.id === id);
+  if (!item) return;
+  const newReplacement = await showCustomPrompt(`"${item.word}" 命中后替换为`, '留空=直接删除', item.replacement || '');
+  if (newReplacement === null) return;
+  item.replacement = newReplacement.trim();
   await saveScopeList(bannedWordsEditScope);
   renderBannedWordsList();
 }
@@ -192,8 +312,14 @@ document.getElementById('banned-words-back-btn')?.addEventListener('click', () =
 });
 
 document.getElementById('add-banned-word-btn')?.addEventListener('click', addBannedWord);
+document.getElementById('extract-banned-words-ai-btn')?.addEventListener('click', extractBannedWordsWithAI);
 
 document.getElementById('banned-words-list')?.addEventListener('click', (e) => {
+  const editBtn = e.target.closest('button[data-edit-id]');
+  if (editBtn) {
+    editBannedWordReplacement(editBtn.dataset.editId);
+    return;
+  }
   const btn = e.target.closest('button[data-id]');
   if (btn) removeBannedWord(btn.dataset.id);
 });
