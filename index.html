@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="online-app.css?v=0.0.36">
   <link rel="stylesheet" href="period-tracker.css?v=0.0.36">
   <link rel="stylesheet" href="css/kk-checkin.css?v=0.0.2">
-  <link rel="stylesheet" href="css/group-titles.css?v=0.0.9">
+  <link rel="stylesheet" href="css/group-titles.css?v=0.0.11">
   <link rel="stylesheet" href="focus-timer.css?v=0.0.36">
   <link rel="stylesheet" href="extra.css?v=0.0.36">
   <link rel="apple-touch-icon" href="https://i.postimg.cc/nMbyyt1t/D7CD735A73F5FD1D7B8407E0EB8BBAC0.png">
@@ -68,7 +68,7 @@
   <script src="modules/ui-loaders.js?v=0.0.36" defer></script>
   <!-- 第三层：核心聊天功能 -->
   <script src="modules/chat-list.js?v=0.0.36" defer></script>
-  <script src="modules/chat-interface.js?v=0.0.41" defer></script>
+  <script src="modules/chat-interface.js?v=0.0.43" defer></script>
   <script src="modules/chat-input.js?v=0.0.36" defer></script>
   <!-- 第四层：AI 核心 -->
   <script src="modules/ai-response.js?v=0.0.41" defer></script>
@@ -118,6 +118,7 @@
   <script src="modules/misc-features.js?v=0.0.36" defer></script>
   <script src="modules/group-titles.js?v=0.0.7" defer></script>
   <script src="modules/banned-words.js?v=0.0.2" defer></script>
+  <script src="modules/send-translate.js?v=0.0.2" defer></script>
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
@@ -129,7 +130,7 @@
   <!-- PIN/城市（依赖 DOM） -->
   <script src="modules/init-pin-city.js?v=0.0.36" defer></script>
   <!-- 事件绑定和功能（依赖 state, db） -->
-  <script src="modules/init-event-bindingsA.js?v=0.0.39" defer></script>
+  <script src="modules/init-event-bindingsA.js?v=0.0.41" defer></script>
   <script src="modules/init-event-bindingsB.js?v=0.0.36" defer></script>
   <script src="modules/init-features.js?v=0.0.36" defer></script>
   <!-- 主入口（最后加载，调用 init） -->
@@ -5451,6 +5452,21 @@
                 <textarea id="my-persona" rows="3" class="settings-textarea" placeholder="输入你的角色设定..."></textarea>
             </div>
             
+            <div class="settings-item-block" id="send-translate-group">
+                <label>发送语言翻译</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">选择后，你打字发送的内容会先自动翻译成对应语言(母语级别的自然翻译)再发出去，角色看到的就是翻译后的内容。选"不翻译"就是照常发中文原文。</div>
+                <select id="send-translate-language-select">
+                    <option value="">不翻译(发送原文)</option>
+                    <option value="ja">日语</option>
+                    <option value="en">英语</option>
+                    <option value="ko">韩语</option>
+                    <option value="fr">法语</option>
+                    <option value="de">德语</option>
+                    <option value="es">西班牙语</option>
+                    <option value="ru">俄语</option>
+                    <option value="zh-TW">繁体中文</option>
+                </select>
+            </div>
             <div class="settings-item-block" id="group-members-group">
                 <label>群成员管理</label>
                 <div id="group-members-settings" class="horizontal-scroll-list"></div> 
