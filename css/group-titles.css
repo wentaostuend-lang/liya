@@ -129,3 +129,18 @@
   font-size: 11px;
   white-space: nowrap;
 }
+
+/* -- 发送语言翻译：气泡下方的原文小字提示 -- */
+.send-translate-original-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  opacity: 0.6;
+  font-style: italic;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 提示这条气泡可以点开看原文 */
+.message-bubble[data-send-translate-original] {
+  cursor: pointer;
+}
