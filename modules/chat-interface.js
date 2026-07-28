@@ -1356,6 +1356,10 @@
                     ${contentHtml}
                 </div>
             `;
+    if (isUser && msg.originalContent) {
+      bubble.dataset.sendTranslateOriginal = msg.originalContent;
+      bubble.dataset.showingSendTranslateOriginal = 'false';
+    }
     if ((msg.type === 'naiimag' || msg.type === 'googleimag') && msg.imageUrl && msg.imageUrl.startsWith('data:image')) {
       if (state.apiConfig.imgbbEnable && state.apiConfig.imgbbApiKey) {
 

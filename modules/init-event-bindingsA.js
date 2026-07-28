@@ -1602,7 +1602,7 @@ window.initEventBindingsA = async function(state, db) {
     const chatInput = document.getElementById('chat-input');
 
 
-    document.getElementById('send-btn').addEventListener('click', () => {
+    document.getElementById('send-btn').addEventListener('click', async () => {
       playSilentAudio();
       const content = chatInput.value.trim();
       if (!content || !state.activeChatId) return;
@@ -1628,11 +1628,33 @@ window.initEventBindingsA = async function(state, db) {
         chatInput.focus();
         return; // 阻止发送普通消息
       }
+
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+      chatInput.focus();
+
+      let finalContent = content;
+      let originalContent = null;
+      const sendTranslateLang = chat.settings?.sendTranslateLanguage;
+      if (sendTranslateLang && typeof translateUserOutgoingMessage === 'function') {
+        if (typeof showGenerationOverlay === 'function') showGenerationOverlay('翻译中...');
+        try {
+          finalContent = await translateUserOutgoingMessage(content, sendTranslateLang);
+          originalContent = content;
+        } catch (e) {
+          console.warn('发送语言翻译失败，改为发送原文:', e);
+        }
+        document.getElementById('generation-overlay')?.classList.remove('visible');
+      }
+
       const msg = {
         role: 'user',
-        content,
+        content: finalContent,
         timestamp: Date.now()
       };
+      if (originalContent && originalContent !== finalContent) {
+        msg.originalContent = originalContent;
+      }
 
       if (currentReplyContext) {
         msg.quote = currentReplyContext;
@@ -1653,9 +1675,6 @@ window.initEventBindingsA = async function(state, db) {
       })();
 
 
-      chatInput.value = '';
-      chatInput.style.height = 'auto';
-      chatInput.focus();
       cancelReplyMode();
       document.body.classList.remove('chat-actions-expanded');
     });
@@ -2672,6 +2691,17 @@ window.initEventBindingsA = async function(state, db) {
     });
 
     document.getElementById('chat-messages').addEventListener('click', async (e) => {
+      // 【发送语言翻译】点击自己发的气泡，切换显示/隐藏原文
+      let sendTranslateBubble = e.target.closest('.message-bubble');
+      if (sendTranslateBubble && sendTranslateBubble.dataset.sendTranslateOriginal) {
+        if (!e.target.closest('img, button, a')) {
+          if (typeof toggleSendTranslateOriginal === 'function') {
+            toggleSendTranslateOriginal(sendTranslateBubble);
+          }
+          return;
+        }
+      }
+
       // 【双语模式】点击消息气泡切换翻译
       let bubble = e.target.closest('.message-bubble');
       if (bubble && bubble.dataset.originalContent && state.activeChatId) {
@@ -3100,6 +3130,11 @@ window.initEventBindingsA = async function(state, db) {
       if (!state.activeChatId) return;
       const chat = state.chats[state.activeChatId];
       const isGroup = chat.isGroup;
+
+      const sendTranslateSelect = document.getElementById('send-translate-language-select');
+      if (sendTranslateSelect) {
+        sendTranslateSelect.value = chat.settings.sendTranslateLanguage || '';
+      }
 
       const weatherSection = document.getElementById('weather-settings-section');
       if (isGroup) {
@@ -4051,6 +4086,11 @@ window.initEventBindingsA = async function(state, db) {
       const dynamicCurrencySwitch = document.getElementById('dynamic-currency-transfer-switch');
       if (dynamicCurrencySwitch) {
         chat.settings.enableDynamicCurrency = dynamicCurrencySwitch.checked;
+      }
+
+      const sendTranslateSelect = document.getElementById('send-translate-language-select');
+      if (sendTranslateSelect) {
+        chat.settings.sendTranslateLanguage = sendTranslateSelect.value || '';
       }
 
       const selectedThemeRadio = document.querySelector('input[name="theme-select"]:checked');
