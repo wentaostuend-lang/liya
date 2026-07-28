@@ -121,8 +121,11 @@
   overflow: visible;
 }
 .message-wrapper.user .user-sender-name {
+  position: absolute;
+  top: -16px;
+  right: 0;
+  margin-right: 50px;
   text-align: right;
-  margin-bottom: 3px;
   font-size: 11px;
-  margin-left: auto;
+  white-space: nowrap;
 }
