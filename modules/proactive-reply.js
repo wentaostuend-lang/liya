@@ -40,6 +40,32 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   const { proxyUrl, apiKey, model } = state.apiConfig || {};
   if (!proxyUrl || !apiKey || !model) return; // 没配置API就悄悄跳过，不打扰用户
 
+  const isViewingThisChat = state.activeChatId === chat.id;
+  const chatHeaderTitle = document.getElementById('chat-header-title');
+  const typingIndicator = document.getElementById('typing-indicator');
+
+  if (isViewingThisChat) {
+    if (chat.isGroup) {
+      if (typingIndicator) {
+        typingIndicator.textContent = '成员们正在输入...';
+        typingIndicator.style.display = 'block';
+      }
+    } else if (chatHeaderTitle) {
+      chatHeaderTitle.textContent = '对方正在输入...';
+      chatHeaderTitle.classList.add('typing-status');
+    }
+  }
+
+  const restoreTypingIndicator = () => {
+    if (!isViewingThisChat) return;
+    if (chat.isGroup) {
+      if (typingIndicator) typingIndicator.style.display = 'none';
+    } else if (chatHeaderTitle) {
+      chatHeaderTitle.textContent = chat.name;
+      chatHeaderTitle.classList.remove('typing-status');
+    }
+  };
+
   const myNickname = chat.settings.myNickname || '你';
   const myPersona = chat.settings.myPersona || '';
   const aiPersona = chat.settings.aiPersona || '';
@@ -101,9 +127,13 @@ ${aiPersona}
       : data.choices[0].message.content
     ).replace(/^```json\s*|```\s*$/g, '').trim();
     entries = JSON.parse(rawContent);
-    if (!Array.isArray(entries) || entries.length === 0) return;
+    if (!Array.isArray(entries) || entries.length === 0) {
+      restoreTypingIndicator();
+      return;
+    }
   } catch (e) {
     console.warn('主动回复生成失败:', e);
+    restoreTypingIndicator();
     return;
   }
 
@@ -126,7 +156,6 @@ ${aiPersona}
   }
 
   const maxOffsetMs = elapsedHours * 60 * 60 * 1000;
-  const isViewingThisChat = state.activeChatId === chat.id;
 
   entries.forEach(entry => {
     const offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
@@ -248,6 +277,8 @@ ${aiPersona}
 
   chat.unreadCount = 0; // 用户当前正在看这个聊天，不算未读
   await db.chats.put(chat);
+
+  restoreTypingIndicator();
 
   if (isViewingThisChat && typeof renderChatInterface === 'function') {
     renderChatInterface(chat.id);
