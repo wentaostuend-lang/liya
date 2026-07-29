@@ -68,10 +68,10 @@
   <script src="modules/ui-loaders.js?v=0.0.36" defer></script>
   <!-- 第三层：核心聊天功能 -->
   <script src="modules/chat-list.js?v=0.0.36" defer></script>
-  <script src="modules/chat-interface.js?v=0.0.43" defer></script>
+  <script src="modules/chat-interface.js?v=0.0.44" defer></script>
   <script src="modules/chat-input.js?v=0.0.36" defer></script>
   <!-- 第四层：AI 核心 -->
-  <script src="modules/ai-response.js?v=0.0.41" defer></script>
+  <script src="modules/ai-response.js?v=0.0.42" defer></script>
   <script src="modules/ai-group.js?v=0.0.39" defer></script>
   <!-- 第五层：功能模块 -->
   <script src="modules/music-player.js?v=0.0.36" defer></script>
@@ -117,8 +117,9 @@
   <script src="modules/data-management.js?v=0.0.36" defer></script>
   <script src="modules/misc-features.js?v=0.0.36" defer></script>
   <script src="modules/group-titles.js?v=0.0.7" defer></script>
-  <script src="modules/banned-words.js?v=0.0.2" defer></script>
+  <script src="modules/banned-words.js?v=0.0.3" defer></script>
   <script src="modules/send-translate.js?v=0.0.2" defer></script>
+  <script src="modules/proactive-reply.js?v=0.0.5" defer></script>
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
@@ -130,7 +131,7 @@
   <!-- PIN/城市（依赖 DOM） -->
   <script src="modules/init-pin-city.js?v=0.0.36" defer></script>
   <!-- 事件绑定和功能（依赖 state, db） -->
-  <script src="modules/init-event-bindingsA.js?v=0.0.41" defer></script>
+  <script src="modules/init-event-bindingsA.js?v=0.0.42" defer></script>
   <script src="modules/init-event-bindingsB.js?v=0.0.36" defer></script>
   <script src="modules/init-features.js?v=0.0.36" defer></script>
   <!-- 主入口（最后加载，调用 init） -->
@@ -147,7 +148,7 @@
   <script src="couple-space.js?v=0.0.36"></script>
   <script src="helper-assistant.js?v=0.0.36" defer></script>
   <script src="force-update.js?v=0.0.36" defer></script>
-  <script src="modules/floating-ball.js?v=0.0.40" defer></script>
+  <script src="modules/floating-ball.js?v=0.0.41" defer></script>
   <script src="modules/keyboard-fix.js?v=0.0.36" defer></script>
   <script src="modules/smart-sticker-v7.js?v=0.0.1" defer></script>
   <script src="modules/account-hijack.js?v=0.0.1" defer></script>
@@ -5452,6 +5453,14 @@
                 <textarea id="my-persona" rows="3" class="settings-textarea" placeholder="输入你的角色设定..."></textarea>
             </div>
             
+            <div class="settings-item-block" id="proactive-reply-group">
+                <label>主动回复间隔</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">当距离AI上次回复超过N小时后，进入聊天会自动触发AI主动回复。输入0可关闭。</div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="number" id="proactive-reply-hours-input" min="0" step="1" style="width:80px; text-align:center;" placeholder="12">
+                    <span>小时</span>
+                </div>
+            </div>
             <div class="settings-item-block" id="send-translate-group">
                 <label>发送语言翻译</label>
                 <div class="settings-desc" style="margin-bottom: 8px;">选择后，你打字发送的内容会先自动翻译成对应语言(母语级别的自然翻译)再发出去，角色看到的就是翻译后的内容。选"不翻译"就是照常发中文原文。</div>
