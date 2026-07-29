@@ -148,6 +148,12 @@
         </svg>
         <span>批量随机间隔</span>
       </div>
+      <div class="fb-menu-item" data-action="batch-proactive-reply">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>批量主动回复间隔</span>
+      </div>
       <div class="fb-menu-item" data-action="batch-dnd">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
@@ -831,6 +837,10 @@
         closeMenu();
         openBatchRandomIntervalPanel();
         break;
+      case 'batch-proactive-reply':
+        closeMenu();
+        openBatchProactiveReplyPanel();
+        break;
       case 'batch-dnd':
         closeMenu();
         openBatchDndPanel();
@@ -1166,6 +1176,112 @@
     });
 
     // 点击面板外关闭
+    panel.addEventListener('click', (e) => {
+      if (e.target === panel) {
+        panel.remove();
+        openMenu();
+      }
+    });
+  }
+
+  // 打开批量设置"主动回复间隔"面板：勾选若干角色，统一设置N小时(0=关闭)
+  // 跟"批量随机间隔"是同一套交互，只是改成了单个小时数值
+  function openBatchProactiveReplyPanel() {
+    const allChats = Object.values(state.chats || {});
+    if (allChats.length === 0) {
+      if (typeof showToast === 'function') showToast('还没有任何角色或群聊');
+      return;
+    }
+
+    const panel = document.createElement('div');
+    panel.id = 'batch-proactive-reply-panel';
+    panel.className = 'role-api-panel';
+    panel.innerHTML = `
+      <div class="role-api-content">
+        <div class="role-api-header">
+          <span class="role-api-back">‹</span>
+          <span class="role-api-title">批量设置主动回复间隔</span>
+          <span class="role-api-save">应用</span>
+        </div>
+        <div class="role-api-body">
+          <div class="role-api-section">
+            <div class="role-api-field">
+              <label class="role-api-label">主动回复间隔（小时，输入0关闭）</label>
+              <input type="number" id="batch-proactive-hours" class="role-api-input" min="0" step="1" value="12">
+              <div class="role-api-desc" style="font-size:12px; color:var(--text-secondary,#888); margin-top:4px;">当距离上次回复超过这个小时数后，再次进入聊天会自动触发AI主动发消息(模拟你不在的这段时间里角色做了什么/说了什么)。</div>
+            </div>
+          </div>
+          <div class="role-api-section">
+            <div class="role-api-switch-item">
+              <div class="role-api-switch-left">
+                <div class="role-api-switch-label">全选 / 全不选</div>
+                <div class="role-api-switch-desc">勾选下面想要批量应用的角色或群聊</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="batch-proactive-select-all">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+          <div class="role-api-section" id="batch-proactive-chat-list" style="max-height: 50vh; overflow-y: auto;">
+            ${allChats.map(chat => `
+              <div class="role-api-switch-item">
+                <div class="role-api-switch-left">
+                  <div class="role-api-switch-label">${chat.name || '(未命名)'}${chat.isGroup ? '（群聊）' : ''}</div>
+                  <div class="role-api-switch-desc">当前：${chat.settings?.proactiveReplyHours ?? 12} 小时${(chat.settings?.proactiveReplyHours === 0) ? '(已关闭)' : ''}</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="batch-proactive-chat-checkbox" data-chat-id="${chat.id}">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const selectAllCheckbox = document.getElementById('batch-proactive-select-all');
+    const chatCheckboxes = () => Array.from(panel.querySelectorAll('.batch-proactive-chat-checkbox'));
+
+    selectAllCheckbox.addEventListener('change', function() {
+      chatCheckboxes().forEach(cb => { cb.checked = selectAllCheckbox.checked; });
+    });
+
+    panel.querySelector('.role-api-back').addEventListener('click', () => {
+      panel.remove();
+      openMenu();
+    });
+
+    panel.querySelector('.role-api-save').addEventListener('click', async () => {
+      const hours = Math.max(0, parseInt(document.getElementById('batch-proactive-hours').value) || 0);
+      const selectedIds = chatCheckboxes().filter(cb => cb.checked).map(cb => cb.dataset.chatId);
+
+      if (selectedIds.length === 0) {
+        if (typeof showToast === 'function') showToast('请至少勾选一个角色或群聊');
+        return;
+      }
+
+      let appliedCount = 0;
+      for (const chatId of selectedIds) {
+        const chat = state.chats[chatId];
+        if (!chat) continue;
+        chat.settings.proactiveReplyHours = hours;
+        try {
+          await db.chats.put(chat);
+          appliedCount++;
+        } catch (e) {}
+      }
+
+      if (typeof showToast === 'function') {
+        showToast(`已应用到 ${appliedCount} 个角色/群聊（${hours === 0 ? '已关闭' : hours + ' 小时'}）`);
+      }
+      panel.remove();
+      openMenu();
+    });
+
     panel.addEventListener('click', (e) => {
       if (e.target === panel) {
         panel.remove();
