@@ -122,12 +122,18 @@
 }
 .message-wrapper.user .user-sender-name {
   position: absolute;
-  top: -20px;
+  top: -22px;
   right: 0;
   margin-right: 50px;
+  margin-bottom: 16px !important;
   text-align: right;
   font-size: 11px;
   white-space: nowrap;
+}
+/* AI一侧同理加大间距，跟用户这边保持一致 */
+.message-wrapper.ai .sender-name {
+  top: -22px !important;
+  margin-bottom: 16px !important;
 }
 
 /* -- 发送语言翻译：气泡下方的原文小字提示 -- */
