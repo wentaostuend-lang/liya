@@ -63,36 +63,98 @@ ${lines}
 }
 
 // 安全网：AI回复生成后再扫一遍，命中就替换/删除，防止AI没听话
-function applyBannedWordsFilter(text, chat) {
+async function applyBannedWordsFilter(text, chat) {
   if (typeof text !== 'string' || !text) return text;
   const list = getEffectiveBannedWords(chat);
-  let result = text;
+  if (!list.length) return text;
+
+  const hits = [];
   for (const item of list) {
     if (!item.word) continue;
-    const replacement = item.replacement || '';
     try {
-      if (item.isRegex) {
-        // word 里可能是 /pattern/flags 形式，也可能是纯 pattern
-        let pattern = item.word;
-        let flags = 'g';
-        const match = pattern.match(/^\/(.*)\/([a-z]*)$/i);
-        if (match) {
-          pattern = match[1];
-          flags = match[2].includes('g') ? match[2] : match[2] + 'g';
-        }
-        const re = new RegExp(pattern, flags);
-        result = result.replace(re, replacement);
-      } else {
-        // 普通文字：不区分大小写、全局替换
-        const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const re = new RegExp(escaped, 'gi');
-        result = result.replace(re, replacement);
-      }
+      const re = buildBannedWordRegex(item);
+      if (re.test(text)) hits.push(item);
     } catch (e) {
-      console.warn('屏蔽词过滤出错，已跳过该条:', item, e);
+      console.warn('屏蔽词检测出错，已跳过该条:', item, e);
+    }
+  }
+  if (hits.length === 0) return text;
+
+  // 优先尝试现场调用AI自然改写(方案C)
+  const { proxyUrl, apiKey, model } = state.apiConfig || {};
+  if (proxyUrl && apiKey && model) {
+    try {
+      return await rewriteTextAvoidingBannedWords(text, hits);
+    } catch (e) {
+      console.warn('屏蔽词AI改写失败，降级为直接替换/删除:', e);
+    }
+  }
+
+  // 兜底：AI改写失败或没配置API时，退回原来的直接替换/删除
+  let result = text;
+  for (const item of hits) {
+    try {
+      const re = buildBannedWordRegex(item);
+      result = result.replace(re, item.replacement || '');
+    } catch (e) {
+      console.warn('屏蔽词替换出错，已跳过该条:', item, e);
     }
   }
   return result;
+}
+
+function buildBannedWordRegex(item) {
+  if (item.isRegex) {
+    let pattern = item.word;
+    let flags = 'g';
+    const match = pattern.match(/^\/(.*)\/([a-z]*)$/i);
+    if (match) {
+      pattern = match[1];
+      flags = match[2].includes('g') ? match[2] : match[2] + 'g';
+    }
+    return new RegExp(pattern, flags);
+  }
+  const escaped = item.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(escaped, 'gi');
+}
+
+// 命中屏蔽词后，现场请求AI在不改变原意/语气的前提下自然改写这句话
+async function rewriteTextAvoidingBannedWords(text, hits) {
+  const { proxyUrl, apiKey, model } = state.apiConfig;
+  const wordsList = hits.map(h => h.word).join('、');
+  const prompt = `下面这句话里包含了不允许出现的词/表达：${wordsList}。
+请你在【不改变整体意思、语气和情绪】的前提下，把这些词自然地换成合适的近义表达或说法，句子的其余部分尽量保持原样，不要生硬地把词删掉导致语句不通顺、意思缺失。
+只输出改写后的完整这句话本身，不要加任何解释、引号、前后缀或多余文字。
+
+原句：
+${text}`;
+
+  const messagesForApi = [{ role: 'user', content: prompt }];
+  const isGemini = proxyUrl === GEMINI_API_URL;
+  const geminiConfig = toGeminiRequestData(model, apiKey, prompt, messagesForApi, isGemini);
+
+  const response = isGemini
+    ? await fetch(geminiConfig.url, geminiConfig.data)
+    : await fetch(`${proxyUrl}/v1/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: messagesForApi,
+          temperature: 0.5,
+        }),
+      });
+
+  if (!response.ok) throw new Error(await response.text());
+  const data = await response.json();
+  const rawContent = isGemini
+    ? data.candidates[0].content.parts[0].text
+    : data.choices[0].message.content;
+
+  return rawContent.trim().replace(/^["“]|["”]$/g, '').trim();
 }
 
 /* ---------------- 管理界面 ---------------- */

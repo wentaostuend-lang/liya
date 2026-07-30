@@ -1046,7 +1046,7 @@ ${linkedContents}
 
         if (aiMessage) {
           if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
           appendMessage(aiMessage, chat);
@@ -1227,7 +1227,7 @@ ${linkedContents}
                   timestamp: Date.now()
                 };
                 if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
                 await db.chats.put(chat);
@@ -1286,7 +1286,7 @@ ${linkedContents}
               timestamp: Date.now()
             };
             if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
             await db.chats.put(chat);
@@ -1409,7 +1409,7 @@ ${linkedContents}
                   timestamp: Date.now()
                 };
                 if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
                 await db.chats.put(chat);
@@ -1489,7 +1489,7 @@ ${linkedContents}
               timestamp: Date.now()
             };
             if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
             await db.chats.put(chat);
@@ -4045,7 +4045,7 @@ ${getActiveThoughtsPrompt()}
               timestamp: Date.now()
             };
             if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
             await db.chats.put(chat);
@@ -4067,7 +4067,7 @@ ${getActiveThoughtsPrompt()}
               timestamp: Date.now()
             };
             if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
             await db.chats.put(chat);
@@ -6611,7 +6611,7 @@ ${getActiveThoughtsPrompt()}
 
         if (aiMessage) {
           if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
           if (chat.isGroup && typeof awardGroupActivity === 'function') {
@@ -7174,7 +7174,7 @@ ${linkedContents}
           continue;
         }
         if (aiMessage && typeof aiMessage.content === 'string' && typeof applyBannedWordsFilter === 'function') {
-            aiMessage.content = applyBannedWordsFilter(aiMessage.content, chat);
+            aiMessage.content = await applyBannedWordsFilter(aiMessage.content, chat);
           }
           chat.history.push(aiMessage);
         appendMessage(aiMessage, chat);
