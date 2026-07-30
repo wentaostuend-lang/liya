@@ -122,16 +122,23 @@
 }
 .message-wrapper.user .user-sender-name {
   position: absolute;
-  top: -20px;
+  top: -22px;
   right: 0;
   margin-right: 50px;
+  margin-bottom: 16px !important;
   text-align: right;
   font-size: 11px;
   white-space: nowrap;
 }
 /* AI一侧同理加大间距，跟用户这边保持一致 */
 .message-wrapper.ai .sender-name {
-  top: -20px !important;
+  top: -22px !important;
+  margin-bottom: 16px !important;
+}
+/* 带头衔标签的气泡是绝对定位挂在气泡上方的，会占用/吃掉消息之间原本的gap空间，
+   导致连续几条消息看起来贴得很近，这里给这类气泡额外加一点顶部间距做补偿 */
+.message-wrapper:has(.sender-name) {
+  margin-top: 14px;
 }
 
 /* -- 发送语言翻译：气泡下方的原文小字提示 -- */
