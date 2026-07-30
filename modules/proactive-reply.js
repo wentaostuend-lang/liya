@@ -20,18 +20,32 @@ function getLastMessageTimestamp(chat) {
 async function checkAndTriggerProactiveReply(chat) {
   if (!chat) return;
   const hoursThreshold = chat.settings?.proactiveReplyHours ?? 12;
-  if (!hoursThreshold || hoursThreshold <= 0) return; // 0 = 关闭
+  if (!hoursThreshold || hoursThreshold <= 0) {
+    console.log(`[主动回复] "${chat.name}" 间隔设置为0或未设置，功能已关闭，不检查`);
+    return;
+  }
 
   const lastTimestamp = getLastMessageTimestamp(chat);
-  if (!lastTimestamp) return; // 还没有任何消息，不触发
+  if (!lastTimestamp) {
+    console.log(`[主动回复] "${chat.name}" 还没有任何消息记录，不触发`);
+    return;
+  }
 
   // 同一个锚点(同一条"最后消息")只触发一次，避免反复进出聊天重复生成
-  if (proactiveReplyCheckedAnchors[chat.id] === lastTimestamp) return;
+  if (proactiveReplyCheckedAnchors[chat.id] === lastTimestamp) {
+    console.log(`[主动回复] "${chat.name}" 这条最后消息已经检查过了，不重复触发`);
+    return;
+  }
 
   const now = Date.now();
   const elapsedHours = (now - lastTimestamp) / (1000 * 60 * 60);
-  if (elapsedHours < hoursThreshold) return;
+  console.log(`[主动回复] "${chat.name}" 距上条消息已过 ${elapsedHours.toFixed(2)} 小时，阈值为 ${hoursThreshold} 小时`);
+  if (elapsedHours < hoursThreshold) {
+    console.log(`[主动回复] "${chat.name}" 还没到阈值，不触发`);
+    return;
+  }
 
+  console.log(`[主动回复] "${chat.name}" 达到触发条件，开始生成...`);
   proactiveReplyCheckedAnchors[chat.id] = lastTimestamp;
   if (chat.isGroup) {
     await generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp);
@@ -41,8 +55,19 @@ async function checkAndTriggerProactiveReply(chat) {
 }
 
 async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
-  const { proxyUrl, apiKey, model } = state.apiConfig || {};
-  if (!proxyUrl || !apiKey || !model) return; // 没配置API就悄悄跳过，不打扰用户
+  let apiConfig = state.apiConfig || {};
+  if (chat.apiOverride && chat.apiOverride.enabled) {
+    apiConfig = {
+      proxyUrl: chat.apiOverride.proxyUrl || state.apiConfig.proxyUrl,
+      apiKey: chat.apiOverride.apiKey || state.apiConfig.apiKey,
+      model: chat.apiOverride.model || state.apiConfig.model,
+    };
+  }
+  const { proxyUrl, apiKey, model } = apiConfig;
+  if (!proxyUrl || !apiKey || !model) {
+    console.warn(`[主动回复] "${chat.name}" 没有可用的API配置(全局或角色独立配置都没设置好)，跳过生成`);
+    return; // 没配置API就悄悄跳过，不打扰用户
+  }
 
   const isViewingThisChat = state.activeChatId === chat.id;
   const chatHeaderTitle = document.getElementById('chat-header-title');
@@ -352,8 +377,19 @@ window.checkAndTriggerProactiveReply = checkAndTriggerProactiveReply;
 // 跟单聊的prompt和可用行为类型是分开设计的，不复用单聊那一套。
 // ============================================================
 async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp) {
-  const { proxyUrl, apiKey, model } = state.apiConfig || {};
-  if (!proxyUrl || !apiKey || !model) return;
+  let apiConfig = state.apiConfig || {};
+  if (chat.apiOverride && chat.apiOverride.enabled) {
+    apiConfig = {
+      proxyUrl: chat.apiOverride.proxyUrl || state.apiConfig.proxyUrl,
+      apiKey: chat.apiOverride.apiKey || state.apiConfig.apiKey,
+      model: chat.apiOverride.model || state.apiConfig.model,
+    };
+  }
+  const { proxyUrl, apiKey, model } = apiConfig;
+  if (!proxyUrl || !apiKey || !model) {
+    console.warn(`[主动回复] "${chat.name}"(群聊) 没有可用的API配置，跳过生成`);
+    return;
+  }
 
   const isViewingThisChat = state.activeChatId === chat.id;
   const typingIndicator = document.getElementById('typing-indicator');

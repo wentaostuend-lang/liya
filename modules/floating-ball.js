@@ -1267,13 +1267,21 @@
       let appliedCount = 0;
       for (const chatId of selectedIds) {
         const chat = state.chats[chatId];
-        if (!chat) continue;
-        chat.settings.proactiveReplyHours = hours;
+        if (!chat) {
+          console.warn(`[批量主动回复] 找不到 chatId=${chatId} 对应的聊天，跳过`);
+          continue;
+        }
         try {
+          if (!chat.settings) chat.settings = {};
+          chat.settings.proactiveReplyHours = hours;
           await db.chats.put(chat);
           appliedCount++;
-        } catch (e) {}
+          console.log(`[批量主动回复] "${chat.name}" 已设置为 ${hours} 小时`);
+        } catch (e) {
+          console.warn(`[批量主动回复] "${chat.name || chatId}" 保存失败:`, e);
+        }
       }
+      console.log(`[批量主动回复] 共成功应用到 ${appliedCount}/${selectedIds.length} 个`);
 
       if (typeof showToast === 'function') {
         showToast(`已应用到 ${appliedCount} 个角色/群聊（${hours === 0 ? '已关闭' : hours + ' 小时'}）`);

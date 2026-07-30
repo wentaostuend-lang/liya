@@ -3136,6 +3136,12 @@ window.initEventBindingsA = async function(state, db) {
         sendTranslateSelect.value = chat.settings.sendTranslateLanguage || '';
       }
 
+      const proactiveReplyInput = document.getElementById('proactive-reply-hours-input');
+      if (proactiveReplyInput) {
+        proactiveReplyInput.value = chat.settings.proactiveReplyHours ?? 12;
+        console.log(`[主动回复设置] 打开"${chat.name}"的设置，当前值为: ${proactiveReplyInput.value}`);
+      }
+
       const weatherSection = document.getElementById('weather-settings-section');
       if (isGroup) {
         weatherSection.style.display = 'none';
@@ -4091,6 +4097,12 @@ window.initEventBindingsA = async function(state, db) {
       const sendTranslateSelect = document.getElementById('send-translate-language-select');
       if (sendTranslateSelect) {
         chat.settings.sendTranslateLanguage = sendTranslateSelect.value || '';
+      }
+
+      const proactiveReplyInput = document.getElementById('proactive-reply-hours-input');
+      if (proactiveReplyInput) {
+        chat.settings.proactiveReplyHours = Math.max(0, parseInt(proactiveReplyInput.value) || 0);
+        console.log(`[主动回复设置] 保存"${chat.name}"的设置为: ${chat.settings.proactiveReplyHours}`);
       }
 
       const selectedThemeRadio = document.querySelector('input[name="theme-select"]:checked');
