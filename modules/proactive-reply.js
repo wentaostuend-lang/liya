@@ -373,6 +373,50 @@ ${thoughtsAndStatusBlock}
 window.checkAndTriggerProactiveReply = checkAndTriggerProactiveReply;
 
 // ============================================================
+// 测试模式：跳过"真实等待多少小时"这个门槛，手动指定一个小时数直接生成一次，
+// 方便你在聊天设置里点按钮立刻看效果，不影响正式的 proactiveReplyHours 设置。
+// ============================================================
+async function testTriggerProactiveReply() {
+  const chat = state.chats[state.activeChatId];
+  if (!chat) {
+    await showCustomAlert('提示', '当前没有打开的聊天');
+    return;
+  }
+
+  const lastTimestamp = getLastMessageTimestamp(chat);
+  if (!lastTimestamp) {
+    await showCustomAlert('提示', '这个聊天还没有任何消息，没法测试(需要有一条历史消息作为时间锚点)');
+    return;
+  }
+
+  const input = await showCustomPrompt(
+    '测试主动回复',
+    '输入一个"假装过去了多少小时"的数字，直接生成一次，不用真的等待。这只是测试，不会影响你设置的正式间隔小时数。',
+    '24'
+  );
+  if (input === null) return;
+  const testHours = parseFloat(input);
+  if (isNaN(testHours) || testHours <= 0) {
+    await showCustomAlert('提示', '请输入一个大于0的数字');
+    return;
+  }
+
+  console.log(`[主动回复-测试模式] "${chat.name}" 手动测试，模拟已过去 ${testHours} 小时`);
+
+  if (chat.isGroup) {
+    await generateGroupProactiveMessages(chat, testHours, lastTimestamp);
+  } else {
+    await generateProactiveMessages(chat, testHours, lastTimestamp);
+  }
+
+  // 测试完了直接跳回聊天界面，方便你马上看效果
+  showScreen('chat-interface-screen');
+  if (typeof renderChatInterface === 'function') renderChatInterface(chat.id);
+}
+
+document.getElementById('test-proactive-reply-btn')?.addEventListener('click', testTriggerProactiveReply);
+
+// ============================================================
 // 群聊专属版本：多个成员在这段时间里各自可能发生的事，
 // 跟单聊的prompt和可用行为类型是分开设计的，不复用单聊那一套。
 // ============================================================
