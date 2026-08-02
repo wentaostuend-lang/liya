@@ -9,6 +9,18 @@
 // 防止同一次"离开期间"被重复触发：记录已经检查过的最后一条消息时间戳
 const proactiveReplyCheckedAnchors = {};
 
+// 格式化成"2026年8月1日 14:20 星期六"这种，给AI提供绝对时间锚点，避免它算不清白天黑夜
+function formatDateTimeCN(date) {
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  const hh = String(date.getHours()).padStart(2, '0');
+  const mm = String(date.getMinutes()).padStart(2, '0');
+  const week = weekDays[date.getDay()];
+  return `${y}年${m}月${d}日 ${hh}:${mm} 星期${week}`;
+}
+
 function getLastMessageTimestamp(chat) {
   if (!chat.history || chat.history.length === 0) return null;
   for (let i = chat.history.length - 1; i >= 0; i--) {
@@ -102,6 +114,14 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   const roughHours = Math.round(elapsedHours * 10) / 10; // 大概取整到1位小数，给叙述性提及"大约过了多久"用，读起来更自然
   const roundedHours = preciseHours; // 兼容下面已经写好的引用，默认用精确版
 
+  // 绝对时间锚点：只给"过了多少小时"AI算不清楚具体是白天还是深夜，容易出现"凌晨发消息说早安去上班"这种矛盾
+  const lastMsgDateObj = new Date(lastTimestamp);
+  const nowDateObj = new Date();
+  const timeAnchorBlock = `# 时间锚点(非常重要，必须严格参考，不要出现时间常识矛盾比如深夜发"早安去上班")
+- 上一条消息发送于：${formatDateTimeCN(lastMsgDateObj)}
+- 现在实际时间是：${formatDateTimeCN(nowDateObj)}
+- 请你根据每条消息的 hours_after 偏移量，自己推算出它实际落在哪一天的几点，并让消息内容符合那个具体时间点该有的状态(比如凌晨该是睡觉/失眠/刚下班，早上该是刚醒/通勤，中午该是吃饭/工作，深夜不会说"早安"或"去上班")。`;
+
   // 表情包：直接复用正常对话流程那一套(真实可用列表+使用铁律)，不要自己瞎编含义
   const stickerBlock = typeof getStickerContextForPrompt === 'function' ? getStickerContextForPrompt(chat) : '';
 
@@ -141,6 +161,8 @@ ${aiPersona}
 用户是"${myNickname}"，人设：${myPersona}
 
 ${memoryBlock}
+
+${timeAnchorBlock}
 
 现在的情况是：距离你上一次和用户说话，已经过去了大约 ${roughHours} 个小时（注意：这是【真实经过的时间】，不是固定周期，哪怕是几十、几百个小时/好几天都要如实按这个时长来构思，不能因为时间很长就压缩成好像才过了一小会儿）。
 用户这段时间一直没有查看/回复聊天。请你完全代入角色，模拟这段真实时间跨度里角色会主动做的事，具体做什么、发多少、用什么方式，必须完全基于角色人设和之前的对话上下文来判断，不要脱离人设乱发。
@@ -230,6 +252,8 @@ ${thoughtsAndStatusBlock}
   }
 
   const maxOffsetMs = elapsedHours * 60 * 60 * 1000;
+
+  const builtMessages = [];
 
   entries.forEach(entry => {
     const offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
@@ -368,13 +392,40 @@ ${thoughtsAndStatusBlock}
       }
     }
 
-    if (msg) chat.history.push(msg);
+    if (msg) builtMessages.push(msg);
   });
+
+  restoreTypingIndicator(); // 生成阶段的"正在输入"先收起来，下面逐条揭晓时会重新显示
+
+  if (isViewingThisChat && builtMessages.length > 0) {
+    // 你正在看这个聊天：像实时聊天一样，一条一条弹出来，每条之前都会有"对方正在输入..."
+    for (const msg of builtMessages) {
+      if (chatHeaderTitle) {
+        chatHeaderTitle.textContent = '对方正在输入...';
+        chatHeaderTitle.classList.add('typing-status');
+      }
+      const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
+      const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
+      await new Promise(resolve => setTimeout(resolve, typingDelay));
+
+      if (chatHeaderTitle) {
+        chatHeaderTitle.textContent = chat.name;
+        chatHeaderTitle.classList.remove('typing-status');
+      }
+      chat.history.push(msg);
+      await db.chats.put(chat);
+      if (typeof appendMessage === 'function') appendMessage(msg, chat);
+
+      await new Promise(resolve => setTimeout(resolve, 250)); // 消息之间留个小间隔，别一冒出来就接着下一条
+    }
+  } else {
+    // 没在看这个聊天：直接批量存进去，不用做逐条动画
+    builtMessages.forEach(msg => chat.history.push(msg));
+    await db.chats.put(chat);
+  }
 
   chat.unreadCount = 0; // 用户当前正在看这个聊天，不算未读
   await db.chats.put(chat);
-
-  restoreTypingIndicator();
 
   if (isViewingThisChat && typeof renderChatInterface === 'function') {
     renderChatInterface(chat.id);
@@ -474,6 +525,13 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
   const preciseHours = elapsedHours.toFixed(2);
   const roughHours = Math.round(elapsedHours * 10) / 10;
 
+  const lastMsgDateObj = new Date(lastTimestamp);
+  const nowDateObj = new Date();
+  const timeAnchorBlock = `# 时间锚点(非常重要，必须严格参考，不要出现时间常识矛盾比如深夜发"早安去上班")
+- 群里上一条消息发送于：${formatDateTimeCN(lastMsgDateObj)}
+- 现在实际时间是：${formatDateTimeCN(nowDateObj)}
+- 请根据每条消息的 hours_after 偏移量，自己推算出它实际落在哪一天的几点，并让消息内容符合那个具体时间点该有的状态。`;
+
   const membersList = (chat.members || [])
     .map(m => `- ${m.originalName}${m.groupNickname && m.groupNickname !== m.originalName ? `(群里叫TA"${m.groupNickname}")` : ''}`)
     .join('\n');
@@ -503,6 +561,8 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
 ${membersList}
 
 ${memoryBlock}
+
+${timeAnchorBlock}
 
 现在的情况是：距离群里上一条消息，已经过去了大约 ${roughHours} 个小时（注意：这是【真实经过的时间】，不是固定周期，哪怕是几十、几百个小时/好几天都要如实按这个时长来构思，不能因为时间很长就压缩成好像才过了一小会儿）。
 用户这段时间一直没有查看/回复这个群。请你模拟这段真实时间跨度里，群成员之间会自然产生的互动——群友之间本来就会互相聊天、互相接话，不是只能对着用户说话，用户不在的时候群里该怎么热闹/怎么冷清就怎么来，完全基于每个成员各自的人设和之前的群聊上下文来判断，不要脱离人设乱发，不同成员的说话方式要有区分度。
@@ -572,6 +632,8 @@ ${extraBlocks}
 
   const maxOffsetMs = elapsedHours * 60 * 60 * 1000;
   const speakerIds = new Set();
+  const builtMessages = [];
+  const builtSpeakers = []; // 跟builtMessages一一对应，记录说话人是哪个member(用于事后计分)
 
   entries.forEach(entry => {
     const offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
@@ -645,10 +707,42 @@ ${extraBlocks}
     }
 
     if (msg) {
-      chat.history.push(msg);
-      if (member && typeof awardGroupActivity === 'function') speakerIds.add(member.id);
+      builtMessages.push(msg);
+      builtSpeakers.push(member || null);
     }
   });
+
+  restoreTypingIndicator();
+
+  if (isViewingThisChat && builtMessages.length > 0) {
+    // 你正在看这个群：像实时群聊一样，一条一条弹出来，每条之前都有"成员们正在输入..."
+    for (let i = 0; i < builtMessages.length; i++) {
+      const msg = builtMessages[i];
+      const member = builtSpeakers[i];
+      if (typingIndicator) {
+        typingIndicator.textContent = '成员们正在输入...';
+        typingIndicator.style.display = 'block';
+      }
+      const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
+      const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
+      await new Promise(resolve => setTimeout(resolve, typingDelay));
+
+      if (typingIndicator) typingIndicator.style.display = 'none';
+      chat.history.push(msg);
+      if (member) speakerIds.add(member.id);
+      await db.chats.put(chat);
+      if (typeof appendMessage === 'function') appendMessage(msg, chat);
+
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+  } else {
+    builtMessages.forEach((msg, i) => {
+      chat.history.push(msg);
+      const member = builtSpeakers[i];
+      if (member) speakerIds.add(member.id);
+    });
+    await db.chats.put(chat);
+  }
 
   for (const memberId of speakerIds) {
     if (typeof awardGroupActivity === 'function') await awardGroupActivity(chat, memberId);
@@ -656,8 +750,6 @@ ${extraBlocks}
 
   chat.unreadCount = 0;
   await db.chats.put(chat);
-
-  restoreTypingIndicator();
 
   if (isViewingThisChat && typeof renderChatInterface === 'function') {
     renderChatInterface(chat.id);
