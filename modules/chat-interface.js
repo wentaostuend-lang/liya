@@ -172,6 +172,9 @@
     if (chat.isGroup && typeof checkAndDecayChat === 'function') {
       checkAndDecayChat(chat);
     }
+    if (typeof checkAndTriggerProactiveReply === 'function') {
+      checkAndTriggerProactiveReply(chat);
+    }
 
     exitSelectionMode();
 
@@ -1600,6 +1603,10 @@
 
     document.getElementById('send-poll-btn').style.display = isGroup ? 'flex' : 'none';
     document.body.classList.remove('chat-actions-expanded');
+
+    if (typeof checkAndTriggerProactiveReply === 'function') {
+      checkAndTriggerProactiveReply(chat);
+    }
   }
 
 
