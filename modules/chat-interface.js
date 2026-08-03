@@ -173,7 +173,10 @@
       checkAndDecayChat(chat);
     }
     if (typeof checkAndTriggerProactiveReply === 'function') {
-      checkAndTriggerProactiveReply(chat);
+      // 注意：这里必须延后到下一个事件循环再触发，因为本函数后面还会把
+      // chat-header-title 的文字设回聊天名字，如果同步触发，"对方正在输入..."
+      // 会在设置的瞬间就被这里后面的代码覆盖掉，导致用户完全看不到这个状态
+      setTimeout(() => checkAndTriggerProactiveReply(chat), 0);
     }
 
     exitSelectionMode();
