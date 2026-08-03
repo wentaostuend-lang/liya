@@ -125,6 +125,17 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   // 表情包：直接复用正常对话流程那一套(真实可用列表+使用铁律)，不要自己瞎编含义
   const stickerBlock = typeof getStickerContextForPrompt === 'function' ? getStickerContextForPrompt(chat) : '';
 
+  // 双语模式：跟正常对话一样，如果这个角色开了双语，文字/语音消息都要用"外语〖中文〗"格式
+  const bilingualBlock = chat.settings.enableBilingualMode ? `
+# 【双语输出铁律 - 最高优先级】
+你的每条文本和语音消息(text/voice_message)都【必须】使用格式：外语〖中文〗
+示例：Hello〖你好〗 / I miss you〖我想你了〗
+- 括号必须是 〖 和 〗（不是【】或其他符号）
+- 外语和〖之间紧贴，不要有空格
+- 每句话都要有对应的翻译
+- 【绝对禁止】只发外语或只发中文！
+` : '';
+
   // 长期记忆：跟正常对话一样读取，避免主动回复的时候把之前的剧情/关系全忘光
   const memoryBlock = typeof getMemoryContextForPrompt === 'function'
     ? `# 长期记忆(必须严格参考，不要表现得像才刚认识/回到最初的场景)\n${getMemoryContextForPrompt(chat)}`
@@ -181,9 +192,10 @@ ${timeAnchorBlock}
 - 分享链接/新闻/趣事：{"type": "share_link", "hours_after": 数字, "title": "标题", "description": "简短描述", "source_name": "来源，比如'微博'/'小红书'", "content": "链接或内容"}
 - 更新状态(在做什么)：{"type": "update_status", "hours_after": 数字, "status_text": "正在做的事，比如'加班中'", "is_busy": true或false}
 ${stickerBlock}
+${bilingualBlock}
 ${thoughtsAndStatusBlock}
 # 规则
-1. 离开的时间越长，可以自然地生成越多条、涉及越多种类型；真实的时间跨度应该体现在消息的疏密节奏和情绪的自然演变上，不要把所有消息都挤在同一个时间点发生，也不要让情绪从头到尾一成不变。
+1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天角色都可能有自己的状态和想法(哪怕只是很简短的一两句)，天数越多，总消息量就应该越多，不能十几天和三天生成的量差不多——当然具体每天发不发、发多少，还是要基于人设来定(比如很忙/性格冷淡的角色某一两天可能确实什么都没发，但整体拉长时间线来看，总量应该能明显感觉出"过了很久")。真实的时间跨度要体现在消息的疏密节奏和情绪的自然演变上，不要把所有消息都挤在同一个时间点发生，也不要让情绪从头到尾一成不变。
 2. 每条都要给出模拟发送时间点，用"距离上次消息过去了多少小时"表示(hours_after字段，数字，可以有小数比如0.2表示12分钟后)，必须递增，且不能超过 ${roundedHours} 小时。
 3. 内容要口语化、真实，像真人分段打字发消息，不要每条都是长大段独白，允许有简短的、情绪化的、甚至只有几个字的消息穿插在里面。
 4. 绝对不能透露你是AI/模型，不能出戏。
@@ -254,9 +266,12 @@ ${thoughtsAndStatusBlock}
   const maxOffsetMs = elapsedHours * 60 * 60 * 1000;
 
   const builtMessages = [];
+  let prevOffsetHours = 0; // 强制时间不倒退：即使AI给的hours_after乱序，也保证最终时间戳单调不减
 
   entries.forEach(entry => {
-    const offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
+    let offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
+    offsetHours = Math.max(offsetHours, prevOffsetHours); // 不允许比上一条还早
+    prevOffsetHours = offsetHours;
     const timestamp = Math.min(
       lastTimestamp + offsetHours * 60 * 60 * 1000,
       lastTimestamp + maxOffsetMs
@@ -395,31 +410,23 @@ ${thoughtsAndStatusBlock}
     if (msg) builtMessages.push(msg);
   });
 
-  restoreTypingIndicator(); // 生成阶段的"正在输入"先收起来，下面逐条揭晓时会重新显示
-
+  // 保持"对方正在输入..."贯穿整个揭晓过程，全部弹完了再收起，不要一条一条闪烁
   if (isViewingThisChat && builtMessages.length > 0) {
-    // 你正在看这个聊天：像实时聊天一样，一条一条弹出来，每条之前都会有"对方正在输入..."
     for (const msg of builtMessages) {
-      if (chatHeaderTitle) {
-        chatHeaderTitle.textContent = '对方正在输入...';
-        chatHeaderTitle.classList.add('typing-status');
-      }
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-      if (chatHeaderTitle) {
-        chatHeaderTitle.textContent = chat.name;
-        chatHeaderTitle.classList.remove('typing-status');
-      }
       chat.history.push(msg);
       await db.chats.put(chat);
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
 
       await new Promise(resolve => setTimeout(resolve, 250)); // 消息之间留个小间隔，别一冒出来就接着下一条
     }
+    restoreTypingIndicator();
   } else {
     // 没在看这个聊天：直接批量存进去，不用做逐条动画
+    restoreTypingIndicator();
     builtMessages.forEach(msg => chat.history.push(msg));
     await db.chats.put(chat);
   }
@@ -536,6 +543,12 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
     .map(m => `- ${m.originalName}${m.groupNickname && m.groupNickname !== m.originalName ? `(群里叫TA"${m.groupNickname}")` : ''}`)
     .join('\n');
 
+  // 双语模式：如果这个群开了双语设置，文字消息也要用"外语〖中文〗"格式
+  const bilingualBlock = chat.settings.enableBilingualMode ? `
+# 【双语输出铁律 - 最高优先级】
+每条文字消息都【必须】使用格式：外语〖中文〗，括号必须是 〖 和 〗，外语和〖之间紧贴不留空格，绝对禁止只发外语或只发中文。
+` : '';
+
   let extraBlocks = '';
   if (typeof buildGroupThoughtChainBlock === 'function') {
     extraBlocks += buildGroupThoughtChainBlock(chat);
@@ -576,9 +589,10 @@ ${timeAnchorBlock}
 - 转账/发红包(给用户或群里)：{"type": "transfer", "name": "成员本名", "hours_after": 数字, "amount": 金额数字, "note": "备注"}
 - 改群名：{"type": "change_group_name", "name": "成员本名", "hours_after": 数字, "new_name": "新群名"}(非常少用，只有剧情合理时才用)
 ${stickerBlock}
+${bilingualBlock}
 ${extraBlocks}
 # 规则
-1. 离开的时间越长，可以自然地生成越多条、涉及越多个成员；真实的时间跨度应该体现在消息的疏密节奏和话题演变上，不要把所有消息挤在同一个时间点。
+1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天群里都可能有一些动静(哪怕只是一两句)，天数越多，总消息量应该越多，不能十几天和三天生成的量差不多。当然具体哪天热闹哪天冷清、谁发不发言，还是要基于各成员人设来定，不是每天都要炸群。真实的时间跨度要体现在消息的疏密节奏和话题演变上，不要把所有消息挤在同一个时间点。
 2. 每条都要给出模拟发送时间点(hours_after字段，数字，可以有小数比如0.2表示12分钟后)，必须递增，且不能超过 ${preciseHours} 小时。
 3. 允许插楼、错位回复、允许两三个成员之间自己单独接龙互怼，不用每条都扯上用户；不是每个成员都必须发言。
 4. 内容要口语化、真实，像真实群消息流，不要每条都很长，允许简短的、情绪化的、甚至只有几个字的消息穿插在里面。
@@ -635,8 +649,12 @@ ${extraBlocks}
   const builtMessages = [];
   const builtSpeakers = []; // 跟builtMessages一一对应，记录说话人是哪个member(用于事后计分)
 
+  let prevOffsetHours = 0; // 强制时间不倒退
+
   entries.forEach(entry => {
-    const offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
+    let offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
+    offsetHours = Math.max(offsetHours, prevOffsetHours);
+    prevOffsetHours = offsetHours;
     const timestamp = Math.min(
       lastTimestamp + offsetHours * 60 * 60 * 1000,
       lastTimestamp + maxOffsetMs
@@ -712,22 +730,19 @@ ${extraBlocks}
     }
   });
 
-  restoreTypingIndicator();
-
   if (isViewingThisChat && builtMessages.length > 0) {
-    // 你正在看这个群：像实时群聊一样，一条一条弹出来，每条之前都有"成员们正在输入..."
+    // 你正在看这个群：像实时群聊一样，一条一条弹出来，"成员们正在输入..."贯穿整个过程直到全部弹完
+    if (typingIndicator) {
+      typingIndicator.textContent = '成员们正在输入...';
+      typingIndicator.style.display = 'block';
+    }
     for (let i = 0; i < builtMessages.length; i++) {
       const msg = builtMessages[i];
       const member = builtSpeakers[i];
-      if (typingIndicator) {
-        typingIndicator.textContent = '成员们正在输入...';
-        typingIndicator.style.display = 'block';
-      }
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-      if (typingIndicator) typingIndicator.style.display = 'none';
       chat.history.push(msg);
       if (member) speakerIds.add(member.id);
       await db.chats.put(chat);
@@ -735,7 +750,9 @@ ${extraBlocks}
 
       await new Promise(resolve => setTimeout(resolve, 250));
     }
+    if (typingIndicator) typingIndicator.style.display = 'none';
   } else {
+    restoreTypingIndicator();
     builtMessages.forEach((msg, i) => {
       chat.history.push(msg);
       const member = builtSpeakers[i];
