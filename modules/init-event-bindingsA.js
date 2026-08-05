@@ -2492,6 +2492,9 @@ window.initEventBindingsA = async function(state, db) {
 
       // 捕获未处理的错误
       window.addEventListener('error', (event) => {
+        // ResizeObserver的这条提示是浏览器本身的已知良性行为(回调里触发了新一轮同帧内的尺寸变化，
+        // 浏览器直接跳过多余通知)，不是真正的报错，过滤掉避免刷屏干扰真正的错误排查
+        if (event.message && event.message.includes('ResizeObserver loop')) return;
         const message = `${event.message}\n  at ${event.filename}:${event.lineno}:${event.colno}`;
         addLog('error', [message]);
       });

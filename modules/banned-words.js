@@ -81,13 +81,23 @@ async function applyBannedWordsFilter(text, chat) {
   if (hits.length === 0) return text;
 
   // 优先尝试现场调用AI自然改写(方案C)
-  const { proxyUrl, apiKey, model } = state.apiConfig || {};
+  let apiConfig = state.apiConfig || {};
+  if (chat && chat.apiOverride && chat.apiOverride.enabled) {
+    apiConfig = {
+      proxyUrl: chat.apiOverride.proxyUrl || state.apiConfig.proxyUrl,
+      apiKey: chat.apiOverride.apiKey || state.apiConfig.apiKey,
+      model: chat.apiOverride.model || state.apiConfig.model,
+    };
+  }
+  const { proxyUrl, apiKey, model } = apiConfig;
   if (proxyUrl && apiKey && model) {
     try {
-      return await rewriteTextAvoidingBannedWords(text, hits);
+      return await rewriteTextAvoidingBannedWords(text, hits, chat);
     } catch (e) {
       console.warn('屏蔽词AI改写失败，降级为直接替换/删除:', e);
     }
+  } else {
+    console.warn('[屏蔽词] 没有可用的API配置(全局或角色独立配置都没设置好)，直接降级为删除/替换');
   }
 
   // 兜底：AI改写失败或没配置API时，退回原来的直接替换/删除
@@ -119,8 +129,16 @@ function buildBannedWordRegex(item) {
 }
 
 // 命中屏蔽词后，现场请求AI在不改变原意/语气的前提下自然改写这句话
-async function rewriteTextAvoidingBannedWords(text, hits) {
-  const { proxyUrl, apiKey, model } = state.apiConfig;
+async function rewriteTextAvoidingBannedWords(text, hits, chat) {
+  let apiConfig = state.apiConfig || {};
+  if (chat && chat.apiOverride && chat.apiOverride.enabled) {
+    apiConfig = {
+      proxyUrl: chat.apiOverride.proxyUrl || state.apiConfig.proxyUrl,
+      apiKey: chat.apiOverride.apiKey || state.apiConfig.apiKey,
+      model: chat.apiOverride.model || state.apiConfig.model,
+    };
+  }
+  const { proxyUrl, apiKey, model } = apiConfig;
   const wordsList = hits.map(h => h.word).join('、');
   const prompt = `下面这句话里包含了不允许出现的词/表达：${wordsList}。
 请你在【不改变整体意思、语气和情绪】的前提下，把这些词自然地换成合适的近义表达或说法，句子的其余部分尽量保持原样，不要生硬地把词删掉导致语句不通顺、意思缺失。
