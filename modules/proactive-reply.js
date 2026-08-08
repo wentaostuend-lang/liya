@@ -141,6 +141,17 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
     ? `# 长期记忆(必须严格参考，不要表现得像才刚认识/回到最初的场景)\n${getMemoryContextForPrompt(chat)}`
     : '';
 
+  // 最近的真实聊天记录样本：主动回复之前完全没有参考过这个，导致AI只能靠笼统的规则(比如"双语角色")去猜说话方式，
+  // 容易跑偏(比如平时中文夹粤语的角色，脱离了实际语料就可能整段整段冒英文)。这里补上最近几条真实消息当参照。
+  const recentHistorySample = (chat.history || [])
+    .filter(m => !m.isHidden && typeof m.content === 'string' && m.content)
+    .slice(-12)
+    .map(m => `${m.role === 'user' ? (chat.settings.myNickname || '用户') : (m.senderName || chat.originalName || chat.name)}: ${m.content}`)
+    .join('\n');
+  const recentHistoryBlock = recentHistorySample
+    ? `# 最近的真实聊天记录(必须参照这里面实际的说话习惯、用词风格、语言比例，不要脱离样本自己乱发挥)\n${recentHistorySample}`
+    : '';
+
   // 心声/散记功能是否开启(角色自己的设置优先，没设置就看全局)
   const enableThoughts = chat.settings.enableThoughts ?? state.globalSettings.enableThoughts;
 
@@ -172,6 +183,8 @@ ${aiPersona}
 用户是"${myNickname}"，人设：${myPersona}
 
 ${memoryBlock}
+
+${recentHistoryBlock}
 
 ${timeAnchorBlock}
 
@@ -412,14 +425,22 @@ ${thoughtsAndStatusBlock}
 
   // 保持"对方正在输入..."贯穿整个揭晓过程，全部弹完了再收起，不要一条一条闪烁
   if (isViewingThisChat && builtMessages.length > 0) {
+    const messagesContainer = document.getElementById('chat-messages');
+    const typingIndicatorEl = document.getElementById('typing-indicator');
     for (const msg of builtMessages) {
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
+      // 主动回复的每一条消息都强制带上自己的时间戳，不受平时"超过10分钟才显示"的限制，
+      // 并且要在插入消息气泡之前就插入，这样时间戳会跟弹出动画同时出现，而不是等一批消息弹完才补上
+      if (messagesContainer && typeof createSystemTimestampElement === 'function') {
+        const timestampEl = createSystemTimestampElement(msg.timestamp);
+        messagesContainer.insertBefore(timestampEl, typingIndicatorEl);
+      }
+      if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       await db.chats.put(chat);
-      if (typeof appendMessage === 'function') appendMessage(msg, chat);
 
       await new Promise(resolve => setTimeout(resolve, 250)); // 消息之间留个小间隔，别一冒出来就接着下一条
     }
@@ -565,6 +586,16 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
     ? `# 长期记忆(必须严格参考，不要表现得像才刚认识/回到最初的场景)\n${getMemoryContextForPrompt(chat)}`
     : '';
 
+  // 最近的真实群聊记录样本：让AI参照各成员实际的说话习惯/语言比例，不要脱离样本乱发挥
+  const recentHistorySample = (chat.history || [])
+    .filter(m => !m.isHidden && typeof m.content === 'string' && m.content)
+    .slice(-15)
+    .map(m => `${m.role === 'user' ? (chat.settings.myNickname || '用户') : (m.senderName || '未知成员')}: ${m.content}`)
+    .join('\n');
+  const recentHistoryBlock = recentHistorySample
+    ? `# 最近的真实群聊记录(必须参照这里面各成员实际的说话习惯、用词风格、语言比例)\n${recentHistorySample}`
+    : '';
+
   const systemPrompt = `
 # 场景
 你是群聊"${chat.name}"的导演，负责扮演【除了用户以外】的所有群成员。
@@ -574,6 +605,8 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
 ${membersList}
 
 ${memoryBlock}
+
+${recentHistoryBlock}
 
 ${timeAnchorBlock}
 
@@ -736,6 +769,7 @@ ${extraBlocks}
       typingIndicator.textContent = '成员们正在输入...';
       typingIndicator.style.display = 'block';
     }
+    const messagesContainer = document.getElementById('chat-messages');
     for (let i = 0; i < builtMessages.length; i++) {
       const msg = builtMessages[i];
       const member = builtSpeakers[i];
@@ -743,10 +777,15 @@ ${extraBlocks}
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
+      // 每条都强制带独立时间戳，且要在插入气泡之前插入，跟弹出动画同步出现
+      if (messagesContainer && typeof createSystemTimestampElement === 'function') {
+        const timestampEl = createSystemTimestampElement(msg.timestamp);
+        messagesContainer.insertBefore(timestampEl, typingIndicator);
+      }
+      if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       if (member) speakerIds.add(member.id);
       await db.chats.put(chat);
-      if (typeof appendMessage === 'function') appendMessage(msg, chat);
 
       await new Promise(resolve => setTimeout(resolve, 250));
     }
