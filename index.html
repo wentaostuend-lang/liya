@@ -119,7 +119,7 @@
   <script src="modules/group-titles.js?v=0.0.7" defer></script>
   <script src="modules/banned-words.js?v=0.0.4" defer></script>
   <script src="modules/send-translate.js?v=0.0.2" defer></script>
-  <script src="modules/proactive-reply.js?v=0.0.16" defer></script>
+  <script src="modules/proactive-reply.js?v=0.0.17" defer></script>
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
@@ -1738,6 +1738,13 @@
           <textarea id="banned-words-bulk-import-text" rows="6" class="settings-textarea" placeholder="把类似禁词库文档粘贴进来..."></textarea>
         </div>
         <button class="form-button form-button-secondary" id="extract-banned-words-ai-btn">🤖 AI智能提取并添加</button>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 15px; border-bottom:1px solid var(--border-color,#eee); flex-shrink:0;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px;">
+          <input type="checkbox" id="banned-words-select-all" style="width:auto;">
+          全选
+        </label>
+        <button class="action-btn" id="batch-generate-synonyms-btn">🤖 为选中的词批量生成近义词</button>
       </div>
       <div id="banned-words-list" class="list-container" style="flex-grow: 1; overflow-y: auto;"></div>
     </div>
