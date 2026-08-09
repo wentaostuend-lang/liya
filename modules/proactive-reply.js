@@ -425,19 +425,13 @@ ${thoughtsAndStatusBlock}
 
   // 保持"对方正在输入..."贯穿整个揭晓过程，全部弹完了再收起，不要一条一条闪烁
   if (isViewingThisChat && builtMessages.length > 0) {
-    const messagesContainer = document.getElementById('chat-messages');
-    const typingIndicatorEl = document.getElementById('typing-indicator');
     for (const msg of builtMessages) {
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-      // 主动回复的每一条消息都强制带上自己的时间戳，不受平时"超过10分钟才显示"的限制，
-      // 并且要在插入消息气泡之前就插入，这样时间戳会跟弹出动画同时出现，而不是等一批消息弹完才补上
-      if (messagesContainer && typeof createSystemTimestampElement === 'function') {
-        const timestampEl = createSystemTimestampElement(msg.timestamp);
-        messagesContainer.insertBefore(timestampEl, typingIndicatorEl);
-      }
+      // 不再强制每条都插时间戳，交给appendMessage自己按平时那套"超过10分钟才显示"的
+      // 分组规则判断——这样弹动画时看到的分组，和退出重进/翻历史记录时看到的分组完全一致
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       await db.chats.put(chat);
@@ -769,7 +763,6 @@ ${extraBlocks}
       typingIndicator.textContent = '成员们正在输入...';
       typingIndicator.style.display = 'block';
     }
-    const messagesContainer = document.getElementById('chat-messages');
     for (let i = 0; i < builtMessages.length; i++) {
       const msg = builtMessages[i];
       const member = builtSpeakers[i];
@@ -777,11 +770,7 @@ ${extraBlocks}
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
-      // 每条都强制带独立时间戳，且要在插入气泡之前插入，跟弹出动画同步出现
-      if (messagesContainer && typeof createSystemTimestampElement === 'function') {
-        const timestampEl = createSystemTimestampElement(msg.timestamp);
-        messagesContainer.insertBefore(timestampEl, typingIndicator);
-      }
+      // 不再强制每条都插时间戳，交给appendMessage按平时的分组规则判断，保持跟历史记录一致
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       if (member) speakerIds.add(member.id);

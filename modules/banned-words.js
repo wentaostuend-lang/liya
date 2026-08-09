@@ -80,7 +80,22 @@ async function applyBannedWordsFilter(text, chat) {
   }
   if (hits.length === 0) return text;
 
-  // 优先尝试现场调用AI自然改写(方案C)
+  // 有预设替换词的，直接查表替换，不用等API，秒出结果
+  const hitsWithoutReplacement = hits.filter(h => !h.replacement);
+  if (hitsWithoutReplacement.length === 0) {
+    let result = text;
+    for (const item of hits) {
+      try {
+        const re = buildBannedWordRegex(item);
+        result = result.replace(re, item.replacement);
+      } catch (e) {
+        console.warn('屏蔽词替换出错，已跳过该条:', item, e);
+      }
+    }
+    return result;
+  }
+
+  // 还有词没有预设替换词，才需要现场调AI自然改写(方案C)
   let apiConfig = state.apiConfig || {};
   if (chat && chat.apiOverride && chat.apiOverride.enabled) {
     apiConfig = {
