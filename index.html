@@ -5467,6 +5467,14 @@
                     <input type="number" id="proactive-reply-hours-input" min="0" step="1" style="width:80px; text-align:center;" placeholder="12">
                     <span>小时</span>
                 </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; height: 30px;">
+                    <label for="proactive-day-summary-toggle" style="line-height: 30px;">多日摘要压缩</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="proactive-day-summary-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="settings-desc" style="margin-top: 4px;">间隔超过48小时时，先生成一份逐日大纲再展开消息，避免间隔太久时AI偷懒把内容压缩成"仿佛只过了一小会儿"。关闭则直接按原来的方式生成。</div>
                 <button id="test-proactive-reply-btn" class="settings-full-btn" style="margin-top:10px;">🧪 立即测试(跳过等待,不影响正式设置)</button>
             </div>
             <div class="settings-item-block" id="send-translate-group">
