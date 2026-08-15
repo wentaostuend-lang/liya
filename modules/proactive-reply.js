@@ -204,6 +204,10 @@ ${timeAnchorBlock}
 - 分享位置：{"type": "location_share", "hours_after": 数字, "content": "位置名，比如'公司楼下的便利店'"}
 - 分享链接/新闻/趣事：{"type": "share_link", "hours_after": 数字, "title": "标题", "description": "简短描述", "source_name": "来源，比如'微博'/'小红书'", "content": "链接或内容"}
 - 更新状态(在做什么)：{"type": "update_status", "hours_after": 数字, "status_text": "正在做的事，比如'加班中'", "is_busy": true或false}
+- 拍一拍对方：{"type": "pat_user", "hours_after": 数字, "suffix": "后缀，可选，比如'该睡觉啦'，不需要就填空字符串"}(想到对方了、或者单纯想撩一下的时候用)
+- 改自己的备注名：{"type": "change_remark_name", "hours_after": 数字, "new_name": "新备注名"}(心情/关系有变化时偶尔用，不要频繁改)
+- 发起外卖代付(想让对方帮忙付钱)：{"type": "waimai_request", "hours_after": 数字, "productInfo": "商品名，比如'奶茶'", "amount": 金额数字}
+- 主动给对方点外卖(帮对方叫吃的)：{"type": "waimai_order", "hours_after": 数字, "productInfo": "商品名", "amount": 金额数字, "greeting": "留言，比如'趁热吃'"}
 ${stickerBlock}
 ${bilingualBlock}
 ${thoughtsAndStatusBlock}
@@ -273,11 +277,15 @@ ${thoughtsAndStatusBlock}
       if (typeof entry.random_jottings === 'string' && entry.random_jottings) {
         entry.random_jottings = await applyBannedWordsFilter(entry.random_jottings, chat);
       }
+      if (typeof entry.greeting === 'string' && entry.greeting) {
+        entry.greeting = await applyBannedWordsFilter(entry.greeting, chat);
+      }
     }
   }
 
   const maxOffsetMs = elapsedHours * 60 * 60 * 1000;
 
+  let nameWasChanged = false; // change_remark_name是否被触发过，触发了才需要事后同步群昵称
   const builtMessages = [];
   let prevOffsetHours = 0; // 强制时间不倒退：即使AI给的hours_after乱序，也保证最终时间戳单调不减
 
@@ -389,6 +397,65 @@ ${thoughtsAndStatusBlock}
         };
         break;
       }
+      case 'pat_user': {
+        const suffix = entry.suffix ? ` ${String(entry.suffix).trim()}` : '';
+        msg = {
+          role: 'system',
+          type: 'pat_message',
+          content: `${chat.name} 拍了拍我${suffix}`,
+          timestamp,
+        };
+        break;
+      }
+      case 'change_remark_name': {
+        if (entry.new_name) {
+          const oldName = chat.name;
+          const newName = String(entry.new_name).trim();
+          if (newName && newName !== oldName) {
+            if (!chat.nameHistory) chat.nameHistory = [];
+            if (!chat.nameHistory.includes(oldName)) chat.nameHistory.push(oldName);
+            chat.name = newName;
+            nameWasChanged = true;
+            msg = {
+              role: 'system',
+              type: 'pat_message',
+              content: `"${chat.originalName}" 将备注修改为 "${newName}"`,
+              timestamp,
+            };
+          }
+        }
+        break;
+      }
+      case 'waimai_request': {
+        const amount = Number(entry.amount);
+        if (entry.productInfo && amount > 0) {
+          msg = {
+            role: 'assistant',
+            type: 'waimai_request',
+            productInfo: entry.productInfo,
+            amount,
+            status: 'pending',
+            countdownEndTime: timestamp + 15 * 60 * 1000,
+            timestamp,
+          };
+        }
+        break;
+      }
+      case 'waimai_order': {
+        const amount = Number(entry.amount);
+        if (entry.productInfo && amount > 0) {
+          msg = {
+            role: 'assistant',
+            type: 'waimai_order',
+            productInfo: entry.productInfo,
+            amount,
+            greeting: entry.greeting || '',
+            recipientName: chat.settings.myNickname || null,
+            timestamp,
+          };
+        }
+        break;
+      }
       case 'update_thoughts': {
         if (!chat.isGroup) {
           if (entry.heartfelt_voice) chat.heartfeltVoice = String(entry.heartfelt_voice);
@@ -422,6 +489,15 @@ ${thoughtsAndStatusBlock}
 
     if (msg) builtMessages.push(msg);
   });
+
+  // 备注名在这段时间里被改过：事后同步一次，跟正常对话流程改备注时的收尾动作保持一致
+  if (nameWasChanged && typeof syncCharacterNameInGroups === 'function') {
+    try {
+      await syncCharacterNameInGroups(chat);
+    } catch (e) {
+      console.warn('[主动回复] 同步群内昵称失败', e);
+    }
+  }
 
   // 保持"对方正在输入..."贯穿整个揭晓过程，全部弹完了再收起，不要一条一条闪烁
   if (isViewingThisChat && builtMessages.length > 0) {
