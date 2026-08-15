@@ -66,6 +66,73 @@ async function checkAndTriggerProactiveReply(chat) {
   }
 }
 
+// ============================================================
+// 多日摘要压缩：间隔时间太长(默认超过48小时)时，直接一次性生成消息容易被AI偷懒
+// 压缩成"仿佛只过了一天"的量。这里先单独请求一次"逐日大纲"(每天1句话概括发生了什么)，
+// 再把大纲塞进正式生成的prompt里，让AI照着大纲的骨架去展开消息，逼着它把时间线真正拉开。
+// 只是一份文字大纲，token消耗很小，只有超过阈值才会多打这一次请求。
+// ============================================================
+const DAY_SUMMARY_THRESHOLD_HOURS = 48; // 超过这个时长才启用大纲压缩，否则跟以前一样直接生成
+const DAY_SUMMARY_MAX_DAYS = 14; // 大纲最多列这么多天，再长也没意义，只取"最近这些天"
+
+async function generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock) {
+  const { proxyUrl, apiKey, model } = apiConfig;
+  const totalDays = Math.min(DAY_SUMMARY_MAX_DAYS, Math.max(2, Math.ceil(elapsedHours / 24)));
+
+  const outlinePrompt = `
+# 场景
+你正在扮演角色"${chat.originalName || chat.name}"，人设如下：
+${aiPersona}
+
+${memoryBlock}
+
+${timeAnchorBlock}
+
+用户已经大约 ${elapsedHours.toFixed(1)} 小时(约${totalDays}天)没有查看/回复你了。请你先站在角色的视角，按天列出这段时间里角色自己经历的关键事情——这只是给后续生成消息用的大纲/骨架，不是要写对话或消息原文，是写事件概括。
+
+# 要求
+1. 一共写${totalDays}天，从最早那天写到最近(最后一天)。
+2. 如果某天角色确实没什么特别的事(平淡的一天)，summary就如实写"平淡的一天，没什么特别的事"，不要为了凑数硬编事件。
+3. 事件要符合角色人设、符合之前的关系和剧情，不要凭空生出跟人设无关的事；天数越靠后离现在越近，事件之间要有连贯性/发展感，不能自相矛盾。
+4. 只输出JSON数组，不要有任何其他文字、不要markdown代码块标记。格式：[{"day": 1, "summary": "这天发生的事，1句话概括"}, ...]
+`;
+
+  try {
+    const messagesForApi = [{ role: 'user', content: outlinePrompt }];
+    const isGemini = proxyUrl === GEMINI_API_URL;
+    const geminiConfig = toGeminiRequestData(model, apiKey, outlinePrompt, messagesForApi, isGemini);
+    const response = isGemini
+      ? await fetch(geminiConfig.url, geminiConfig.data)
+      : await fetch(`${proxyUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({ model, messages: messagesForApi, temperature: 0.8 }),
+        });
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+    const rawContent = (isGemini
+      ? data.candidates[0].content.parts[0].text
+      : data.choices[0].message.content
+    ).replace(/^```json\s*|```\s*$/g, '').trim();
+    const days = JSON.parse(rawContent);
+    if (!Array.isArray(days) || days.length === 0) return '';
+
+    const lines = days
+      .filter(d => d && d.summary)
+      .map(d => `第${d.day ?? '?'}天：${d.summary}`)
+      .join('\n');
+    if (!lines) return '';
+
+    return `# 逐日大纲(必须严格按这份大纲展开，每天的消息内容要围绕对应那天的事件来写，不能超出/偏离大纲、不能把多天的事情混在一起写、不能跳过某天直接跳到很久以后)\n${lines}\n`;
+  } catch (e) {
+    console.warn('[主动回复] 生成逐日大纲失败，跳过压缩，走普通生成', e);
+    return ''; // 失败就悄悄跳过，退回到原来的生成方式，不影响主流程
+  }
+}
+
 async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   let apiConfig = state.apiConfig || {};
   if (chat.apiOverride && chat.apiOverride.enabled) {
@@ -149,8 +216,15 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
     .map(m => `${m.role === 'user' ? (chat.settings.myNickname || '用户') : (m.senderName || chat.originalName || chat.name)}: ${m.content}`)
     .join('\n');
   const recentHistoryBlock = recentHistorySample
-    ? `# 最近的真实聊天记录(必须参照这里面实际的说话习惯、用词风格、语言比例，不要脱离样本自己乱发挥)\n${recentHistorySample}`
+    ? `# 最近的真实聊天记录(仅供参照说话习惯、用词风格、语言比例，不要脱离样本自己乱发挥)\n${recentHistorySample}\n【重要】以上这些是【已经发生过、已经说完了】的旧消息，只是给你看说话方式用的参照物，不是还没写完的对话、也不是要你接着往下续。你接下来要生成的是这之后【全新发生】的内容——绝对不能把上面任何一句话原样或改写后再发一遍，不能出现意思重复、场景重复的消息。`
     : '';
+
+  // 多日摘要压缩：间隔太长时先打一份逐日大纲，让正式生成时有骨架可依，不会把好几天的事糊成一小会儿
+  const enableDaySummaryCompression = chat.settings.enableDaySummaryCompression ?? true;
+  let dailyOutlineBlock = '';
+  if (enableDaySummaryCompression && elapsedHours >= DAY_SUMMARY_THRESHOLD_HOURS) {
+    dailyOutlineBlock = await generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock);
+  }
 
   // 心声/散记功能是否开启(角色自己的设置优先，没设置就看全局)
   const enableThoughts = chat.settings.enableThoughts ?? state.globalSettings.enableThoughts;
@@ -188,6 +262,7 @@ ${recentHistoryBlock}
 
 ${timeAnchorBlock}
 
+${dailyOutlineBlock}
 现在的情况是：距离你上一次和用户说话，已经过去了大约 ${roughHours} 个小时（注意：这是【真实经过的时间】，不是固定周期，哪怕是几十、几百个小时/好几天都要如实按这个时长来构思，不能因为时间很长就压缩成好像才过了一小会儿）。
 用户这段时间一直没有查看/回复聊天。请你完全代入角色，模拟这段真实时间跨度里角色会主动做的事，具体做什么、发多少、用什么方式，必须完全基于角色人设和之前的对话上下文来判断，不要脱离人设乱发。
 重要：这些消息是角色在【独自一人、完全不知道用户会不会看/什么时候看】的情况下发出的，角色此刻并不知道用户"已经回来了"，不要写成"你终于回复了""你看到了吗""你在吗"这种预设用户正在关注、马上会回应的语气，就是单纯记录这段时间角色会说的话，不需要等待或呼唤对方。
@@ -212,7 +287,7 @@ ${stickerBlock}
 ${bilingualBlock}
 ${thoughtsAndStatusBlock}
 # 规则
-1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天角色都可能有自己的状态和想法(哪怕只是很简短的一两句)，天数越多，总消息量就应该越多，不能十几天和三天生成的量差不多——当然具体每天发不发、发多少，还是要基于人设来定(比如很忙/性格冷淡的角色某一两天可能确实什么都没发，但整体拉长时间线来看，总量应该能明显感觉出"过了很久")。真实的时间跨度要体现在消息的疏密节奏和情绪的自然演变上，不要把所有消息都挤在同一个时间点发生，也不要让情绪从头到尾一成不变。
+1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天角色都可能有自己的状态和想法(哪怕只是很简短的一两句)，天数越多，总消息量就应该越多，不能十几天和三天生成的量差不多——当然具体每天发不发、发多少，还是要基于人设来定(比如很忙/性格冷淡的角色某一两天可能确实什么都没发，但整体拉长时间线来看，总量应该能明显感觉出"过了很久")。真实的时间跨度要体现在消息的疏密节奏和情绪的自然演变上，不要把所有消息都挤在同一个时间点发生，也不要让情绪从头到尾一成不变。${dailyOutlineBlock ? '如果上面给出了"逐日大纲"，必须以大纲为准来分配每天的消息内容和数量，每天的消息要能对应上大纲里那天写的事，不能脱离大纲自己乱发挥，也不能把大纲里好几天的事糊在同一天说完。' : ''}
 2. 每条都要给出模拟发送时间点，用"距离上次消息过去了多少小时"表示(hours_after字段，数字，可以有小数比如0.2表示12分钟后)，必须递增，且不能超过 ${roundedHours} 小时。
 3. 内容要口语化、真实，像真人分段打字发消息，不要每条都是长大段独白，允许有简短的、情绪化的、甚至只有几个字的消息穿插在里面。
 4. 绝对不能透露你是AI/模型，不能出戏。
@@ -663,7 +738,7 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
     .map(m => `${m.role === 'user' ? (chat.settings.myNickname || '用户') : (m.senderName || '未知成员')}: ${m.content}`)
     .join('\n');
   const recentHistoryBlock = recentHistorySample
-    ? `# 最近的真实群聊记录(必须参照这里面各成员实际的说话习惯、用词风格、语言比例)\n${recentHistorySample}`
+    ? `# 最近的真实群聊记录(仅供参照各成员实际的说话习惯、用词风格、语言比例)\n${recentHistorySample}\n【重要】以上是【已经发生过、已经说完了】的旧消息，只是给你看各成员说话方式用的参照物，不是还没写完的对话、也不是要你接着往下续。你接下来要生成的是这之后【全新发生】的群聊内容——绝对不能把上面任何一句话原样或改写后再发一遍，不能出现意思重复、场景重复的消息。`
     : '';
 
   const systemPrompt = `

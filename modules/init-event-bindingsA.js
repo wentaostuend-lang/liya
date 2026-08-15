@@ -3145,6 +3145,11 @@ window.initEventBindingsA = async function(state, db) {
         console.log(`[主动回复设置] 打开"${chat.name}"的设置，当前值为: ${proactiveReplyInput.value}`);
       }
 
+      const proactiveDaySummaryToggle = document.getElementById('proactive-day-summary-toggle');
+      if (proactiveDaySummaryToggle) {
+        proactiveDaySummaryToggle.checked = chat.settings.enableDaySummaryCompression ?? true;
+      }
+
       const weatherSection = document.getElementById('weather-settings-section');
       if (isGroup) {
         weatherSection.style.display = 'none';
@@ -4106,6 +4111,11 @@ window.initEventBindingsA = async function(state, db) {
       if (proactiveReplyInput) {
         chat.settings.proactiveReplyHours = Math.max(0, parseInt(proactiveReplyInput.value) || 0);
         console.log(`[主动回复设置] 保存"${chat.name}"的设置为: ${chat.settings.proactiveReplyHours}`);
+      }
+
+      const proactiveDaySummaryToggle = document.getElementById('proactive-day-summary-toggle');
+      if (proactiveDaySummaryToggle) {
+        chat.settings.enableDaySummaryCompression = proactiveDaySummaryToggle.checked;
       }
 
       const selectedThemeRadio = document.querySelector('input[name="theme-select"]:checked');
