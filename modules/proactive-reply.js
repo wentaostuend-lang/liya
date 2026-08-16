@@ -9,6 +9,50 @@
 // 防止同一次"离开期间"被重复触发：记录已经检查过的最后一条消息时间戳
 const proactiveReplyCheckedAnchors = {};
 
+// ============================================================
+// 中途暂停 & 重roll：
+// - proactiveGenerationState[chat.id] 记录这个聊天当前这次生成的状态
+//   (AbortController用来真的把还没返回的fetch请求中断掉，cancelled用来让展示循环提前收手，
+//   inProgress用来防止同一个聊天被并发触发两次生成，batchId用来标记这一批消息，方便reroll时精准删除)
+// ============================================================
+const proactiveGenerationState = {};
+
+// 点击"对方正在输入..."/"成员们正在输入..."时调用，中断当前这次主动回复的生成
+function cancelProactiveGeneration(chatId) {
+  const gen = proactiveGenerationState[chatId];
+  if (!gen || !gen.inProgress) return;
+  gen.cancelled = true;
+  try { gen.controller.abort(); } catch (e) { /* 已经结束的请求abort会报错，忽略即可 */ }
+  console.log(`[主动回复] 用户手动中止了聊天 ${chatId} 的主动回复生成`);
+}
+window.cancelProactiveGeneration = cancelProactiveGeneration;
+
+// 重新生成：把上一批标记为这个batchId的消息从记录里摘掉，再当成"还没检查过"重新触发一次
+async function rerollProactiveReply(chatId, batchId) {
+  const chat = state.chats[chatId];
+  if (!chat) return;
+  if (proactiveGenerationState[chatId]?.inProgress) {
+    console.log('[主动回复] 上一次生成还没结束，暂不重roll');
+    return;
+  }
+
+  const before = chat.history.length;
+  chat.history = chat.history.filter(m => m.proactiveBatchId !== batchId);
+  const removed = before - chat.history.length;
+  console.log(`[主动回复] 重roll："${chat.name}" 移除了 ${removed} 条上一批的主动消息`);
+
+  await db.chats.put(chat);
+  if (state.activeChatId === chatId && typeof renderChatInterface === 'function') {
+    renderChatInterface(chatId);
+  }
+
+  // 摘掉之后，getLastMessageTimestamp会自然回退到这批消息之前的那条真实消息，
+  // 清掉"已检查"标记，让下面的检查重新按真实间隔触发一次
+  delete proactiveReplyCheckedAnchors[chatId];
+  await checkAndTriggerProactiveReply(chat);
+}
+window.rerollProactiveReply = rerollProactiveReply;
+
 // 格式化成"2026年8月1日 14:20 星期六"这种，给AI提供绝对时间锚点，避免它算不清白天黑夜
 function formatDateTimeCN(date) {
   const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
@@ -31,6 +75,10 @@ function getLastMessageTimestamp(chat) {
 
 async function checkAndTriggerProactiveReply(chat) {
   if (!chat) return;
+  if (proactiveGenerationState[chat.id]?.inProgress) {
+    console.log(`[主动回复] "${chat.name}" 上一次生成还在进行中，跳过本次检查`);
+    return;
+  }
   const hoursThreshold = chat.settings?.proactiveReplyHours ?? 12;
   if (!hoursThreshold || hoursThreshold <= 0) {
     console.log(`[主动回复] "${chat.name}" 间隔设置为0或未设置，功能已关闭，不检查`);
@@ -75,7 +123,7 @@ async function checkAndTriggerProactiveReply(chat) {
 const DAY_SUMMARY_THRESHOLD_HOURS = 48; // 超过这个时长才启用大纲压缩，否则跟以前一样直接生成
 const DAY_SUMMARY_MAX_DAYS = 14; // 大纲最多列这么多天，再长也没意义，只取"最近这些天"
 
-async function generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock) {
+async function generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock, signal) {
   const { proxyUrl, apiKey, model } = apiConfig;
   const totalDays = Math.min(DAY_SUMMARY_MAX_DAYS, Math.max(2, Math.ceil(elapsedHours / 24)));
 
@@ -102,7 +150,7 @@ ${timeAnchorBlock}
     const isGemini = proxyUrl === GEMINI_API_URL;
     const geminiConfig = toGeminiRequestData(model, apiKey, outlinePrompt, messagesForApi, isGemini);
     const response = isGemini
-      ? await fetch(geminiConfig.url, geminiConfig.data)
+      ? await fetch(geminiConfig.url, { ...geminiConfig.data, signal })
       : await fetch(`${proxyUrl}/v1/chat/completions`, {
           method: 'POST',
           headers: {
@@ -110,6 +158,7 @@ ${timeAnchorBlock}
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({ model, messages: messagesForApi, temperature: 0.8 }),
+          signal,
         });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
@@ -134,6 +183,9 @@ ${timeAnchorBlock}
 }
 
 async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
+  const abortController = new AbortController();
+  proactiveGenerationState[chat.id] = { controller: abortController, cancelled: false, inProgress: true, batchId: `pb_${lastTimestamp}` };
+  try {
   let apiConfig = state.apiConfig || {};
   if (chat.apiOverride && chat.apiOverride.enabled) {
     apiConfig = {
@@ -152,25 +204,37 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   const chatHeaderTitle = document.getElementById('chat-header-title');
   const typingIndicator = document.getElementById('typing-indicator');
 
+  const onTypingIndicatorClick = () => cancelProactiveGeneration(chat.id);
+
   if (isViewingThisChat) {
     if (chat.isGroup) {
       if (typingIndicator) {
-        typingIndicator.textContent = '成员们正在输入...';
+        typingIndicator.textContent = '成员们正在输入...(点击暂停)';
         typingIndicator.style.display = 'block';
+        typingIndicator.style.cursor = 'pointer';
+        typingIndicator.addEventListener('click', onTypingIndicatorClick);
       }
     } else if (chatHeaderTitle) {
-      chatHeaderTitle.textContent = '对方正在输入...';
+      chatHeaderTitle.textContent = '对方正在输入...(点击暂停)';
       chatHeaderTitle.classList.add('typing-status');
+      chatHeaderTitle.style.cursor = 'pointer';
+      chatHeaderTitle.addEventListener('click', onTypingIndicatorClick);
     }
   }
 
   const restoreTypingIndicator = () => {
     if (!isViewingThisChat) return;
     if (chat.isGroup) {
-      if (typingIndicator) typingIndicator.style.display = 'none';
+      if (typingIndicator) {
+        typingIndicator.style.display = 'none';
+        typingIndicator.style.cursor = '';
+        typingIndicator.removeEventListener('click', onTypingIndicatorClick);
+      }
     } else if (chatHeaderTitle) {
       chatHeaderTitle.textContent = chat.name;
       chatHeaderTitle.classList.remove('typing-status');
+      chatHeaderTitle.style.cursor = '';
+      chatHeaderTitle.removeEventListener('click', onTypingIndicatorClick);
     }
   };
 
@@ -223,8 +287,9 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
   const enableDaySummaryCompression = chat.settings.enableDaySummaryCompression ?? true;
   let dailyOutlineBlock = '';
   if (enableDaySummaryCompression && elapsedHours >= DAY_SUMMARY_THRESHOLD_HOURS) {
-    dailyOutlineBlock = await generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock);
+    dailyOutlineBlock = await generateDailyOutlineBlock(chat, elapsedHours, apiConfig, aiPersona, memoryBlock, timeAnchorBlock, abortController.signal);
   }
+  if (proactiveGenerationState[chat.id]?.cancelled) { restoreTypingIndicator(); return; } // 打大纲的时候就被暂停了，直接收手
 
   // 心声/散记功能是否开启(角色自己的设置优先，没设置就看全局)
   const enableThoughts = chat.settings.enableThoughts ?? state.globalSettings.enableThoughts;
@@ -288,7 +353,7 @@ ${bilingualBlock}
 ${thoughtsAndStatusBlock}
 # 规则
 1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天角色都可能有自己的状态和想法(哪怕只是很简短的一两句)，天数越多，总消息量就应该越多，不能十几天和三天生成的量差不多——当然具体每天发不发、发多少，还是要基于人设来定(比如很忙/性格冷淡的角色某一两天可能确实什么都没发，但整体拉长时间线来看，总量应该能明显感觉出"过了很久")。真实的时间跨度要体现在消息的疏密节奏和情绪的自然演变上，不要把所有消息都挤在同一个时间点发生，也不要让情绪从头到尾一成不变。${dailyOutlineBlock ? '如果上面给出了"逐日大纲"，必须以大纲为准来分配每天的消息内容和数量，每天的消息要能对应上大纲里那天写的事，不能脱离大纲自己乱发挥，也不能把大纲里好几天的事糊在同一天说完。' : ''}
-2. 每条都要给出模拟发送时间点，用"距离上次消息过去了多少小时"表示(hours_after字段，数字，可以有小数比如0.2表示12分钟后)，必须递增，且不能超过 ${roundedHours} 小时。
+2. hours_after(距离上次消息过去了多少小时，数字，可以有小数)必须递增，不能超过 ${roundedHours} 小时，而且必须体现真人发消息的真实节奏——绝对禁止只用1、2、5、12、24、48这种一眼就是凑出来的整数间隔！真人发消息的规律是：想到一件事的时候会连着发好几条短消息(间隔可能只有几十秒到几分钟，也就是0.02~0.1小时这个量级)，说完了就沉默一段不规则的时间(可能是1.6小时、也可能是7.3小时，取决于角色当时在干嘛)，然后因为某件新的小事又冒出来发一两条。把每一天拆成好几个这样的"小波次"，而不是一天只给一两个孤零零的整点。举个反面例子(禁止模仿)：[1, 5, 12, 24]；正面例子(参考这种疏密节奏和小数感)：[0.05, 0.12, 0.18, 2.7, 2.75, 8.4, 13.1, 13.15, 13.4]。
 3. 内容要口语化、真实，像真人分段打字发消息，不要每条都是长大段独白，允许有简短的、情绪化的、甚至只有几个字的消息穿插在里面。
 4. 绝对不能透露你是AI/模型，不能出戏。
 5. 只输出JSON数组，不要有任何其他文字、不要markdown代码块标记。数组里每个对象都要有"type"和"hours_after"字段，格式如上面所示。
@@ -301,7 +366,7 @@ ${thoughtsAndStatusBlock}
   let entries;
   try {
     const response = isGemini
-      ? await fetch(geminiConfig.url, geminiConfig.data)
+      ? await fetch(geminiConfig.url, { ...geminiConfig.data, signal: abortController.signal })
       : await fetch(`${proxyUrl}/v1/chat/completions`, {
           method: 'POST',
           headers: {
@@ -313,6 +378,7 @@ ${thoughtsAndStatusBlock}
             messages: messagesForApi,
             temperature: 0.9,
           }),
+          signal: abortController.signal,
         });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
@@ -575,16 +641,28 @@ ${thoughtsAndStatusBlock}
   }
 
   // 保持"对方正在输入..."贯穿整个揭晓过程，全部弹完了再收起，不要一条一条闪烁
+  const batchId = `pb_${lastTimestamp}`;
+  builtMessages.forEach(msg => { msg.proactiveBatchId = batchId; }); // 打上批次标记，方便reroll时精准定位删除
+
+  let committedCount = 0;
   if (isViewingThisChat && builtMessages.length > 0) {
     for (const msg of builtMessages) {
+      if (proactiveGenerationState[chat.id]?.cancelled) {
+        console.log('[主动回复] 展示过程中被用户暂停，剩余消息不再继续弹出');
+        break;
+      }
+
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
+
+      if (proactiveGenerationState[chat.id]?.cancelled) break; // 等待的过程中被暂停，这条也不发了
 
       // 不再强制每条都插时间戳，交给appendMessage自己按平时那套"超过10分钟才显示"的
       // 分组规则判断——这样弹动画时看到的分组，和退出重进/翻历史记录时看到的分组完全一致
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
+      committedCount++;
       await db.chats.put(chat);
 
       await new Promise(resolve => setTimeout(resolve, 250)); // 消息之间留个小间隔，别一冒出来就接着下一条
@@ -594,6 +672,7 @@ ${thoughtsAndStatusBlock}
     // 没在看这个聊天：直接批量存进去，不用做逐条动画
     restoreTypingIndicator();
     builtMessages.forEach(msg => chat.history.push(msg));
+    committedCount = builtMessages.length;
     await db.chats.put(chat);
   }
 
@@ -604,6 +683,9 @@ ${thoughtsAndStatusBlock}
     renderChatInterface(chat.id);
   }
   if (typeof renderChatList === 'function') renderChatList();
+  } finally {
+    if (proactiveGenerationState[chat.id]) proactiveGenerationState[chat.id].inProgress = false;
+  }
 }
 
 window.checkAndTriggerProactiveReply = checkAndTriggerProactiveReply;
@@ -669,6 +751,9 @@ document.getElementById('test-proactive-reply-btn')?.addEventListener('click', t
 // 跟单聊的prompt和可用行为类型是分开设计的，不复用单聊那一套。
 // ============================================================
 async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp) {
+  const abortController = new AbortController();
+  proactiveGenerationState[chat.id] = { controller: abortController, cancelled: false, inProgress: true, batchId: `pb_${lastTimestamp}` };
+  try {
   let apiConfig = state.apiConfig || {};
   if (chat.apiOverride && chat.apiOverride.enabled) {
     apiConfig = {
@@ -685,13 +770,20 @@ async function generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp)
 
   const isViewingThisChat = state.activeChatId === chat.id;
   const typingIndicator = document.getElementById('typing-indicator');
+  const onTypingIndicatorClick = () => cancelProactiveGeneration(chat.id);
 
   if (isViewingThisChat && typingIndicator) {
-    typingIndicator.textContent = '成员们正在输入...';
+    typingIndicator.textContent = '成员们正在输入...(点击暂停)';
     typingIndicator.style.display = 'block';
+    typingIndicator.style.cursor = 'pointer';
+    typingIndicator.addEventListener('click', onTypingIndicatorClick);
   }
   const restoreTypingIndicator = () => {
-    if (isViewingThisChat && typingIndicator) typingIndicator.style.display = 'none';
+    if (isViewingThisChat && typingIndicator) {
+      typingIndicator.style.display = 'none';
+      typingIndicator.style.cursor = '';
+      typingIndicator.removeEventListener('click', onTypingIndicatorClick);
+    }
   };
 
   const myNickname = chat.settings.myNickname || '你';
@@ -771,7 +863,7 @@ ${bilingualBlock}
 ${extraBlocks}
 # 规则
 1. 消息数量必须明显跟着离开的时长走：把这段时间按"天"拆开来想，每一天群里都可能有一些动静(哪怕只是一两句)，天数越多，总消息量应该越多，不能十几天和三天生成的量差不多。当然具体哪天热闹哪天冷清、谁发不发言，还是要基于各成员人设来定，不是每天都要炸群。真实的时间跨度要体现在消息的疏密节奏和话题演变上，不要把所有消息挤在同一个时间点。
-2. 每条都要给出模拟发送时间点(hours_after字段，数字，可以有小数比如0.2表示12分钟后)，必须递增，且不能超过 ${preciseHours} 小时。
+2. hours_after(距离上次消息过去了多少小时，数字，可以有小数)必须递增，不能超过 ${preciseHours} 小时，而且必须体现群聊真实的爆发节奏——绝对禁止只用1、2、5、12、24这种一眼就是凑出来的整数间隔！真实群聊是：一件事引发几个人连着扎堆聊几句(间隔可能只有几十秒到几分钟，也就是0.02~0.1小时这个量级)，然后群里安静一段不规则的时间，之后因为别的事又活跃一阵。把每一天拆成好几个这样的"小波次"，而不是一天只给一两条孤零零的整点消息。反面例子(禁止模仿)：[1, 5, 12, 24]；正面例子(参考这种疏密节奏)：[0.05, 0.1, 0.15, 0.2, 4.6, 4.65, 4.7, 9.3, 15.8, 15.85]。
 3. 允许插楼、错位回复、允许两三个成员之间自己单独接龙互怼，不用每条都扯上用户；不是每个成员都必须发言。
 4. 内容要口语化、真实，像真实群消息流，不要每条都很长，允许简短的、情绪化的、甚至只有几个字的消息穿插在里面。
 5. 绝对不能透露你是AI/模型，不能出戏。
@@ -785,7 +877,7 @@ ${extraBlocks}
   let entries;
   try {
     const response = isGemini
-      ? await fetch(geminiConfig.url, geminiConfig.data)
+      ? await fetch(geminiConfig.url, { ...geminiConfig.data, signal: abortController.signal })
       : await fetch(`${proxyUrl}/v1/chat/completions`, {
           method: 'POST',
           headers: {
@@ -793,6 +885,7 @@ ${extraBlocks}
             Authorization: `Bearer ${apiKey}`,
           },
           body: JSON.stringify({ model, messages: messagesForApi, temperature: 0.9 }),
+          signal: abortController.signal,
         });
     if (!response.ok) throw new Error(await response.text());
     const data = await response.json();
@@ -908,28 +1001,40 @@ ${extraBlocks}
     }
   });
 
+  const batchId = `pb_${lastTimestamp}`;
+  builtMessages.forEach(msg => { msg.proactiveBatchId = batchId; });
+
+  let committedCount = 0;
   if (isViewingThisChat && builtMessages.length > 0) {
     // 你正在看这个群：像实时群聊一样，一条一条弹出来，"成员们正在输入..."贯穿整个过程直到全部弹完
     if (typingIndicator) {
-      typingIndicator.textContent = '成员们正在输入...';
+      typingIndicator.textContent = '成员们正在输入...(点击暂停)';
       typingIndicator.style.display = 'block';
     }
     for (let i = 0; i < builtMessages.length; i++) {
+      if (proactiveGenerationState[chat.id]?.cancelled) {
+        console.log('[主动回复] 群聊展示过程中被用户暂停，剩余消息不再继续弹出');
+        break;
+      }
+
       const msg = builtMessages[i];
       const member = builtSpeakers[i];
       const contentLen = typeof msg.content === 'string' ? msg.content.length : 6;
       const typingDelay = Math.min(2200, Math.max(500, contentLen * 90));
       await new Promise(resolve => setTimeout(resolve, typingDelay));
 
+      if (proactiveGenerationState[chat.id]?.cancelled) break;
+
       // 不再强制每条都插时间戳，交给appendMessage按平时的分组规则判断，保持跟历史记录一致
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       if (member) speakerIds.add(member.id);
+      committedCount++;
       await db.chats.put(chat);
 
       await new Promise(resolve => setTimeout(resolve, 250));
     }
-    if (typingIndicator) typingIndicator.style.display = 'none';
+    restoreTypingIndicator();
   } else {
     restoreTypingIndicator();
     builtMessages.forEach((msg, i) => {
@@ -937,6 +1042,7 @@ ${extraBlocks}
       const member = builtSpeakers[i];
       if (member) speakerIds.add(member.id);
     });
+    committedCount = builtMessages.length;
     await db.chats.put(chat);
   }
 
@@ -951,4 +1057,7 @@ ${extraBlocks}
     renderChatInterface(chat.id);
   }
   if (typeof renderChatList === 'function') renderChatList();
+  } finally {
+    if (proactiveGenerationState[chat.id]) proactiveGenerationState[chat.id].inProgress = false;
+  }
 }

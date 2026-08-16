@@ -6799,6 +6799,14 @@ ${getActiveThoughtsPrompt()}
     const chat = state.chats[state.activeChatId];
     if (!chat) return;
 
+    // 如果最后一条消息是"主动回复"生成的，说明这不是对某条用户消息的单次回复，
+    // 走专门的reroll逻辑：按当时真实的离开时长重新生成一整批，而不是当成普通对话回复来重开
+    const lastVisibleMsg = chat.history.filter(msg => !msg.isHidden).slice(-1)[0];
+    if (lastVisibleMsg?.proactiveBatchId && typeof rerollProactiveReply === 'function') {
+      await rerollProactiveReply(chat.id, lastVisibleMsg.proactiveBatchId);
+      return;
+    }
+
     const lastUserMsgIndex = chat.history.findLastIndex(msg => msg.role === 'user' && !msg.isHidden);
 
     if (lastUserMsgIndex === -1) {
