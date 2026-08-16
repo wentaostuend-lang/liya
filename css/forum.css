@@ -10,6 +10,22 @@
   color: #111;
 }
 
+/* header的返回箭头/身份图标强制走黑白灰，不跟随全局蓝色主题色
+   用 #forum-screen .header 提高特异性，确保不管样式表加载顺序如何都能盖过全局.header样式 */
+#forum-screen .header {
+  background-color: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  color: #111;
+}
+#forum-screen .header .back-btn,
+#forum-screen .header .action-btn {
+  color: #111;
+}
+#forum-screen .header .back-btn svg,
+#forum-screen .header .action-btn svg {
+  display: block;
+}
+
 /* ---------- 板块 Tab ---------- */
 .forum-board-tabs {
   display: flex;
@@ -196,6 +212,16 @@
    ============================================================ */
 #phone-screen.dark-mode #forum-screen {
   background-color: #000;
+  color: #eee;
+}
+
+#phone-screen.dark-mode #forum-screen .header {
+  background-color: #000;
+  border-bottom-color: #222;
+  color: #eee;
+}
+#phone-screen.dark-mode #forum-screen .header .back-btn,
+#phone-screen.dark-mode #forum-screen .header .action-btn {
   color: #eee;
 }
 
