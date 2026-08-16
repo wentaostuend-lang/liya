@@ -580,6 +580,10 @@
               <div class="desktop-app-icon" onclick="openBannedWordsScreen('global')">
                     <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🚫</div> <span class="label">屏蔽词</span>
                   </div>
+              <div class="desktop-app-icon" onclick="openForumApp()">
+                <div class="icon-bg-desktop" style="background:#111; display:flex; align-items:center; justify-content:center;"><span style="color:#fff; font-size:22px; font-weight:600;">论</span></div>
+                <span class="label">论坛</span>
+              </div>
             </div>
           </div>
         </div> </div>
@@ -601,9 +605,6 @@
         </div>
         <div class="desktop-app-icon" onclick="showScreen('douban-screen')">
           <div class="icon-bg-desktop"><img id="icon-img-douban" src="https://i.postimg.cc/Pq2xJN1g/IMG-7301.jpg" alt="豆瓣"></div> <span class="label"data-lang-key="homeAppDouban">豆瓣</span>
-        </div>
-        <div class="desktop-app-icon" onclick="openForumApp()">
-          <div class="icon-bg-desktop" style="background:#111; display:flex; align-items:center; justify-content:center;"><span style="color:#fff; font-size:22px; font-weight:600;">论</span></div> <span class="label">论坛</span>
         </div>
       </div>
     </div>
@@ -5206,11 +5207,15 @@
     </div>
     <!-- 论坛（重写版） -->
     <div id="forum-screen" class="screen">
-      <div class="header">
-        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('home-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
         <span>论坛</span>
         <div class="header-actions">
-          <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">👤</span>
+          <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
         </div>
       </div>
       <div id="forum-board-tabs" class="forum-board-tabs"></div>
