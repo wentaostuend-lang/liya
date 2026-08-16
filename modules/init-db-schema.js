@@ -108,4 +108,26 @@ db.version(58).stores({
   thoughtChainPresets: '++id, name'
 });
 
+// 论坛系统（重写版，独立于旧版 doubanPosts）
+db.version(59).stores({
+  forumBoards: '++id, name, order',
+  forumPosts: '++id, boardId, timestamp, authorType, authorId',
+  forumComments: '++id, postId, timestamp, authorType, authorId',
+  forumNpcs: '++id, name, npcGroupId, enableBackgroundActivity, actionCooldownMinutes, lastActionTimestamp',
+  forumAlts: '++id, ownerType, ownerId, altName',
+  forumDMs: '++id, threadId, timestamp',
+  forumDMThreads: '++id, participantType, participantId, lastMessageTimestamp',
+  forumHotTopics: '++id, keyword, heat, generatedAt',
+}).upgrade(async tx => {
+  // 初始化三个默认板块，只在库里还没有任何板块时才插入，避免重复迁移时插两遍
+  const existing = await tx.table('forumBoards').count();
+  if (existing === 0) {
+    await tx.table('forumBoards').bulkAdd([
+      { name: '悄悄话', description: '匿名倾诉，说说不敢当面讲的话', worldview: '', order: 0 },
+      { name: '闲聊灌水', description: '随便聊聊，没营养也没关系', worldview: '', order: 1 },
+      { name: '实时热点', description: '追热搜、聊时事', worldview: '', order: 2 },
+    ]);
+  }
+});
+
 window.db = db;

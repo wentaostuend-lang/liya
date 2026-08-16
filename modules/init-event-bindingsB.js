@@ -2666,20 +2666,65 @@ window.initEventBindingsB = function(state, db) {
     document.getElementById('minimize-voice-call-btn').addEventListener('click', minimizeVoiceCall);
     document.getElementById('voice-call-restore-btn').addEventListener('click', restoreVoiceCall);
     makeDraggable(document.getElementById('voice-call-restore-btn'), document.getElementById('voice-call-restore-btn'));
+    // 通话里"说话"按钮：改成跟聊天输入框一样的"打字+点发送"，
+    // 不再用一次性prompt弹窗(那种一确认就直接触发AI，没法反悔/修改)
+    function setupCallSpeakBar({ speakBtnId, barId, inputId, sendBtnId, cancelBtnId, avatarSelector, isActiveFn, triggerFn }) {
+      const speakBtn = document.getElementById(speakBtnId);
+      const bar = document.getElementById(barId);
+      const input = document.getElementById(inputId);
+      const sendBtn = document.getElementById(sendBtnId);
+      const cancelBtn = document.getElementById(cancelBtnId);
+      if (!speakBtn || !bar || !input || !sendBtn || !cancelBtn) return;
+
+      const openBar = () => {
+        if (!isActiveFn()) return;
+        bar.style.display = 'flex';
+        input.value = '';
+        input.focus();
+        document.querySelector(avatarSelector)?.classList.add('speaking');
+      };
+      const closeBar = () => {
+        bar.style.display = 'none';
+        document.querySelector(avatarSelector)?.classList.remove('speaking');
+      };
+      const send = () => {
+        const text = input.value.trim();
+        closeBar();
+        if (text) triggerFn(text);
+      };
+
+      speakBtn.addEventListener('click', openBar);
+      cancelBtn.addEventListener('click', closeBar);
+      sendBtn.addEventListener('click', send);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          send();
+        }
+      });
+    }
+
+    setupCallSpeakBar({
+      speakBtnId: 'user-speak-btn',
+      barId: 'video-call-speak-bar',
+      inputId: 'video-call-speak-input',
+      sendBtnId: 'video-call-speak-send-btn',
+      cancelBtnId: 'video-call-speak-cancel-btn',
+      avatarSelector: '.participant-avatar-wrapper[data-participant-id="user"] .participant-avatar',
+      isActiveFn: () => videoCallState.isActive,
+      triggerFn: (text) => triggerAiInCallAction(text),
+    });
+
     document.getElementById('voice-join-call-btn').addEventListener('click', handleUserJoinVoiceCall);
-    document.getElementById('voice-user-speak-btn').addEventListener('click', async () => {
-      if (!voiceCallState.isActive) return;
-      const userAvatar = document.querySelector('#voice-participant-avatars-grid .participant-avatar-wrapper[data-participant-id="user"] .participant-avatar');
-      if (userAvatar) {
-        userAvatar.classList.add('speaking');
-      }
-      const userInput = await showCustomPrompt('你说', '请输入你想说的话...');
-      if (userAvatar) {
-        userAvatar.classList.remove('speaking');
-      }
-      if (userInput && userInput.trim()) {
-        triggerAiInVoiceCallAction(userInput.trim());
-      }
+    setupCallSpeakBar({
+      speakBtnId: 'voice-user-speak-btn',
+      barId: 'voice-call-speak-bar',
+      inputId: 'voice-call-speak-input',
+      sendBtnId: 'voice-call-speak-send-btn',
+      cancelBtnId: 'voice-call-speak-cancel-btn',
+      avatarSelector: '#voice-participant-avatars-grid .participant-avatar-wrapper[data-participant-id="user"] .participant-avatar',
+      isActiveFn: () => voiceCallState.isActive,
+      triggerFn: (text) => triggerAiInVoiceCallAction(text),
     });
     document.getElementById('voice-regenerate-call-btn').addEventListener('click', () => {
       if (!voiceCallState.isActive) return;
@@ -2787,26 +2832,6 @@ window.initEventBindingsB = function(state, db) {
 
 
 
-    document.getElementById('user-speak-btn').addEventListener('click', async () => {
-      if (!videoCallState.isActive) return;
-
-
-      const userAvatar = document.querySelector('.participant-avatar-wrapper[data-participant-id="user"] .participant-avatar');
-      if (userAvatar) {
-        userAvatar.classList.add('speaking');
-      }
-
-      const userInput = await showCustomPrompt('你说', '请输入你想说的话...');
-
-
-      if (userAvatar) {
-        userAvatar.classList.remove('speaking');
-      }
-
-      if (userInput && userInput.trim()) {
-        triggerAiInCallAction(userInput.trim());
-      }
-    });
 
 
 
