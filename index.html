@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
+  <link rel="stylesheet" href="css/forum.css?v=0.1.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -107,6 +108,7 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
+  <script src="modules/forum.js?v=0.1.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
@@ -599,6 +601,9 @@
         </div>
         <div class="desktop-app-icon" onclick="showScreen('douban-screen')">
           <div class="icon-bg-desktop"><img id="icon-img-douban" src="https://i.postimg.cc/Pq2xJN1g/IMG-7301.jpg" alt="豆瓣"></div> <span class="label"data-lang-key="homeAppDouban">豆瓣</span>
+        </div>
+        <div class="desktop-app-icon" onclick="openForumApp()">
+          <div class="icon-bg-desktop" style="background:#111; display:flex; align-items:center; justify-content:center;"><span style="color:#fff; font-size:22px; font-weight:600;">论</span></div> <span class="label">论坛</span>
         </div>
       </div>
     </div>
@@ -5030,6 +5035,11 @@
         <div id="participant-avatars-grid"> </div>
       </div>
       <div id="video-call-main" class="video-call-main"> </div>
+      <div id="video-call-speak-bar" class="call-speak-bar" style="display:none;">
+        <button id="video-call-speak-cancel-btn" class="call-speak-cancel-btn" title="取消">✕</button>
+        <input type="text" id="video-call-speak-input" class="call-speak-input" placeholder="说点什么...">
+        <button id="video-call-speak-send-btn" class="call-speak-send-btn" title="发送">➤</button>
+      </div>
       <div class="video-call-controls"> <button id="user-speak-btn" class="control-btn speak-btn"></button> <button id="hang-up-btn" class="control-btn hangup-btn"></button> <button id="regenerate-call-btn" class="control-btn regenerate-btn"></button> <button id="join-call-btn"
           class="control-btn join-btn" style="display: none;"></button> </div>
     </div>
@@ -5049,6 +5059,11 @@
         <div id="voice-participant-avatars-grid"> </div>
       </div>
       <div id="voice-call-main" class="voice-call-main"> </div>
+      <div id="voice-call-speak-bar" class="call-speak-bar" style="display:none;">
+        <button id="voice-call-speak-cancel-btn" class="call-speak-cancel-btn" title="取消">✕</button>
+        <input type="text" id="voice-call-speak-input" class="call-speak-input" placeholder="说点什么...">
+        <button id="voice-call-speak-send-btn" class="call-speak-send-btn" title="发送">➤</button>
+      </div>
       <div class="voice-call-controls"> 
         <button id="voice-user-speak-btn" class="control-btn speak-btn"></button> 
         <button id="voice-hang-up-btn" class="control-btn hangup-btn"></button> 
@@ -5187,6 +5202,36 @@
               <button id="forward-selected-douban-detail-btn" class="douban-glass-btn douban-glass-btn-primary">转发 (0)</button>
               <button id="delete-selected-douban-detail-btn" class="douban-glass-btn" style="background-color: #ff3b30; color: white;">删除 (0)</button>
           </div>
+      </div>
+    </div>
+    <!-- 论坛（重写版） -->
+    <div id="forum-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>论坛</span>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">👤</span>
+        </div>
+      </div>
+      <div id="forum-board-tabs" class="forum-board-tabs"></div>
+      <div id="forum-posts-list" class="forum-posts-list"></div>
+      <button id="forum-create-post-btn" class="forum-fab" title="发帖">＋</button>
+    </div>
+
+    <!-- 论坛发帖弹窗 -->
+    <div id="forum-create-post-modal" class="modal">
+      <div class="modal-content forum-create-post-content">
+        <div class="modal-header">
+          <span>发帖</span>
+          <span class="close-btn" id="forum-create-post-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <select id="forum-create-post-board-select" class="forum-board-select"></select>
+          <textarea id="forum-create-post-textarea" class="forum-post-textarea" placeholder="想说点什么..." rows="6"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button id="forum-create-post-submit-btn" class="forum-primary-btn">发布</button>
+        </div>
       </div>
     </div>
     <div id="werewolf-game-screen" class="screen">
