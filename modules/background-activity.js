@@ -92,6 +92,7 @@
 
 
     const allSingleChats = Object.values(state.chats).filter(chat => !chat.isGroup);
+    runForumNpcTick(); // 论坛网友回复/发帖，不依赖具体某个chat，每次心跳独立跑一次
     allSingleChats.forEach(chat => {
       if (chat.relationship?.status === 'blocked_by_user') {
         const blockedTimestamp = chat.relationship.blockedTimestamp;
@@ -114,6 +115,10 @@
         if (Math.random() < 0.20) {
           console.log(`角色 "${chat.name}" 被唤醒，准备独立行动...`);
           triggerInactiveAiAction(chat.id);
+        }
+        // 论坛：独立小概率触发角色自己发帖(不依赖triggerInactiveAiAction，自成一路)
+        if (Math.random() < 0.06) {
+          triggerCharForumPost(chat.id).catch(e => console.warn('[论坛] 角色后台发帖失败', e));
         }
         // 检查是否可以帮助用户清空购物车
         checkAndClearShoppingCart(chat.id);
@@ -256,6 +261,200 @@
       console.error("处理NPC后台活动时出错:", error);
     }
   }
+
+  // ============================================================
+  // 论坛：角色后台自己发帖(跟主动回复的forum_post是两条独立入口，
+  // 这个是"哪怕user在正常聊天/根本没触发主动回复"也可能发生的日常动态)
+  // ============================================================
+  async function triggerCharForumPost(chatId) {
+    const chat = state.chats[chatId];
+    if (!chat) return;
+    const boards = await db.forumBoards.orderBy('order').toArray();
+    if (boards.length === 0) return;
+
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const { proxyUrl, apiKey, model } = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : state.apiConfig;
+    if (!proxyUrl || !apiKey || !model) return;
+
+    const boardNames = boards.map(b => b.name).join('/');
+    const systemPrompt = `
+# 你的任务
+你是角色"${chat.name}"，人设如下：
+${chat.settings.aiPersona}
+
+现在你想去论坛发一条帖子，可能是日常分享、突然想到的问题、想吐槽的小事，也可能因为跟用户的相处有感而发——完全基于人设自由发挥，不要总是负面情绪。
+
+# 要求
+1. 板块从这些里选一个：${boardNames}
+2. 只输出JSON对象，不要有其他文字：{"boardName": "板块名", "content": "帖子内容"}`;
+
+    try {
+      const messagesForApi = [{ role: 'user', content: '请生成这条帖子' }];
+      const isGemini = proxyUrl.includes('generativelanguage');
+      const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messagesForApi);
+      const response = isGemini
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'system', content: systemPrompt }, ...messagesForApi],
+              temperature: state.globalSettings.apiTemperature || 0.9,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = getGeminiResponseText(data);
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) return;
+      const result = JSON.parse(jsonMatch[0]);
+      if (!result.content) return;
+
+      const matchedBoard = boards.find(b => b.name === result.boardName) || boards[0];
+      await db.forumPosts.add({
+        boardId: matchedBoard.id,
+        authorType: 'char',
+        authorId: chat.id,
+        content: result.content,
+        timestamp: Date.now(),
+        likes: [],
+        commentCount: 0,
+      });
+      console.log(`[论坛] 角色 "${chat.name}" 后台发布了一条帖子`);
+      if (document.getElementById('forum-screen')?.classList.contains('active') && typeof renderForumFeed === 'function') {
+        await renderForumFeed();
+      }
+    } catch (e) {
+      console.warn(`[论坛] 角色 "${chat.name}" 后台发帖失败`, e);
+    }
+  }
+  window.triggerCharForumPost = triggerCharForumPost;
+
+  // ============================================================
+  // 论坛：网友(forumNpcs)回复/发帖，完全照抄generateNpcActions的模式
+  // ============================================================
+  async function runForumNpcTick() {
+    try {
+      const allForumNpcs = await db.forumNpcs.toArray();
+      if (allForumNpcs.length === 0) return;
+      const boards = await db.forumBoards.orderBy('order').toArray();
+      const recentPosts = await db.forumPosts.orderBy('timestamp').reverse().limit(10).toArray();
+
+      for (const npc of allForumNpcs) {
+        if (npc.enableBackgroundActivity === false) continue;
+        const cooldownMinutes = npc.actionCooldownMinutes || 15;
+        if (npc.lastActionTimestamp && (Date.now() - npc.lastActionTimestamp) / 60000 < cooldownMinutes) continue;
+        if (Math.random() > 0.3) continue;
+
+        const tasks = recentPosts.filter(p => p.authorId !== `forumnpc_${npc.id}`);
+        if (tasks.length === 0 && Math.random() > 0.2) continue;
+
+        const actions = await generateForumNpcActions(npc, tasks, boards);
+        if (!actions || actions.length === 0) continue;
+
+        for (const action of actions) {
+          if (action.type === 'forum_comment' && action.postId) {
+            await db.forumComments.add({
+              postId: action.postId,
+              authorType: 'npc',
+              authorId: `forumnpc_${npc.id}`,
+              authorDisplayName: npc.name,
+              authorAvatar: npc.avatar || '',
+              content: action.commentText,
+              replyToName: action.replyTo || null,
+              timestamp: Date.now(),
+            });
+            const post = await db.forumPosts.get(action.postId);
+            if (post) {
+              post.commentCount = (post.commentCount || 0) + 1;
+              await db.forumPosts.put(post);
+            }
+          } else if (action.type === 'forum_post' && action.content) {
+            const board = boards.find(b => b.name === action.boardName) || boards[0];
+            if (board) {
+              await db.forumPosts.add({
+                boardId: board.id,
+                authorType: 'npc',
+                authorId: `forumnpc_${npc.id}`,
+                authorDisplayName: npc.name,
+                authorAvatar: npc.avatar || '',
+                content: action.content,
+                timestamp: Date.now(),
+                likes: [],
+                commentCount: 0,
+              });
+            }
+          }
+        }
+        await db.forumNpcs.update(npc.id, { lastActionTimestamp: Date.now() });
+      }
+      if (document.getElementById('forum-screen')?.classList.contains('active') && typeof renderForumFeed === 'function') {
+        await renderForumFeed();
+      }
+    } catch (e) {
+      console.error('[论坛] 网友后台活动出错', e);
+    }
+  }
+  window.runForumNpcTick = runForumNpcTick;
+
+  async function generateForumNpcActions(npc, tasks, boards) {
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const { proxyUrl, apiKey, model } = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : state.apiConfig;
+    if (!proxyUrl || !apiKey || !model) return null;
+
+    const tasksString = tasks.map(post => {
+      let authorName = '未知';
+      if (post.authorType === 'user') authorName = state.qzoneSettings?.nickname || '用户';
+      else if (post.authorType === 'char') authorName = state.chats[post.authorId]?.name || '未知角色';
+      else if (post.authorType === 'npc') authorName = post.authorDisplayName || '网友';
+      return `- 帖子ID:${post.id} 作者:${authorName} 内容:${(post.content || '').substring(0, 100)}`;
+    }).join('\n');
+
+    const systemPrompt = `
+# 你的任务
+你是论坛网友"${npc.name}"，人设：${npc.persona}
+参与论坛互动，可以【发新帖】或【评论帖子】。
+
+# 待处理帖子列表
+${tasksString || '(暂无)'}
+
+# 规则
+1. 优先评论列表里合适的帖子，而不是总发新帖。
+2. 板块（发新帖时用）：${boards.map(b => b.name).join('/')}
+3. 只输出JSON数组：[{"type":"forum_comment","postId":123,"commentText":"..."}] 或 [{"type":"forum_post","boardName":"...","content":"..."}]，可以为空数组。`;
+
+    try {
+      const messagesForApi = [{ role: 'user', content: '请开始你的行动' }];
+      const isGemini = proxyUrl.includes('generativelanguage');
+      const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messagesForApi);
+      const response = isGemini
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+            body: JSON.stringify({
+              model,
+              messages: [{ role: 'system', content: systemPrompt }, ...messagesForApi],
+              temperature: state.globalSettings.apiTemperature || 0.9,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = getGeminiResponseText(data);
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) return null;
+      return JSON.parse(jsonMatch[0]);
+    } catch (e) {
+      console.error(`[论坛] 网友"${npc.name}"生成行动失败`, e);
+      return null;
+    }
+  }
+  window.generateForumNpcActions = generateForumNpcActions;
 
   async function generateNpcActions(npc, tasks) {
     // 优先使用后台API，如果未配置则使用主API
