@@ -5223,6 +5223,22 @@
       <button id="forum-create-post-btn" class="forum-fab" title="发帖">＋</button>
     </div>
 
+    <!-- 论坛帖子详情(评论区) -->
+    <div id="forum-post-detail-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>帖子</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-post-detail-body" class="forum-post-detail-body"></div>
+      <div class="forum-comment-input-bar">
+        <input type="text" id="forum-comment-input" class="forum-comment-input" placeholder="友善评论...">
+        <button id="forum-comment-send-btn" class="forum-comment-send-btn">发送</button>
+      </div>
+    </div>
+
     <!-- 论坛发帖弹窗 -->
     <div id="forum-create-post-modal" class="modal">
       <div class="modal-content forum-create-post-content">
@@ -5233,6 +5249,28 @@
         <div class="modal-body">
           <select id="forum-create-post-board-select" class="forum-board-select"></select>
           <textarea id="forum-create-post-textarea" class="forum-post-textarea" placeholder="想说点什么..." rows="6"></textarea>
+
+          <div id="forum-image-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+            <img id="forum-image-preview" class="forum-image-preview" src="">
+            <button id="forum-image-remove-btn" class="forum-image-remove-btn" title="移除图片">&times;</button>
+          </div>
+
+          <div class="forum-image-toolbar">
+            <button type="button" id="forum-image-ai-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>AI配图</span>
+            </button>
+            <button type="button" id="forum-image-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传图片</span>
+            </button>
+            <button type="button" id="forum-image-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>图片链接</span>
+            </button>
+            <input type="file" id="forum-image-file-input" accept="image/*" style="display:none;">
+          </div>
+          <input type="text" id="forum-image-url-input" class="forum-image-url-input" placeholder="粘贴图片链接，回车确认" style="display:none;">
         </div>
         <div class="modal-footer">
           <button id="forum-create-post-submit-btn" class="forum-primary-btn">发布</button>
