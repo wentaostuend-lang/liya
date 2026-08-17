@@ -314,6 +314,9 @@ async function generateProactiveMessages(chat, elapsedHours, lastTimestamp) {
 ${enableThoughts ? '- heartfelt_voice/random_jottings 分别是角色此刻的心声和碎碎念，要基于这段时间里发生的事自然更新，不要和之前一模一样。\n' : ''}${statusBarPromptSuffix ? `- status_bar 字段的内容格式为：\n${statusBarPromptSuffix}\n（这是对当前场景状态的真实总结，不是台词，没有明确信息的字段就填"未知"，不要编造，也要体现出随时间推进的变化，不要跟上一次完全一样。）\n` : ''}`;
   }
 
+  // 论坛板块列表：forum_post这个action要用到，得在systemPrompt构建之前拿到
+  const forumBoardsForProactive = await db.forumBoards.orderBy('order').toArray().catch(() => []);
+
   const systemPrompt = `
 # 场景
 你正在扮演角色，你的真实身份是"${chat.originalName || chat.name}"（用户对你的备注是"${chat.name}"），人设如下：
@@ -346,6 +349,7 @@ ${dailyOutlineBlock}
 - 更新状态(在做什么)：{"type": "update_status", "hours_after": 数字, "status_text": "正在做的事，比如'加班中'", "is_busy": true或false}
 - 拍一拍对方：{"type": "pat_user", "hours_after": 数字, "suffix": "后缀，可选，比如'该睡觉啦'，不需要就填空字符串"}(想到对方了、或者单纯想撩一下的时候用)
 - 改自己的备注名：{"type": "change_remark_name", "hours_after": 数字, "new_name": "新备注名"}(心情/关系有变化时偶尔用，不要频繁改)
+${forumBoardsForProactive.length > 0 ? `- 去论坛发帖：{"type": "forum_post", "hours_after": 数字, "boardName": "板块名，从这些里选一个：${forumBoardsForProactive.map(b => b.name).join('/')}", "content": "帖子内容"}(不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)` : ''}
 - 发起外卖代付(想让对方帮忙付钱)：{"type": "waimai_request", "hours_after": 数字, "productInfo": "商品名，比如'奶茶'", "amount": 金额数字}
 - 主动给对方点外卖(帮对方叫吃的)：{"type": "waimai_order", "hours_after": 数字, "productInfo": "商品名", "amount": 金额数字, "greeting": "留言，比如'趁热吃'"}
 ${stickerBlock}
@@ -429,6 +433,7 @@ ${thoughtsAndStatusBlock}
   let nameWasChanged = false; // change_remark_name是否被触发过，触发了才需要事后同步群昵称
   const builtMessages = [];
   let prevOffsetHours = 0; // 强制时间不倒退：即使AI给的hours_after乱序，也保证最终时间戳单调不减
+  const forumPostsToCreate = []; // forEach是同步的没法await，先收集，等forEach跑完再统一写入db
 
   entries.forEach(entry => {
     let offsetHours = Math.max(0, Math.min(elapsedHours, Number(entry.hours_after) || 0));
@@ -597,6 +602,28 @@ ${thoughtsAndStatusBlock}
         }
         break;
       }
+      case 'forum_post': {
+        if (entry.content && forumBoardsForProactive.length > 0) {
+          const matchedBoard = forumBoardsForProactive.find(b => b.name === entry.boardName) || forumBoardsForProactive[0];
+          forumPostsToCreate.push({
+            boardId: matchedBoard.id,
+            authorType: 'char',
+            authorId: chat.id,
+            content: entry.content,
+            timestamp,
+            likes: [],
+            commentCount: 0,
+          });
+          // 论坛帖子本身在论坛app里看，这里只在聊天里留一条小提示，让用户知道TA去论坛发泄了
+          msg = {
+            role: 'system',
+            type: 'pat_message',
+            content: `${chat.name} 好像在论坛"${matchedBoard.name}"发了条帖子`,
+            timestamp,
+          };
+        }
+        break;
+      }
       case 'update_thoughts': {
         if (!chat.isGroup) {
           if (entry.heartfelt_voice) chat.heartfeltVoice = String(entry.heartfelt_voice);
@@ -630,6 +657,15 @@ ${thoughtsAndStatusBlock}
 
     if (msg) builtMessages.push(msg);
   });
+
+  // forEach里只是收集了要发的论坛帖子，这里统一await写入db，保证顺序、避免forEach里悬空Promise
+  for (const post of forumPostsToCreate) {
+    try {
+      await db.forumPosts.add(post);
+    } catch (e) {
+      console.warn('[主动回复] 发布论坛帖子失败', e);
+    }
+  }
 
   // 备注名在这段时间里被改过：事后同步一次，跟正常对话流程改备注时的收尾动作保持一致
   if (nameWasChanged && typeof syncCharacterNameInGroups === 'function') {
