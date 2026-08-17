@@ -29,10 +29,10 @@
 /* ---------- 板块 Tab ---------- */
 .forum-board-tabs {
   display: flex;
-  gap: 4px;
-  padding: 10px 12px;
+  gap: 22px;
+  padding: 14px 16px 12px;
   overflow-x: auto;
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid #eee;
   background-color: #fff;
   scrollbar-width: none;
 }
@@ -40,20 +40,19 @@
 
 .forum-board-tab {
   flex-shrink: 0;
-  padding: 6px 14px;
-  border: 1px solid #ddd;
-  border-radius: 16px;
+  padding: 0;
+  border: none;
   background: transparent;
-  color: #666;
-  font-size: 13px;
+  color: #aaa;
+  font-size: 14.5px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s;
 }
 
 .forum-board-tab.active {
-  background-color: #111;
-  border-color: #111;
-  color: #fff;
+  color: #111;
+  font-weight: 700;
 }
 
 /* ---------- Feed ---------- */
@@ -80,6 +79,18 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
+}
+
+.forum-post-image-wrap {
+  margin: 0 -16px 10px;
+}
+
+.forum-post-image {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  display: block;
+  background-color: #f0f0f0;
 }
 
 .forum-post-avatar {
@@ -118,28 +129,45 @@
 
 .forum-post-footer {
   display: flex;
-  gap: 20px;
-  margin-top: 10px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.forum-post-actions-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
 .forum-post-action {
-  font-size: 13px;
-  color: #888;
+  color: #111;
   cursor: pointer;
   user-select: none;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  transition: color 0.15s;
 }
 
 .forum-post-action:active {
-  transform: scale(0.94);
+  transform: scale(0.9);
 }
 
-.forum-like-btn.liked {
+.forum-post-engagement {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+}
+
+.forum-like-count-text {
+  font-size: 13px;
+  font-weight: 700;
   color: #111;
-  font-weight: 600;
+}
+
+.forum-comment-count-text {
+  font-size: 13px;
+  color: #999;
 }
 
 /* ---------- 悬浮发帖按钮 ---------- */
@@ -207,6 +235,180 @@
   transform: scale(0.98);
 }
 
+/* ---------- 发帖弹窗：配图区 ---------- */
+.forum-image-preview-wrap {
+  position: relative;
+  margin-top: 10px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #eee;
+}
+
+.forum-image-preview {
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.forum-image-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.forum-image-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.forum-image-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  border-radius: 14px;
+  background: #fff;
+  color: #333;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.forum-image-tool-btn svg {
+  flex-shrink: 0;
+  display: block;
+}
+.forum-image-tool-btn:disabled {
+  opacity: 0.6;
+}
+
+.forum-image-url-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 13.5px;
+  background-color: #fff;
+  color: #111;
+}
+
+/* ============================================================
+   帖子详情页 / 评论区
+   ============================================================ */
+.forum-post-detail-body {
+  padding-bottom: 70px;
+}
+
+.forum-post-card-detail {
+  border-bottom: 8px solid #f5f5f5; /* 用更粗的分割条把"原帖"和"评论区"区分开 */
+}
+
+.forum-comments-wrap {
+  padding: 4px 16px 20px;
+}
+
+.forum-comments-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #999;
+  padding: 12px 0;
+}
+
+.forum-comment-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f2f2f2;
+}
+
+.forum-comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.forum-comment-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.forum-comment-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #111;
+  display: block;
+}
+
+.forum-comment-reply-to {
+  color: #888;
+  font-weight: 600;
+}
+
+.forum-comment-text {
+  font-size: 13.5px;
+  color: #222;
+  line-height: 1.5;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.forum-comment-time {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 3px;
+  display: block;
+}
+
+.forum-comment-input-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  background-color: #fff;
+  border-top: 1px solid #eee;
+  z-index: 50;
+}
+
+.forum-comment-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px;
+  border: 1px solid #ddd;
+  border-radius: 18px;
+  font-size: 14px;
+  background-color: #f5f5f5;
+  color: #111;
+}
+
+.forum-comment-send-btn {
+  padding: 0 16px;
+  border: none;
+  border-radius: 18px;
+  background-color: #111;
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* ============================================================
    夜间模式：跟随全局 #phone-screen.dark-mode
    ============================================================ */
@@ -226,19 +428,16 @@
 }
 
 #phone-screen.dark-mode .forum-board-tabs {
-  background-color: #0a0a0a;
-  border-bottom-color: #222;
+  background-color: #000;
+  border-bottom-color: #1c1c1c;
 }
 
 #phone-screen.dark-mode .forum-board-tab {
-  border-color: #333;
-  color: #999;
+  color: #666;
 }
 
 #phone-screen.dark-mode .forum-board-tab.active {
-  background-color: #eee;
-  border-color: #eee;
-  color: #000;
+  color: #fff;
 }
 
 #phone-screen.dark-mode .forum-post-card {
@@ -263,11 +462,19 @@
 }
 
 #phone-screen.dark-mode .forum-post-action {
-  color: #888;
+  color: #eee;
 }
 
-#phone-screen.dark-mode .forum-like-btn.liked {
-  color: #fff;
+#phone-screen.dark-mode .forum-post-image {
+  background-color: #111;
+}
+
+#phone-screen.dark-mode .forum-like-count-text {
+  color: #eee;
+}
+
+#phone-screen.dark-mode .forum-comment-count-text {
+  color: #777;
 }
 
 #phone-screen.dark-mode .forum-fab {
@@ -287,6 +494,66 @@
 }
 
 #phone-screen.dark-mode .forum-primary-btn {
+  background-color: #eee;
+  color: #000;
+}
+
+#phone-screen.dark-mode .forum-image-preview-wrap {
+  border-color: #333;
+}
+
+#phone-screen.dark-mode .forum-image-tool-btn {
+  background-color: #111;
+  border-color: #333;
+  color: #ddd;
+}
+
+#phone-screen.dark-mode .forum-image-url-input {
+  background-color: #111;
+  border-color: #333;
+  color: #eee;
+}
+
+#phone-screen.dark-mode .forum-post-card-detail {
+  border-bottom-color: #0a0a0a;
+}
+
+#phone-screen.dark-mode .forum-comments-title {
+  color: #777;
+}
+
+#phone-screen.dark-mode .forum-comment-item {
+  border-bottom-color: #1a1a1a;
+}
+
+#phone-screen.dark-mode .forum-comment-name {
+  color: #f2f2f2;
+}
+
+#phone-screen.dark-mode .forum-comment-reply-to {
+  color: #888;
+}
+
+#phone-screen.dark-mode .forum-comment-text {
+  color: #ddd;
+}
+
+#phone-screen.dark-mode .forum-comment-time {
+  color: #666;
+}
+
+#phone-screen.dark-mode .forum-comment-input-bar {
+  background-color: #000;
+  border-top-color: #222;
+}
+
+#phone-screen.dark-mode .forum-comment-input {
+  background-color: #111;
+  border-color: #333;
+  color: #eee;
+}
+
+#phone-screen.dark-mode .forum-comment-send-btn {
   background-color: #eee;
   color: #000;
 }
