@@ -5252,6 +5252,45 @@
             <input type="text" id="forum-new-alt-name-input" class="forum-image-url-input" placeholder="新小号名称">
             <button id="forum-new-alt-create-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">创建</button>
           </div>
+          <div class="forum-manage-char-alt-link" id="forum-manage-char-alt-link">管理角色小号 ›</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 角色小号管理弹窗 -->
+    <div id="forum-char-alt-modal" class="modal">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>角色小号</span>
+          <span class="close-btn" id="forum-char-alt-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-char-alt-chat-list" class="forum-identity-list"></div>
+          <div id="forum-char-alt-editor" style="display:none;">
+            <div class="forum-identity-new-row" style="margin-bottom:8px;">
+              <span id="forum-char-alt-editor-title" style="font-size:13px; color:#888;"></span>
+            </div>
+            <div id="forum-char-alt-avatar-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+              <img id="forum-char-alt-avatar-preview" class="forum-image-preview" style="max-height:100px;" src="">
+              <button id="forum-char-alt-avatar-remove-btn" class="forum-image-remove-btn" title="移除头像">&times;</button>
+            </div>
+            <div class="forum-image-toolbar">
+              <button type="button" id="forum-char-alt-avatar-upload-btn" class="forum-image-tool-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>上传头像</span>
+              </button>
+              <button type="button" id="forum-char-alt-avatar-url-btn" class="forum-image-tool-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                <span>头像链接</span>
+              </button>
+              <input type="file" id="forum-char-alt-avatar-file-input" accept="image/*" style="display:none;">
+            </div>
+            <input type="text" id="forum-char-alt-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+            <div class="forum-identity-new-row">
+              <input type="text" id="forum-char-alt-name-input" class="forum-image-url-input" placeholder="小号名称">
+              <button id="forum-char-alt-save-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">保存</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
