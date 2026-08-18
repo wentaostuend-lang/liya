@@ -285,6 +285,14 @@
   margin-top: 0;
 }
 
+.forum-manage-char-alt-link {
+  text-align: center;
+  margin-top: 14px;
+  font-size: 13px;
+  color: #999;
+  cursor: pointer;
+}
+
 /* ---------- 发帖弹窗：配图区 ---------- */
 .forum-image-preview-wrap {
   position: relative;
@@ -614,4 +622,7 @@
 }
 #phone-screen.dark-mode .forum-identity-check {
   color: #eee;
+}
+#phone-screen.dark-mode .forum-manage-char-alt-link {
+  color: #666;
 }
