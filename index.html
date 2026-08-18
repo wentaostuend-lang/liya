@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.2.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.4.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -108,12 +108,12 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.2.0" defer></script>
+  <script src="modules/forum.js?v=0.4.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
   <script src="modules/notification-battery.js?v=0.0.36" defer></script>
-  <script src="modules/background-activity.js?v=0.0.39" defer></script>
+  <script src="modules/background-activity.js?v=0.0.40" defer></script>
   <script src="modules/card-import.js?v=0.0.36" defer></script>
   <script src="modules/character-export.js?v=0.0.36" defer></script>
   <script src="modules/data-management.js?v=0.0.36" defer></script>
@@ -5213,6 +5213,9 @@
         </span>
         <span>论坛</span>
         <div class="header-actions">
+          <span class="action-btn" id="forum-hottopics-btn" title="热搜">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+          </span>
           <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           </span>
@@ -5221,6 +5224,34 @@
       <div id="forum-board-tabs" class="forum-board-tabs"></div>
       <div id="forum-posts-list" class="forum-posts-list"></div>
       <button id="forum-create-post-btn" class="forum-fab" title="发帖">＋</button>
+    </div>
+
+    <!-- 论坛热搜列表 -->
+    <div id="forum-hottopics-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>热搜</span>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-hottopics-refresh-btn" title="刷新热搜">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </span>
+        </div>
+      </div>
+      <div id="forum-hottopics-list" class="forum-hottopics-list"></div>
+    </div>
+
+    <!-- 热搜词条详情 -->
+    <div id="forum-hottopic-detail-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-hottopics-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span id="forum-hottopic-detail-title">热搜</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-hottopic-detail-body" class="forum-post-detail-body"></div>
     </div>
 
     <!-- 论坛身份/小号切换弹窗 -->
@@ -5291,6 +5322,33 @@
               <button id="forum-char-alt-save-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">保存</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 板块管理弹窗 -->
+    <div id="forum-board-manage-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>板块管理</span>
+          <span class="close-btn" id="forum-board-manage-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-board-existing-list" class="forum-identity-list"></div>
+
+          <div class="forum-board-section-title">手动创建</div>
+          <input type="text" id="forum-new-board-name-input" class="forum-image-url-input" placeholder="板块名称">
+          <input type="text" id="forum-new-board-desc-input" class="forum-image-url-input" placeholder="板块简介(可选)" style="margin-top:8px;">
+          <textarea id="forum-new-board-worldview-input" class="forum-post-textarea" placeholder="这个板块专属的世界观设定(可选，不填就用整体默认)" rows="3" style="margin-top:8px;"></textarea>
+          <button id="forum-new-board-create-btn" class="forum-primary-btn" style="margin-top:8px;">创建板块</button>
+
+          <div class="forum-board-section-title">AI帮我想板块</div>
+          <input type="text" id="forum-board-ai-theme-input" class="forum-image-url-input" placeholder="想要什么方向的板块？(可选，不填就自由发挥)">
+          <button id="forum-board-ai-generate-btn" class="forum-image-tool-btn" style="margin-top:8px; width:100%; justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>AI生成板块建议</span>
+          </button>
+          <div id="forum-board-ai-suggestions" class="forum-identity-list" style="margin-top:8px;"></div>
         </div>
       </div>
     </div>
