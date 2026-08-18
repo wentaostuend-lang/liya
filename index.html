@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.4.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.5.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -69,7 +69,7 @@
   <script src="modules/ui-loaders.js?v=0.0.36" defer></script>
   <!-- 第三层：核心聊天功能 -->
   <script src="modules/chat-list.js?v=0.0.36" defer></script>
-  <script src="modules/chat-interface.js?v=0.0.46" defer></script>
+  <script src="modules/chat-interface.js?v=0.0.47" defer></script>
   <script src="modules/chat-input.js?v=0.0.36" defer></script>
   <!-- 第四层：AI 核心 -->
   <script src="modules/ai-response.js?v=0.0.43" defer></script>
@@ -108,7 +108,7 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.4.0" defer></script>
+  <script src="modules/forum.js?v=0.5.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
@@ -121,7 +121,7 @@
   <script src="modules/group-titles.js?v=0.0.7" defer></script>
   <script src="modules/banned-words.js?v=0.0.5" defer></script>
   <script src="modules/send-translate.js?v=0.0.2" defer></script>
-  <script src="modules/proactive-reply.js?v=0.0.19" defer></script>
+  <script src="modules/proactive-reply.js?v=0.0.20" defer></script>
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
@@ -134,7 +134,7 @@
   <script src="modules/init-pin-city.js?v=0.0.36" defer></script>
   <!-- 事件绑定和功能（依赖 state, db） -->
   <script src="modules/init-event-bindingsA.js?v=0.0.45" defer></script>
-  <script src="modules/init-event-bindingsB.js?v=0.0.37" defer></script>
+  <script src="modules/init-event-bindingsB.js?v=0.0.38" defer></script>
   <script src="modules/init-features.js?v=0.0.36" defer></script>
   <!-- 主入口（最后加载，调用 init） -->
   <script src="modules/init-and-state.js?v=0.0.36" defer></script>
@@ -5254,6 +5254,19 @@
       <div id="forum-hottopic-detail-body" class="forum-post-detail-body"></div>
     </div>
 
+    <!-- 转发帖子到聊天：选择聊天弹窗 -->
+    <div id="forum-forward-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>转发到...</span>
+          <span class="close-btn" id="forum-forward-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-forward-chat-list"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 论坛身份/小号切换弹窗 -->
     <div id="forum-identity-modal" class="modal" style="display: none;">
       <div class="modal-content forum-identity-content">
@@ -5284,6 +5297,7 @@
             <button id="forum-new-alt-create-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">创建</button>
           </div>
           <div class="forum-manage-char-alt-link" id="forum-manage-char-alt-link">管理角色小号 ›</div>
+          <div class="forum-manage-char-alt-link" id="forum-manage-npc-link">管理网友 ›</div>
         </div>
       </div>
     </div>
@@ -5322,6 +5336,44 @@
               <button id="forum-char-alt-save-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">保存</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 网友管理弹窗 -->
+    <div id="forum-npc-manage-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>网友管理</span>
+          <span class="close-btn" id="forum-npc-manage-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-npc-existing-list" class="forum-identity-list"></div>
+
+          <div class="forum-board-section-title">新建网友</div>
+          <div id="forum-npc-avatar-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+            <img id="forum-npc-avatar-preview" class="forum-image-preview" style="max-height:100px;" src="">
+            <button id="forum-npc-avatar-remove-btn" class="forum-image-remove-btn" title="移除头像">&times;</button>
+          </div>
+          <div class="forum-image-toolbar">
+            <button type="button" id="forum-npc-avatar-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传头像</span>
+            </button>
+            <button type="button" id="forum-npc-avatar-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>头像链接</span>
+            </button>
+            <input type="file" id="forum-npc-avatar-file-input" accept="image/*" style="display:none;">
+          </div>
+          <input type="text" id="forum-npc-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+          <input type="text" id="forum-npc-name-input" class="forum-image-url-input" placeholder="网友昵称" style="margin-top:8px;">
+          <textarea id="forum-npc-persona-input" class="forum-post-textarea" placeholder="人设/性格描述(会影响它发帖回帖的风格)" rows="3" style="margin-top:8px;"></textarea>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <span style="font-size:13px; color:#888; flex-shrink:0;">冷却(分钟)</span>
+            <input type="number" id="forum-npc-cooldown-input" class="forum-image-url-input" placeholder="15" style="margin-top:0;" value="15" min="1">
+          </div>
+          <button id="forum-npc-create-btn" class="forum-primary-btn" style="margin-top:8px;">创建网友</button>
         </div>
       </div>
     </div>
