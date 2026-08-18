@@ -128,12 +128,20 @@
   // 统一解析作者信息：目前只有 user / char 两种authorType（网友NPC等到第2步接进来）
   function resolveForumAuthor(post) {
     if (post.authorType === 'user') {
+      if (post.authorAltId) {
+        // user用小号发的：用发帖时存好的小号名字+头像(避免每次渲染都去查db)
+        return { name: post.authorDisplayName || '小号', avatar: post.authorAvatar || FORUM_DEFAULT_AVATAR };
+      }
       return {
         name: state.qzoneSettings?.nickname || state.forumSettings?.userNickname || '我',
         avatar: state.qzoneSettings?.avatar || FORUM_DEFAULT_AVATAR,
       };
     }
     if (post.authorType === 'char') {
+      if (post.authorAltId) {
+        // char用小号发的：同样显示小号身份，不暴露角色本体
+        return { name: post.authorDisplayName || '小号', avatar: post.authorAvatar || FORUM_DEFAULT_AVATAR };
+      }
       const chat = state.chats[post.authorId];
       return {
         name: chat ? chat.name : '未知角色',
@@ -299,8 +307,7 @@
 
     await db.forumComments.add({
       postId,
-      authorType: 'user',
-      authorId: 'user',
+      ...(await buildAuthorFields()),
       content,
       timestamp: Date.now(),
     });
@@ -315,6 +322,101 @@
     await renderForumPostDetail();
   }
   window.submitForumComment = submitForumComment;
+
+  // ---------- 身份/小号 ----------
+  // 当前发帖/评论用的身份：{type:'main'} 主账号，或 {type:'alt', id, name} 小号
+  function getActiveForumIdentity() {
+    try {
+      return JSON.parse(localStorage.getItem('forum-active-identity')) || { type: 'main' };
+    } catch (e) {
+      return { type: 'main' };
+    }
+  }
+  function setActiveForumIdentity(identity) {
+    localStorage.setItem('forum-active-identity', JSON.stringify(identity));
+  }
+  // 根据当前身份返回要写入帖子/评论的作者字段
+  async function buildAuthorFields() {
+    const identity = getActiveForumIdentity();
+    if (identity.type === 'alt') {
+      const alt = await db.forumAlts.get(identity.id);
+      return {
+        authorType: 'user',
+        authorId: 'user',
+        authorAltId: identity.id,
+        authorDisplayName: identity.name,
+        authorAvatar: alt?.altAvatar || '',
+      };
+    }
+    return { authorType: 'user', authorId: 'user' };
+  }
+
+  let pendingAltAvatar = null; // 创建小号时选中的头像
+
+  function setAltAvatarPreview(url) {
+    pendingAltAvatar = url || null;
+    const wrap = document.getElementById('forum-alt-avatar-preview-wrap');
+    const img = document.getElementById('forum-alt-avatar-preview');
+    if (!wrap || !img) return;
+    if (pendingAltAvatar) {
+      img.src = pendingAltAvatar;
+      wrap.style.display = 'block';
+    } else {
+      img.src = '';
+      wrap.style.display = 'none';
+    }
+  }
+
+  async function openForumIdentityModal() {
+    const listEl = document.getElementById('forum-identity-list');
+    if (!listEl) return;
+    const alts = await db.forumAlts.where({ ownerType: 'user' }).toArray();
+    const active = getActiveForumIdentity();
+    setAltAvatarPreview(null);
+
+    let html = `<div class="forum-identity-row${active.type === 'main' ? ' active' : ''}" data-type="main">
+      <span>主账号</span>${active.type === 'main' ? '<span class="forum-identity-check">✓</span>' : ''}
+    </div>`;
+    alts.forEach(alt => {
+      const isActive = active.type === 'alt' && active.id === alt.id;
+      html += `<div class="forum-identity-row${isActive ? ' active' : ''}" data-type="alt" data-id="${alt.id}" data-name="${alt.altName}">
+        <img class="forum-identity-avatar" src="${alt.altAvatar || FORUM_DEFAULT_AVATAR}"><span>${alt.altName}</span>${isActive ? '<span class="forum-identity-check">✓</span>' : ''}
+      </div>`;
+    });
+    listEl.innerHTML = html;
+
+    listEl.querySelectorAll('.forum-identity-row').forEach(row => {
+      row.addEventListener('click', () => {
+        if (row.dataset.type === 'main') {
+          setActiveForumIdentity({ type: 'main' });
+        } else {
+          setActiveForumIdentity({ type: 'alt', id: Number(row.dataset.id), name: row.dataset.name });
+        }
+        document.getElementById('forum-identity-modal')?.classList.remove('active');
+      });
+    });
+
+    document.getElementById('forum-identity-modal')?.classList.add('active');
+  }
+
+  async function createForumAlt() {
+    const input = document.getElementById('forum-new-alt-name-input');
+    const name = input.value.trim();
+    if (!name) return;
+    const id = await db.forumAlts.add({ ownerType: 'user', ownerId: 'user', altName: name, altAvatar: pendingAltAvatar || '' });
+    input.value = '';
+    setAltAvatarPreview(null);
+    setActiveForumIdentity({ type: 'alt', id, name });
+    await openForumIdentityModal();
+  }
+
+  // char也可以有小号：目前先只做数据层，方便未来在角色设置里接一个管理界面；
+  // 也可以直接在控制台调用 createForumCharAlt(chatId, '小号名', '头像url') 手动建
+  async function createForumCharAlt(chatId, altName, altAvatar) {
+    if (!chatId || !altName) return null;
+    return db.forumAlts.add({ ownerType: 'char', ownerId: chatId, altName, altAvatar: altAvatar || '' });
+  }
+  window.createForumCharAlt = createForumCharAlt;
 
   // ---------- 发帖(user) ----------
   let pendingForumImage = null; // 待发布帖子选中的图片(dataURL或外链URL)
@@ -424,8 +526,7 @@
     const boardId = Number(select.value);
     const newPost = {
       boardId,
-      authorType: 'user',
-      authorId: 'user',
+      ...(await buildAuthorFields()),
       content,
       timestamp: Date.now(),
       likes: [],
@@ -466,5 +567,40 @@
         submitForumComment();
       }
     });
+
+    document.getElementById('forum-identity-btn')?.addEventListener('click', openForumIdentityModal);
+    document.getElementById('forum-identity-close-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-identity-modal')?.classList.remove('active');
+    });
+    document.getElementById('forum-new-alt-create-btn')?.addEventListener('click', createForumAlt);
+
+    document.getElementById('forum-alt-avatar-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-alt-avatar-file-input')?.click();
+    });
+    document.getElementById('forum-alt-avatar-file-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => setAltAvatarPreview(reader.result);
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+    document.getElementById('forum-alt-avatar-url-btn')?.addEventListener('click', () => {
+      const input = document.getElementById('forum-alt-avatar-url-input');
+      if (!input) return;
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      if (input.style.display === 'block') input.focus();
+    });
+    document.getElementById('forum-alt-avatar-url-input')?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const input = e.target;
+      const url = input.value.trim();
+      if (url) {
+        setAltAvatarPreview(url);
+        input.style.display = 'none';
+        input.value = '';
+      }
+    });
+    document.getElementById('forum-alt-avatar-remove-btn')?.addEventListener('click', () => setAltAvatarPreview(null));
   });
 })();
