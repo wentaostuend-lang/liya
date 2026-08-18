@@ -8,7 +8,6 @@
 #forum-screen {
   background-color: #fafafa;
   color: #111;
-  position: relative; /* .forum-fab用了position:absolute，没有这个会定位到不可控的祖先元素上，导致点不到 */
 }
 
 /* header的返回箭头/身份图标强制走黑白灰，不跟随全局蓝色主题色
