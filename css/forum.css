@@ -236,6 +236,55 @@
   transform: scale(0.98);
 }
 
+.forum-identity-content {
+  max-width: 340px;
+}
+
+.forum-identity-list {
+  margin-bottom: 12px;
+}
+
+.forum-identity-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 4px;
+  border-bottom: 1px solid #eee;
+  font-size: 14.5px;
+  color: #111;
+  cursor: pointer;
+}
+
+.forum-identity-row span:first-of-type,
+.forum-identity-avatar + span {
+  flex: 1;
+}
+
+.forum-identity-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-right: 8px;
+}
+
+.forum-identity-row.active {
+  font-weight: 700;
+}
+
+.forum-identity-check {
+  color: #111;
+}
+
+.forum-identity-new-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.forum-identity-new-row .forum-image-url-input {
+  margin-top: 0;
+}
+
 /* ---------- 发帖弹窗：配图区 ---------- */
 .forum-image-preview-wrap {
   position: relative;
@@ -557,4 +606,12 @@
 #phone-screen.dark-mode .forum-comment-send-btn {
   background-color: #eee;
   color: #000;
+}
+
+#phone-screen.dark-mode .forum-identity-row {
+  color: #eee;
+  border-bottom-color: #222;
+}
+#phone-screen.dark-mode .forum-identity-check {
+  color: #eee;
 }
