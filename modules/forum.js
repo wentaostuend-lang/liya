@@ -392,11 +392,11 @@
         } else {
           setActiveForumIdentity({ type: 'alt', id: Number(row.dataset.id), name: row.dataset.name });
         }
-        document.getElementById('forum-identity-modal')?.classList.remove('active');
+        (function(){const m=document.getElementById('forum-identity-modal'); if(m) m.style.display='none';})();
       });
     });
 
-    document.getElementById('forum-identity-modal')?.classList.add('active');
+    (function(){const m=document.getElementById('forum-identity-modal'); if(m) m.style.display='flex';})();
   }
 
   async function createForumAlt() {
@@ -437,7 +437,7 @@
   }
 
   async function openForumCharAltModal() {
-    document.getElementById('forum-identity-modal')?.classList.remove('active');
+    (function(){const m=document.getElementById('forum-identity-modal'); if(m) m.style.display='none';})();
     const listEl = document.getElementById('forum-char-alt-chat-list');
     document.getElementById('forum-char-alt-editor').style.display = 'none';
     if (!listEl) return;
@@ -466,7 +466,7 @@
       });
     });
 
-    document.getElementById('forum-char-alt-modal')?.classList.add('active');
+    (function(){const m=document.getElementById('forum-char-alt-modal'); if(m) m.style.display='flex';})();
   }
 
   async function saveForumCharAlt() {
@@ -512,11 +512,11 @@
     if (select && window.forumActiveBoardId !== 'all') {
       select.value = String(window.forumActiveBoardId);
     }
-    modal.classList.add('active');
+    modal.style.display = 'flex';
   }
 
   function closeForumCreatePostModal() {
-    document.getElementById('forum-create-post-modal')?.classList.remove('active');
+    (function(){const m=document.getElementById('forum-create-post-modal'); if(m) m.style.display='none';})();
   }
 
   // AI配图：接你项目里 nai-imagen.js 已有的生图能力——
@@ -635,7 +635,7 @@
 
     document.getElementById('forum-identity-btn')?.addEventListener('click', openForumIdentityModal);
     document.getElementById('forum-identity-close-btn')?.addEventListener('click', () => {
-      document.getElementById('forum-identity-modal')?.classList.remove('active');
+      (function(){const m=document.getElementById('forum-identity-modal'); if(m) m.style.display='none';})();
     });
     document.getElementById('forum-new-alt-create-btn')?.addEventListener('click', createForumAlt);
 
@@ -670,7 +670,7 @@
 
     document.getElementById('forum-manage-char-alt-link')?.addEventListener('click', openForumCharAltModal);
     document.getElementById('forum-char-alt-close-btn')?.addEventListener('click', () => {
-      document.getElementById('forum-char-alt-modal')?.classList.remove('active');
+      (function(){const m=document.getElementById('forum-char-alt-modal'); if(m) m.style.display='none';})();
     });
     document.getElementById('forum-char-alt-save-btn')?.addEventListener('click', saveForumCharAlt);
     document.getElementById('forum-char-alt-avatar-upload-btn')?.addEventListener('click', () => {
