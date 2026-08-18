@@ -203,6 +203,7 @@
     el.querySelector('.forum-like-btn').addEventListener('click', () => toggleForumLike(post.id, el));
     el.querySelector('.forum-comment-btn').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-post-content').addEventListener('click', () => openForumPostDetail(post.id));
+    el.querySelector('.forum-share-btn').addEventListener('click', () => openForumForwardModal(post.id));
 
     return el;
   }
@@ -827,6 +828,137 @@ ${postsText}
     }
   }
 
+  // ---------- 转发帖子到聊天 ----------
+  let pendingForwardPostId = null;
+
+  async function openForumForwardModal(postId) {
+    pendingForwardPostId = postId;
+    const listEl = document.getElementById('forum-forward-chat-list');
+    if (!listEl) return;
+
+    const chats = Object.values(state.chats).filter(c => !c.isGroup); // 先只支持转发到单聊，群聊转发逻辑更复杂留待以后
+    listEl.innerHTML = chats.map(c => `
+      <div class="forum-forward-chat-row" data-chat-id="${c.id}">
+        <img class="forum-forward-chat-avatar" src="${c.settings?.aiAvatar || FORUM_DEFAULT_AVATAR}">
+        <span class="forum-forward-chat-name">${c.name}</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有可以转发的聊天</p>';
+
+    listEl.querySelectorAll('.forum-forward-chat-row').forEach(row => {
+      row.addEventListener('click', () => forwardForumPostToChat(row.dataset.chatId));
+    });
+
+    const modal = document.getElementById('forum-forward-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async function forwardForumPostToChat(chatId) {
+    const postId = pendingForwardPostId;
+    const chat = state.chats[chatId];
+    if (!chat || postId == null) return;
+
+    const post = await db.forumPosts.get(postId);
+    if (!post) return;
+    const author = resolveForumAuthor(post);
+    const boardName = getBoardNameById(post.boardId);
+
+    const shareMsg = {
+      role: 'user',
+      type: 'forum_post_share',
+      forumPostId: postId,
+      forumPostSnapshot: {
+        authorName: author.name,
+        avatar: author.avatar,
+        boardName,
+        content: post.content || '',
+      },
+      timestamp: Date.now(),
+    };
+    chat.history.push(shareMsg);
+    await db.chats.put(chat);
+
+    if (state.activeChatId === chatId && typeof appendMessage === 'function') {
+      appendMessage(shareMsg, chat);
+    }
+    if (typeof renderChatList === 'function') renderChatList();
+
+    const modal = document.getElementById('forum-forward-modal');
+    if (modal) modal.style.display = 'none';
+    pendingForwardPostId = null;
+  }
+  window.openForumForwardModal = openForumForwardModal;
+
+  // ---------- 网友管理 ----------
+  let pendingNpcAvatar = null;
+
+  function setNpcAvatarPreview(url) {
+    pendingNpcAvatar = url || null;
+    const wrap = document.getElementById('forum-npc-avatar-preview-wrap');
+    const img = document.getElementById('forum-npc-avatar-preview');
+    if (!wrap || !img) return;
+    if (pendingNpcAvatar) {
+      img.src = pendingNpcAvatar;
+      wrap.style.display = 'block';
+    } else {
+      img.src = '';
+      wrap.style.display = 'none';
+    }
+  }
+
+  async function openForumNpcManageModal() {
+    document.getElementById('forum-identity-modal').style.display = 'none';
+    setNpcAvatarPreview(null);
+    document.getElementById('forum-npc-name-input').value = '';
+    document.getElementById('forum-npc-persona-input').value = '';
+    document.getElementById('forum-npc-cooldown-input').value = '15';
+    await renderForumNpcExistingList();
+    const modal = document.getElementById('forum-npc-manage-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async function renderForumNpcExistingList() {
+    const listEl = document.getElementById('forum-npc-existing-list');
+    if (!listEl) return;
+    const npcs = await db.forumNpcs.toArray();
+    listEl.innerHTML = npcs.map(n => `
+      <div class="forum-identity-row">
+        <img class="forum-identity-avatar" src="${n.avatar || FORUM_DEFAULT_AVATAR}">
+        <span>${n.name}<span style="color:#999; font-weight:400;"> · ${(n.persona || '').slice(0, 20)}</span></span>
+        <span class="forum-board-delete-btn" data-npc-id="${n.id}" style="color:#c33; cursor:pointer; padding:0 4px;">删除</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有网友，创建一个试试</p>';
+
+    listEl.querySelectorAll('.forum-board-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('删除这个网友？TA发过的帖子/评论不会被删除')) return;
+        await db.forumNpcs.delete(Number(btn.dataset.npcId));
+        await renderForumNpcExistingList();
+      });
+    });
+  }
+
+  async function createForumNpc() {
+    const name = document.getElementById('forum-npc-name-input').value.trim();
+    if (!name) return;
+    const persona = document.getElementById('forum-npc-persona-input').value.trim();
+    const cooldown = Math.max(1, parseInt(document.getElementById('forum-npc-cooldown-input').value) || 15);
+
+    await db.forumNpcs.add({
+      name,
+      persona,
+      avatar: pendingNpcAvatar || '',
+      npcGroupId: null,
+      enableBackgroundActivity: true,
+      actionCooldownMinutes: cooldown,
+      lastActionTimestamp: 0,
+    });
+
+    document.getElementById('forum-npc-name-input').value = '';
+    document.getElementById('forum-npc-persona-input').value = '';
+    setNpcAvatarPreview(null);
+    await renderForumNpcExistingList();
+  }
+
   // ---------- 发帖(user) ----------
   let pendingForumImage = null; // 待发布帖子选中的图片(dataURL或外链URL)
 
@@ -1013,6 +1145,39 @@ ${postsText}
     document.getElementById('forum-alt-avatar-remove-btn')?.addEventListener('click', () => setAltAvatarPreview(null));
 
     document.getElementById('forum-manage-char-alt-link')?.addEventListener('click', openForumCharAltModal);
+    document.getElementById('forum-manage-npc-link')?.addEventListener('click', openForumNpcManageModal);
+    document.getElementById('forum-npc-manage-close-btn')?.addEventListener('click', () => {
+      const m = document.getElementById('forum-npc-manage-modal');
+      if (m) m.style.display = 'none';
+    });
+    document.getElementById('forum-npc-create-btn')?.addEventListener('click', createForumNpc);
+    document.getElementById('forum-npc-avatar-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-npc-avatar-file-input')?.click();
+    });
+    document.getElementById('forum-npc-avatar-file-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => setNpcAvatarPreview(reader.result);
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+    document.getElementById('forum-npc-avatar-url-btn')?.addEventListener('click', () => {
+      const input = document.getElementById('forum-npc-avatar-url-input');
+      if (!input) return;
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      if (input.style.display === 'block') input.focus();
+    });
+    document.getElementById('forum-npc-avatar-url-input')?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const url = e.target.value.trim();
+      if (url) {
+        setNpcAvatarPreview(url);
+        e.target.style.display = 'none';
+        e.target.value = '';
+      }
+    });
+    document.getElementById('forum-npc-avatar-remove-btn')?.addEventListener('click', () => setNpcAvatarPreview(null));
     document.getElementById('forum-char-alt-close-btn')?.addEventListener('click', () => {
       (function(){const m=document.getElementById('forum-char-alt-modal'); if(m) m.style.display='none';})();
     });
@@ -1054,5 +1219,10 @@ ${postsText}
 
     document.getElementById('forum-hottopics-btn')?.addEventListener('click', openForumHotTopicsScreen);
     document.getElementById('forum-hottopics-refresh-btn')?.addEventListener('click', generateForumHotTopics);
+
+    document.getElementById('forum-forward-close-btn')?.addEventListener('click', () => {
+      const m = document.getElementById('forum-forward-modal');
+      if (m) m.style.display = 'none';
+    });
   });
 })();

@@ -3404,6 +3404,11 @@ window.initEventBindingsB = function(state, db) {
         const timestamp = parseInt(shareCard.dataset.timestamp);
         openSharedHistoryViewer(timestamp);
       }
+
+      const forumShareCard = e.target.closest('.forum-share-card[data-forum-post-id]');
+      if (forumShareCard && typeof openForumPostDetail === 'function') {
+        openForumPostDetail(Number(forumShareCard.dataset.forumPostId));
+      }
     });
 
 

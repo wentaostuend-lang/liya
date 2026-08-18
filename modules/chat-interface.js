@@ -710,7 +710,7 @@
     if (typeof rawContent === 'string' && rawContent.trim().startsWith('<') && rawContent.trim().endsWith('>')) {
       contentHtml = rawContent;
       bubble.classList.add('is-raw-html');
-    } else if (msg.type === 'offline_text' || msg.type === 'share_link' || msg.type === 'share_card' || msg.type === 'location_share' || msg.type === 'ai_image' || msg.type === 'user_photo' || msg.type === 'voice_message' || msg.type === 'transfer' || msg.type === 'waimai_request' || msg.type === 'waimai_order' || msg.type === 'red_packet' || msg.type === 'poll' || msg.type === 'gift' || msg.type === 'realimag' || msg.type === 'naiimag' || msg.type === 'googleimag' || msg.type === 'kinship_request' || msg.type === 'forwarded_email' || msg.type === 'reddit_share' || msg.type === 'playlist_share' || msg.type === 'couple_invite' || msg.type === 'couple_invite_response') {
+    } else if (msg.type === 'offline_text' || msg.type === 'share_link' || msg.type === 'share_card' || msg.type === 'location_share' || msg.type === 'ai_image' || msg.type === 'user_photo' || msg.type === 'voice_message' || msg.type === 'transfer' || msg.type === 'waimai_request' || msg.type === 'waimai_order' || msg.type === 'red_packet' || msg.type === 'poll' || msg.type === 'gift' || msg.type === 'realimag' || msg.type === 'naiimag' || msg.type === 'googleimag' || msg.type === 'kinship_request' || msg.type === 'forwarded_email' || msg.type === 'reddit_share' || msg.type === 'playlist_share' || msg.type === 'couple_invite' || msg.type === 'couple_invite_response' || msg.type === 'forum_post_share') {
 
       if (msg.type === 'offline_text') {
 
@@ -783,6 +783,22 @@
                     <span>Mail 邮件快照</span>
                     <span>查看详情 ›</span>
                 </div>
+            </div>
+        `;
+      } else if (msg.type === 'forum_post_share') {
+        bubble.classList.add('is-card-like', 'is-forum-post-share');
+        const d = msg.forumPostSnapshot || {};
+        const previewText = (d.content || '').length > 80 ? d.content.slice(0, 80) + '...' : (d.content || '');
+        contentHtml = `
+    ${msg.comment ? `<div class="forum-share-comment">${escapeHTML(msg.comment)}</div>` : ''}
+    <div class="forum-share-card" data-forum-post-id="${msg.forumPostId}">
+        <div class="forum-share-card-header">
+                    ${d.avatar ? `<img src="${d.avatar}" class="forum-share-card-avatar">` : ''}
+                    <span class="forum-share-card-name">${escapeHTML(d.authorName || '未知用户')}</span>
+                    ${d.boardName ? `<span class="forum-share-card-board">· ${escapeHTML(d.boardName)}</span>` : ''}
+                </div>
+                <div class="forum-share-card-content">${escapeHTML(previewText)}</div>
+                <div class="forum-share-card-footer"><span>📌 论坛帖子 · 点击查看</span></div>
             </div>
         `;
       } else if (msg.type === 'reddit_share') {

@@ -317,6 +317,8 @@ ${enableThoughts ? '- heartfelt_voice/random_jottings 分别是角色此刻的�
   // 论坛板块列表：forum_post这个action要用到，得在systemPrompt构建之前拿到
   const forumBoardsForProactive = await db.forumBoards.orderBy('order').toArray().catch(() => []);
   const forumCharAltForProactive = await db.forumAlts.where({ ownerType: 'char', ownerId: chat.id }).first().catch(() => null);
+  // 最近的论坛帖子摘要，给forum_share_post用：char可以选一条转发到聊天里(比如看到个热帖想转给你看)
+  const forumRecentPostsForShare = await db.forumPosts.orderBy('timestamp').reverse().limit(15).toArray().catch(() => []);
 
   const systemPrompt = `
 # 场景
@@ -351,6 +353,8 @@ ${dailyOutlineBlock}
 - 拍一拍对方：{"type": "pat_user", "hours_after": 数字, "suffix": "后缀，可选，比如'该睡觉啦'，不需要就填空字符串"}(想到对方了、或者单纯想撩一下的时候用)
 - 改自己的备注名：{"type": "change_remark_name", "hours_after": 数字, "new_name": "新备注名"}(心情/关系有变化时偶尔用，不要频繁改)
 ${forumBoardsForProactive.length > 0 ? `- 去论坛发帖：{"type": "forum_post", "hours_after": 数字, "boardName": "板块名，从这些里选一个：${forumBoardsForProactive.map(b => b.name).join('/')}", "content": "帖子内容"${forumCharAltForProactive ? `, "asAlt": true或false(可选，true表示用小号"${forumCharAltForProactive.altName}"匿名发，不暴露你的真实身份，想匿名吐槽/发疯的时候用)` : `, "createAlt": "小号名字"(可选，如果你还没有小号但这次想匿名发，取一个符合你人设的小号名字，系统会自动帮你创建这个小号并用它发布，以后这就是你固定的马甲了)`}}(不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)` : ''}
+${forumRecentPostsForShare.length > 0 ? `- 转发论坛帖子给对方看：{"type": "forum_share_post", "hours_after": 数字, "postId": 帖子ID(从下面列表选), "comment": "转发时附带说的话，比如'笑死这个'、'你看这个'"}(看到论坛上有意思/相关的帖子，可以转发给对方一起看，偶尔用就好，不要频繁转)
+  最近的论坛帖子(可选来转发)：\n${forumRecentPostsForShare.map(p => `  - ID:${p.id} 内容:${(p.content || '').substring(0, 50)}`).join('\n')}` : ''}
 - 发起外卖代付(想让对方帮忙付钱)：{"type": "waimai_request", "hours_after": 数字, "productInfo": "商品名，比如'奶茶'", "amount": 金额数字}
 - 主动给对方点外卖(帮对方叫吃的)：{"type": "waimai_order", "hours_after": 数字, "productInfo": "商品名", "amount": 金额数字, "greeting": "留言，比如'趁热吃'"}
 ${stickerBlock}
@@ -632,6 +636,39 @@ ${thoughtsAndStatusBlock}
             content: (useAlt || createAltName)
               ? `${chat.name} 好像偷偷用小号在论坛"${matchedBoard.name}"发了条帖子`
               : `${chat.name} 好像在论坛"${matchedBoard.name}"发了条帖子`,
+            timestamp,
+          };
+        }
+        break;
+      }
+      case 'forum_share_post': {
+        const sharedPost = forumRecentPostsForShare.find(p => p.id === Number(entry.postId));
+        if (sharedPost) {
+          let authorName = '未知用户';
+          let authorAvatar = '';
+          if (sharedPost.authorAltId || sharedPost.authorType === 'npc') {
+            authorName = sharedPost.authorDisplayName || '网友';
+            authorAvatar = sharedPost.authorAvatar || '';
+          } else if (sharedPost.authorType === 'char') {
+            const sourceChat = state.chats[sharedPost.authorId];
+            authorName = sourceChat ? sourceChat.name : '未知角色';
+            authorAvatar = sourceChat?.settings?.aiAvatar || '';
+          } else if (sharedPost.authorType === 'user') {
+            authorName = state.qzoneSettings?.nickname || '我';
+            authorAvatar = state.qzoneSettings?.avatar || '';
+          }
+          const sharedBoard = forumBoardsForProactive.find(b => b.id === sharedPost.boardId);
+          msg = {
+            role: 'assistant',
+            type: 'forum_post_share',
+            forumPostId: sharedPost.id,
+            forumPostSnapshot: {
+              authorName,
+              avatar: authorAvatar,
+              boardName: sharedBoard ? sharedBoard.name : '',
+              content: sharedPost.content || '',
+            },
+            comment: entry.comment || '',
             timestamp,
           };
         }
