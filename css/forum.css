@@ -8,30 +8,36 @@
 #forum-screen {
   background-color: #fafafa;
   color: #111;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 整个screen不滚动，把可滚动区域限定在帖子列表内部，避免跟板块tab互相挤压/覆盖 */
 }
 
 /* header的返回箭头/身份图标强制走黑白灰，不跟随全局蓝色主题色
-   用 #forum-screen .header 提高特异性，确保不管样式表加载顺序如何都能盖过全局.header样式 */
-#forum-screen .header {
+   覆盖所有论坛相关screen(不只forum-screen本身，帖子详情/热搜等页面也要生效)，
+   用 .screen .forum-header 提高特异性，确保不管样式表加载顺序如何都能盖过全局.header样式 */
+.screen .forum-header {
   background-color: #fff;
   border-bottom: 1px solid #e5e5e5;
   color: #111;
 }
-#forum-screen .header .back-btn,
-#forum-screen .header .action-btn {
+.screen .forum-header .back-btn,
+.screen .forum-header .action-btn {
   color: #111;
 }
-#forum-screen .header .back-btn svg,
-#forum-screen .header .action-btn svg {
+.screen .forum-header .back-btn svg,
+.screen .forum-header .action-btn svg {
   display: block;
 }
 
 /* ---------- 板块 Tab ---------- */
 .forum-board-tabs {
   display: flex;
+  flex-shrink: 0; /* 帖子再多也不能把这一条挤扁 */
   gap: 22px;
   padding: 14px 16px 12px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   border-bottom: 1px solid #eee;
   background-color: #fff;
   scrollbar-width: none;
@@ -79,6 +85,10 @@
 
 /* ---------- Feed ---------- */
 .forum-posts-list {
+  flex: 1;
+  min-height: 0; /* flex子元素能真正内部滚动的关键，不写这个会被内容撑高导致挤走tab */
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 4px 0 90px;
 }
 
@@ -385,9 +395,22 @@
 }
 
 /* ============================================================
+#forum-post-detail-screen,
+#forum-hottopics-screen,
+#forum-hottopic-detail-screen {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ============================================================
    帖子详情页 / 评论区
    ============================================================ */
 .forum-post-detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding-bottom: 70px;
 }
 
@@ -490,6 +513,10 @@
 
 /* ---------- 热搜 ---------- */
 .forum-hottopics-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 4px 0 40px;
 }
 
@@ -548,13 +575,13 @@
   color: #eee;
 }
 
-#phone-screen.dark-mode #forum-screen .header {
+#phone-screen.dark-mode .screen .forum-header {
   background-color: #000;
   border-bottom-color: #222;
   color: #eee;
 }
-#phone-screen.dark-mode #forum-screen .header .back-btn,
-#phone-screen.dark-mode #forum-screen .header .action-btn {
+#phone-screen.dark-mode .screen .forum-header .back-btn,
+#phone-screen.dark-mode .screen .forum-header .action-btn {
   color: #eee;
 }
 
@@ -719,6 +746,90 @@
   border-bottom-color: #0a0a0a;
 }
 
+/* ============================================================
+   转发到聊天里的帖子卡片：出现在聊天气泡内部，不跟随论坛app的dark-mode，
+   固定浅色卡片保证在各种气泡背景色下都清晰可读，风格延续黑白灰
+   ============================================================ */
+.forum-share-card {
+  width: 210px;
+  background-color: #fff;
+  border-radius: 10px;
+  border: 1px solid #e0e0e0;
+  padding: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.forum-share-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.forum-share-card-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.forum-share-card-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #111;
+}
+
+.forum-share-card-board {
+  font-size: 11.5px;
+  color: #999;
+}
+
+.forum-share-card-content {
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.forum-share-card-footer {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  border-top: 1px solid #f0f0f0;
+  padding-top: 6px;
+}
+
+.forum-share-comment {
+  font-size: 14px;
+  color: inherit;
+  margin-bottom: 6px;
+}
+
+/* ---------- 转发选择聊天的弹窗 ---------- */
+.forum-forward-chat-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+.forum-forward-chat-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.forum-forward-chat-name {
+  font-size: 14px;
+  color: #111;
+}
+
 
 #phone-screen.dark-mode .forum-identity-row {
   color: #eee;
@@ -729,4 +840,10 @@
 }
 #phone-screen.dark-mode .forum-manage-char-alt-link {
   color: #666;
+}
+#phone-screen.dark-mode .forum-forward-chat-row {
+  border-bottom-color: #222;
+}
+#phone-screen.dark-mode .forum-forward-chat-name {
+  color: #eee;
 }
