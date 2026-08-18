@@ -355,6 +355,18 @@ ${chat.settings.aiPersona}
   // ============================================================
   async function runForumNpcTick() {
     try {
+      // 热搜自动刷新：超过6小时没刷新过，且论坛里有一定数量帖子，就顺手自动刷一次
+      try {
+        const latestTopic = await db.forumHotTopics.orderBy('generatedAt').reverse().first();
+        const hoursSinceRefresh = latestTopic ? (Date.now() - latestTopic.generatedAt) / 3600000 : Infinity;
+        const totalPosts = await db.forumPosts.count();
+        if (hoursSinceRefresh >= 6 && totalPosts >= 3 && typeof generateForumHotTopics === 'function') {
+          await generateForumHotTopics();
+        }
+      } catch (e) {
+        console.warn('[论坛] 自动刷新热搜失败', e);
+      }
+
       const allForumNpcs = await db.forumNpcs.toArray();
       if (allForumNpcs.length === 0) return;
       const boards = await db.forumBoards.orderBy('order').toArray();

@@ -46,9 +46,12 @@
     boards.forEach(board => {
       html += `<button class="forum-board-tab${window.forumActiveBoardId === board.id ? ' active' : ''}" data-board-id="${board.id}">${board.name}</button>`;
     });
+    html += `<button class="forum-board-tab forum-board-tab-manage" id="forum-board-manage-tab" title="板块管理">+</button>`;
     tabsEl.innerHTML = html;
 
-    tabsEl.querySelectorAll('.forum-board-tab').forEach(tabBtn => {
+    document.getElementById('forum-board-manage-tab')?.addEventListener('click', openForumBoardManageModal);
+
+    tabsEl.querySelectorAll('.forum-board-tab[data-board-id]').forEach(tabBtn => {
       tabBtn.addEventListener('click', async () => {
         const raw = tabBtn.dataset.boardId;
         window.forumActiveBoardId = raw === 'all' ? 'all' : Number(raw);
@@ -483,6 +486,347 @@
     await openForumCharAltModal();
   }
 
+  // ---------- 板块管理 ----------
+  async function refreshForumBoardsCache() {
+    window.forumBoardsCache = await db.forumBoards.orderBy('order').toArray();
+  }
+
+  async function openForumBoardManageModal() {
+    document.getElementById('forum-board-ai-suggestions').innerHTML = '';
+    document.getElementById('forum-board-ai-theme-input').value = '';
+    document.getElementById('forum-new-board-name-input').value = '';
+    document.getElementById('forum-new-board-desc-input').value = '';
+    document.getElementById('forum-new-board-worldview-input').value = '';
+    await renderForumBoardExistingList();
+    const modal = document.getElementById('forum-board-manage-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async function renderForumBoardExistingList() {
+    const listEl = document.getElementById('forum-board-existing-list');
+    if (!listEl) return;
+    await refreshForumBoardsCache();
+    const boards = window.forumBoardsCache;
+    listEl.innerHTML = boards.map(b => `
+      <div class="forum-identity-row">
+        <span>${b.name}${b.description ? `<span style="color:#999; font-weight:400;"> · ${b.description}</span>` : ''}</span>
+        <span class="forum-board-delete-btn" data-board-id="${b.id}" style="color:#c33; cursor:pointer; padding:0 4px;">删除</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有板块</p>';
+
+    listEl.querySelectorAll('.forum-board-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('删除这个板块？板块下的帖子不会被删除，但会显示不出板块名')) return;
+        await db.forumBoards.delete(Number(btn.dataset.boardId));
+        await renderForumBoardExistingList();
+        await refreshForumBoardsCache();
+        renderForumBoardTabs();
+      });
+    });
+  }
+
+  async function createForumBoardManual() {
+    const name = document.getElementById('forum-new-board-name-input').value.trim();
+    if (!name) return;
+    const description = document.getElementById('forum-new-board-desc-input').value.trim();
+    const worldview = document.getElementById('forum-new-board-worldview-input').value.trim();
+    const maxOrder = window.forumBoardsCache.reduce((max, b) => Math.max(max, b.order || 0), -1);
+    await db.forumBoards.add({ name, description, worldview, order: maxOrder + 1 });
+
+    document.getElementById('forum-new-board-name-input').value = '';
+    document.getElementById('forum-new-board-desc-input').value = '';
+    document.getElementById('forum-new-board-worldview-input').value = '';
+    await renderForumBoardExistingList();
+    await refreshForumBoardsCache();
+    renderForumBoardTabs();
+  }
+
+  async function generateForumBoardSuggestions() {
+    const btn = document.getElementById('forum-board-ai-generate-btn');
+    const theme = document.getElementById('forum-board-ai-theme-input').value.trim();
+    const suggestionsEl = document.getElementById('forum-board-ai-suggestions');
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const existingNames = window.forumBoardsCache.map(b => b.name).join('、') || '(暂无)';
+    const prompt = `
+# 任务
+帮论坛想几个新板块创意。现有板块：${existingNames}。${theme ? `用户想要的方向：${theme}` : '不限方向，自由发挥，风格多样一些'}
+
+# 要求
+1. 想5个新板块，不要跟现有板块重复或高度相似。
+2. 每个板块要有一个简短有记忆点的名字(2-6字最佳)和一句话简介。
+3. 只输出JSON数组，不要有其他文字：[{"name": "板块名", "description": "一句话简介"}]`;
+
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span>生成中...</span>';
+    btn.disabled = true;
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成板块建议' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const suggestions = JSON.parse(jsonMatch[0]);
+
+      suggestionsEl.innerHTML = suggestions.map((s, i) => `
+        <div class="forum-identity-row">
+          <span>${s.name}<span style="color:#999; font-weight:400;"> · ${s.description || ''}</span></span>
+          <span class="forum-board-add-suggestion-btn" data-index="${i}" style="color:#111; font-weight:700; cursor:pointer; padding:0 4px;">+ 添加</span>
+        </div>
+      `).join('');
+
+      suggestionsEl.querySelectorAll('.forum-board-add-suggestion-btn').forEach(addBtn => {
+        addBtn.addEventListener('click', async () => {
+          const s = suggestions[Number(addBtn.dataset.index)];
+          const maxOrder = window.forumBoardsCache.reduce((max, b) => Math.max(max, b.order || 0), -1);
+          await db.forumBoards.add({ name: s.name, description: s.description || '', worldview: '', order: maxOrder + 1 });
+          addBtn.textContent = '已添加';
+          addBtn.style.pointerEvents = 'none';
+          addBtn.style.color = '#999';
+          await refreshForumBoardsCache();
+          await renderForumBoardExistingList();
+          renderForumBoardTabs();
+        });
+      });
+    } catch (e) {
+      console.warn('[论坛] 板块建议生成失败', e);
+      alert(`生成失败：${e.message || '未知错误'}`);
+    } finally {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
+  }
+
+  // ---------- 热搜 ----------
+  async function openForumHotTopicsScreen() {
+    showScreen('forum-hottopics-screen');
+    await renderForumHotTopicsList();
+  }
+
+  async function renderForumHotTopicsList() {
+    const listEl = document.getElementById('forum-hottopics-list');
+    if (!listEl) return;
+    const topics = await db.forumHotTopics.orderBy('heat').reverse().toArray();
+    if (topics.length === 0) {
+      listEl.innerHTML = '<p class="forum-empty-tip">还没有热搜，点右上角刷新试试</p>';
+      return;
+    }
+    listEl.innerHTML = topics.map((t, i) => `
+      <div class="forum-hottopic-row" data-topic-id="${t.id}">
+        <span class="forum-hottopic-rank${i < 3 ? ' top' : ''}">${i + 1}</span>
+        <span class="forum-hottopic-keyword">${t.keyword}</span>
+        <span class="forum-hottopic-heat">🔥${t.heat}</span>
+      </div>
+    `).join('');
+    listEl.querySelectorAll('.forum-hottopic-row').forEach(row => {
+      row.addEventListener('click', () => openForumHotTopicDetail(Number(row.dataset.topicId)));
+    });
+  }
+
+  // 自动/手动都走这个函数：根据最近的论坛帖子内容，用AI提炼出热搜词条
+  async function generateForumHotTopics() {
+    const btn = document.getElementById('forum-hottopics-refresh-btn');
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      if (btn) alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const recentPosts = await db.forumPosts.orderBy('timestamp').reverse().limit(30).toArray();
+    if (recentPosts.length === 0) return;
+    const postsText = recentPosts.map(p => `- ${(p.content || '').substring(0, 60)}`).join('\n');
+
+    const prompt = `
+# 任务
+根据下面这些论坛帖子的内容，提炼出当前的热搜词条(类似微博热搜的感觉，词条要短、有冲击力/记忆点，不是简单复制帖子原句)。
+
+# 帖子内容
+${postsText}
+
+# 要求
+1. 提炼5-8个热搜词条，每个词条4-12字。
+2. 每个词条给一个热度值(数字，1000-50000之间，越有梗/越多帖子提到的越高)。
+3. 只输出JSON数组，不要有其他文字：[{"keyword": "词条", "heat": 数字}]`;
+
+    if (btn) btn.style.animation = 'spin 1s linear infinite';
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成热搜' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const topics = JSON.parse(jsonMatch[0]);
+
+      await db.forumHotTopics.clear(); // 每次刷新都是全新一榜，不叠加旧词条
+      for (const t of topics) {
+        if (!t.keyword) continue;
+        await db.forumHotTopics.add({
+          keyword: t.keyword,
+          heat: Number(t.heat) || 1000,
+          generatedAt: Date.now(),
+          relatedPersonaSummary: '',
+          relatedPostIds: [],
+        });
+      }
+      await renderForumHotTopicsList();
+    } catch (e) {
+      console.warn('[论坛] 热搜生成失败', e);
+      if (btn) alert(`热搜生成失败：${e.message || '未知错误'}`);
+    } finally {
+      if (btn) btn.style.animation = '';
+    }
+  }
+  window.generateForumHotTopics = generateForumHotTopics;
+
+  // 点进词条才生成"相关人物/相关帖子"，避免生成一堆没人点的内容
+  async function openForumHotTopicDetail(topicId) {
+    showScreen('forum-hottopic-detail-screen');
+    const topic = await db.forumHotTopics.get(topicId);
+    if (!topic) return;
+    document.getElementById('forum-hottopic-detail-title').textContent = topic.keyword;
+    const bodyEl = document.getElementById('forum-hottopic-detail-body');
+
+    if (topic.relatedPersonaSummary) {
+      renderForumHotTopicDetailBody(topic);
+      return;
+    }
+
+    bodyEl.innerHTML = '<p class="forum-empty-tip">正在生成相关内容...</p>';
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      bodyEl.innerHTML = '<p class="forum-empty-tip">还没配置API，去设置里先配一个</p>';
+      return;
+    }
+
+    const boards = window.forumBoardsCache.length > 0 ? window.forumBoardsCache : await db.forumBoards.orderBy('order').toArray();
+    const prompt = `
+# 任务
+论坛正在热搜"${topic.keyword}"这个词条。请生成：
+1. 一段简短的"围观群众怎么说"总结(2-3句话，模拟舆论氛围，不针对具体某个人)
+2. 3条带着这个热搜话题的论坛帖子(风格多样，有人吃瓜/有人玩梗/有人认真讨论)
+
+# 要求
+只输出JSON对象：{"summary": "围观群众总结", "posts": [{"authorName": "网友昵称", "content": "帖子内容", "boardName": "板块名，从这些选：${boards.map(b => b.name).join('/')}"}]}`;
+
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const result = JSON.parse(jsonMatch[0]);
+
+      const newPostIds = [];
+      for (const p of (result.posts || [])) {
+        const board = boards.find(b => b.name === p.boardName) || boards[0];
+        if (!board) continue;
+        const id = await db.forumPosts.add({
+          boardId: board.id,
+          authorType: 'npc',
+          authorId: `hottopic_${topicId}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          authorDisplayName: p.authorName || '网友',
+          authorAvatar: '',
+          content: p.content || '',
+          timestamp: Date.now(),
+          likes: [],
+          commentCount: 0,
+        });
+        newPostIds.push(id);
+      }
+
+      await db.forumHotTopics.update(topicId, {
+        relatedPersonaSummary: result.summary || '',
+        relatedPostIds: newPostIds,
+      });
+      const updatedTopic = await db.forumHotTopics.get(topicId);
+      renderForumHotTopicDetailBody(updatedTopic);
+    } catch (e) {
+      console.warn('[论坛] 热搜详情生成失败', e);
+      bodyEl.innerHTML = `<p class="forum-empty-tip">生成失败：${e.message || '未知错误'}</p>`;
+    }
+  }
+  window.openForumHotTopicDetail = openForumHotTopicDetail;
+
+  async function renderForumHotTopicDetailBody(topic) {
+    const bodyEl = document.getElementById('forum-hottopic-detail-body');
+    if (!bodyEl) return;
+
+    let html = `<div class="forum-hottopic-summary">${topic.relatedPersonaSummary || ''}</div>`;
+    const posts = await Promise.all((topic.relatedPostIds || []).map(id => db.forumPosts.get(id)));
+    const validPosts = posts.filter(Boolean);
+
+    bodyEl.innerHTML = html;
+    for (const post of validPosts) {
+      const boardName = getBoardNameById(post.boardId);
+      const postEl = await createForumPostElement(post, boardName);
+      bodyEl.appendChild(postEl);
+    }
+    if (validPosts.length === 0) {
+      bodyEl.insertAdjacentHTML('beforeend', '<p class="forum-empty-tip">没有相关帖子</p>');
+    }
+  }
+
   // ---------- 发帖(user) ----------
   let pendingForumImage = null; // 待发布帖子选中的图片(dataURL或外链URL)
 
@@ -700,5 +1044,15 @@
       }
     });
     document.getElementById('forum-char-alt-avatar-remove-btn')?.addEventListener('click', () => setCharAltAvatarPreview(null));
+
+    document.getElementById('forum-board-manage-close-btn')?.addEventListener('click', () => {
+      const m = document.getElementById('forum-board-manage-modal');
+      if (m) m.style.display = 'none';
+    });
+    document.getElementById('forum-new-board-create-btn')?.addEventListener('click', createForumBoardManual);
+    document.getElementById('forum-board-ai-generate-btn')?.addEventListener('click', generateForumBoardSuggestions);
+
+    document.getElementById('forum-hottopics-btn')?.addEventListener('click', openForumHotTopicsScreen);
+    document.getElementById('forum-hottopics-refresh-btn')?.addEventListener('click', generateForumHotTopics);
   });
 })();
