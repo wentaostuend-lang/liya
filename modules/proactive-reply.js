@@ -316,6 +316,7 @@ ${enableThoughts ? '- heartfelt_voice/random_jottings 分别是角色此刻的�
 
   // 论坛板块列表：forum_post这个action要用到，得在systemPrompt构建之前拿到
   const forumBoardsForProactive = await db.forumBoards.orderBy('order').toArray().catch(() => []);
+  const forumCharAltForProactive = await db.forumAlts.where({ ownerType: 'char', ownerId: chat.id }).first().catch(() => null);
 
   const systemPrompt = `
 # 场景
@@ -349,7 +350,7 @@ ${dailyOutlineBlock}
 - 更新状态(在做什么)：{"type": "update_status", "hours_after": 数字, "status_text": "正在做的事，比如'加班中'", "is_busy": true或false}
 - 拍一拍对方：{"type": "pat_user", "hours_after": 数字, "suffix": "后缀，可选，比如'该睡觉啦'，不需要就填空字符串"}(想到对方了、或者单纯想撩一下的时候用)
 - 改自己的备注名：{"type": "change_remark_name", "hours_after": 数字, "new_name": "新备注名"}(心情/关系有变化时偶尔用，不要频繁改)
-${forumBoardsForProactive.length > 0 ? `- 去论坛发帖：{"type": "forum_post", "hours_after": 数字, "boardName": "板块名，从这些里选一个：${forumBoardsForProactive.map(b => b.name).join('/')}", "content": "帖子内容"}(不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)` : ''}
+${forumBoardsForProactive.length > 0 ? `- 去论坛发帖：{"type": "forum_post", "hours_after": 数字, "boardName": "板块名，从这些里选一个：${forumBoardsForProactive.map(b => b.name).join('/')}", "content": "帖子内容"${forumCharAltForProactive ? `, "asAlt": true或false(可选，true表示用小号"${forumCharAltForProactive.altName}"匿名发，不暴露你的真实身份，想匿名吐槽/发疯的时候用)` : `, "createAlt": "小号名字"(可选，如果你还没有小号但这次想匿名发，取一个符合你人设的小号名字，系统会自动帮你创建这个小号并用它发布，以后这就是你固定的马甲了)`}}(不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)` : ''}
 - 发起外卖代付(想让对方帮忙付钱)：{"type": "waimai_request", "hours_after": 数字, "productInfo": "商品名，比如'奶茶'", "amount": 金额数字}
 - 主动给对方点外卖(帮对方叫吃的)：{"type": "waimai_order", "hours_after": 数字, "productInfo": "商品名", "amount": 金额数字, "greeting": "留言，比如'趁热吃'"}
 ${stickerBlock}
@@ -605,7 +606,9 @@ ${thoughtsAndStatusBlock}
       case 'forum_post': {
         if (entry.content && forumBoardsForProactive.length > 0) {
           const matchedBoard = forumBoardsForProactive.find(b => b.name === entry.boardName) || forumBoardsForProactive[0];
-          forumPostsToCreate.push({
+          const useAlt = entry.asAlt === true && forumCharAltForProactive;
+          const createAltName = !forumCharAltForProactive && entry.createAlt ? String(entry.createAlt).trim() : null;
+          const newPost = {
             boardId: matchedBoard.id,
             authorType: 'char',
             authorId: chat.id,
@@ -613,12 +616,22 @@ ${thoughtsAndStatusBlock}
             timestamp,
             likes: [],
             commentCount: 0,
-          });
+            ...(useAlt ? {
+              authorAltId: forumCharAltForProactive.id,
+              authorDisplayName: forumCharAltForProactive.altName,
+              authorAvatar: forumCharAltForProactive.altAvatar || '',
+            } : {}),
+          };
+          if (createAltName) newPost._pendingCreateAltName = createAltName; // AI自己取的新小号名，等forEach跑完统一await创建
+          forumPostsToCreate.push(newPost);
           // 论坛帖子本身在论坛app里看，这里只在聊天里留一条小提示，让用户知道TA去论坛发泄了
+          // 用小号发的话，聊天里的提示也不点破具体内容，保留"小号=匿名"的悬念感
           msg = {
             role: 'system',
             type: 'pat_message',
-            content: `${chat.name} 好像在论坛"${matchedBoard.name}"发了条帖子`,
+            content: (useAlt || createAltName)
+              ? `${chat.name} 好像偷偷用小号在论坛"${matchedBoard.name}"发了条帖子`
+              : `${chat.name} 好像在论坛"${matchedBoard.name}"发了条帖子`,
             timestamp,
           };
         }
@@ -661,6 +674,18 @@ ${thoughtsAndStatusBlock}
   // forEach里只是收集了要发的论坛帖子，这里统一await写入db，保证顺序、避免forEach里悬空Promise
   for (const post of forumPostsToCreate) {
     try {
+      if (post._pendingCreateAltName) {
+        // AI这次自己取名创建了个新小号，先落库拿到id，以后这个角色就有固定马甲了，管理界面也能看到
+        const newAltId = await db.forumAlts.add({
+          ownerType: 'char',
+          ownerId: chat.id,
+          altName: post._pendingCreateAltName,
+          altAvatar: '',
+        });
+        post.authorAltId = newAltId;
+        post.authorDisplayName = post._pendingCreateAltName;
+        delete post._pendingCreateAltName;
+      }
       await db.forumPosts.add(post);
     } catch (e) {
       console.warn('[主动回复] 发布论坛帖子失败', e);

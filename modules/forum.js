@@ -418,6 +418,71 @@
   }
   window.createForumCharAlt = createForumCharAlt;
 
+  // ---------- 角色小号管理弹窗 ----------
+  let pendingCharAltAvatar = null;
+  let activeCharAltChatId = null;
+
+  function setCharAltAvatarPreview(url) {
+    pendingCharAltAvatar = url || null;
+    const wrap = document.getElementById('forum-char-alt-avatar-preview-wrap');
+    const img = document.getElementById('forum-char-alt-avatar-preview');
+    if (!wrap || !img) return;
+    if (pendingCharAltAvatar) {
+      img.src = pendingCharAltAvatar;
+      wrap.style.display = 'block';
+    } else {
+      img.src = '';
+      wrap.style.display = 'none';
+    }
+  }
+
+  async function openForumCharAltModal() {
+    document.getElementById('forum-identity-modal')?.classList.remove('active');
+    const listEl = document.getElementById('forum-char-alt-chat-list');
+    document.getElementById('forum-char-alt-editor').style.display = 'none';
+    if (!listEl) return;
+
+    const allAlts = await db.forumAlts.where({ ownerType: 'char' }).toArray();
+    const altByChatId = {};
+    allAlts.forEach(a => { altByChatId[a.ownerId] = a; });
+
+    const chats = Object.values(state.chats).filter(c => !c.isGroup);
+    listEl.innerHTML = chats.map(chat => {
+      const alt = altByChatId[chat.id];
+      return `<div class="forum-identity-row" data-chat-id="${chat.id}">
+        <span>${chat.name}${alt ? ` <span style="color:#999; font-weight:400;">(小号：${alt.altName})</span>` : ''}</span>
+      </div>`;
+    }).join('');
+
+    listEl.querySelectorAll('.forum-identity-row').forEach(row => {
+      row.addEventListener('click', async () => {
+        const chatId = row.dataset.chatId;
+        activeCharAltChatId = chatId;
+        const alt = altByChatId[chatId];
+        document.getElementById('forum-char-alt-editor-title').textContent = `正在为"${state.chats[chatId]?.name}"设置小号`;
+        document.getElementById('forum-char-alt-name-input').value = alt?.altName || '';
+        setCharAltAvatarPreview(alt?.altAvatar || null);
+        document.getElementById('forum-char-alt-editor').style.display = 'block';
+      });
+    });
+
+    document.getElementById('forum-char-alt-modal')?.classList.add('active');
+  }
+
+  async function saveForumCharAlt() {
+    if (!activeCharAltChatId) return;
+    const name = document.getElementById('forum-char-alt-name-input').value.trim();
+    if (!name) return;
+
+    const existing = await db.forumAlts.where({ ownerType: 'char', ownerId: activeCharAltChatId }).first();
+    if (existing) {
+      await db.forumAlts.update(existing.id, { altName: name, altAvatar: pendingCharAltAvatar || existing.altAvatar || '' });
+    } else {
+      await db.forumAlts.add({ ownerType: 'char', ownerId: activeCharAltChatId, altName: name, altAvatar: pendingCharAltAvatar || '' });
+    }
+    await openForumCharAltModal();
+  }
+
   // ---------- 发帖(user) ----------
   let pendingForumImage = null; // 待发布帖子选中的图片(dataURL或外链URL)
 
@@ -602,5 +667,38 @@
       }
     });
     document.getElementById('forum-alt-avatar-remove-btn')?.addEventListener('click', () => setAltAvatarPreview(null));
+
+    document.getElementById('forum-manage-char-alt-link')?.addEventListener('click', openForumCharAltModal);
+    document.getElementById('forum-char-alt-close-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-char-alt-modal')?.classList.remove('active');
+    });
+    document.getElementById('forum-char-alt-save-btn')?.addEventListener('click', saveForumCharAlt);
+    document.getElementById('forum-char-alt-avatar-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-char-alt-avatar-file-input')?.click();
+    });
+    document.getElementById('forum-char-alt-avatar-file-input')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => setCharAltAvatarPreview(reader.result);
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+    document.getElementById('forum-char-alt-avatar-url-btn')?.addEventListener('click', () => {
+      const input = document.getElementById('forum-char-alt-avatar-url-input');
+      if (!input) return;
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      if (input.style.display === 'block') input.focus();
+    });
+    document.getElementById('forum-char-alt-avatar-url-input')?.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const url = e.target.value.trim();
+      if (url) {
+        setCharAltAvatarPreview(url);
+        e.target.style.display = 'none';
+        e.target.value = '';
+      }
+    });
+    document.getElementById('forum-char-alt-avatar-remove-btn')?.addEventListener('click', () => setCharAltAvatarPreview(null));
   });
 })();

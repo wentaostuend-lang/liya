@@ -271,6 +271,7 @@
     if (!chat) return;
     const boards = await db.forumBoards.orderBy('order').toArray();
     if (boards.length === 0) return;
+    const charAlt = await db.forumAlts.where({ ownerType: 'char', ownerId: chatId }).first();
 
     const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
     const { proxyUrl, apiKey, model } = useBackgroundApi
@@ -288,7 +289,7 @@ ${chat.settings.aiPersona}
 
 # 要求
 1. 板块从这些里选一个：${boardNames}
-2. 只输出JSON对象，不要有其他文字：{"boardName": "板块名", "content": "帖子内容"}`;
+2. 只输出JSON对象，不要有其他文字：{"boardName": "板块名", "content": "帖子内容"${charAlt ? `, "asAlt": true或false(true表示用小号"${charAlt.altName}"匿名发)` : `, "createAlt": "小号名字"(可选，如果你还没有小号但这次想匿名发，取一个符合人设的名字，系统会自动帮你创建这个小号并用它发布，以后就是你固定的马甲了)`}}`;
 
     try {
       const messagesForApi = [{ role: 'user', content: '请生成这条帖子' }];
@@ -314,6 +315,21 @@ ${chat.settings.aiPersona}
       if (!result.content) return;
 
       const matchedBoard = boards.find(b => b.name === result.boardName) || boards[0];
+      let useAlt = result.asAlt === true && charAlt;
+      let finalAltId = useAlt ? charAlt.id : null;
+      let finalAltName = useAlt ? charAlt.altName : null;
+      let finalAltAvatar = useAlt ? (charAlt.altAvatar || '') : '';
+
+      if (!charAlt && result.createAlt) {
+        // AI自己取名创建了个新小号，落库后以后这个角色就有固定马甲了，管理界面也能看到
+        const newAltName = String(result.createAlt).trim();
+        if (newAltName) {
+          finalAltId = await db.forumAlts.add({ ownerType: 'char', ownerId: chatId, altName: newAltName, altAvatar: '' });
+          finalAltName = newAltName;
+          useAlt = true;
+        }
+      }
+
       await db.forumPosts.add({
         boardId: matchedBoard.id,
         authorType: 'char',
@@ -322,8 +338,9 @@ ${chat.settings.aiPersona}
         timestamp: Date.now(),
         likes: [],
         commentCount: 0,
+        ...(useAlt ? { authorAltId: finalAltId, authorDisplayName: finalAltName, authorAvatar: finalAltAvatar } : {}),
       });
-      console.log(`[论坛] 角色 "${chat.name}" 后台发布了一条帖子`);
+      console.log(`[论坛] 角色 "${chat.name}" 后台发布了一条帖子${useAlt ? '(小号)' : ''}`);
       if (document.getElementById('forum-screen')?.classList.contains('active') && typeof renderForumFeed === 'function') {
         await renderForumFeed();
       }
