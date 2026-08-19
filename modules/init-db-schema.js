@@ -130,4 +130,9 @@ db.version(59).stores({
   }
 });
 
+// 论坛：网友头像池(设置里批量传图，AI建网友时随机从池子里挑一个)
+db.version(60).stores({
+  forumAvatarPool: '++id, url',
+});
+
 window.db = db;

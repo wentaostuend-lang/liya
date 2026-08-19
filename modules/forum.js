@@ -447,25 +447,24 @@
     if (!listEl) return;
 
     const allAlts = await db.forumAlts.where({ ownerType: 'char' }).toArray();
-    const altByChatId = {};
-    allAlts.forEach(a => { altByChatId[a.ownerId] = a; });
+    const altCountByChatId = {};
+    allAlts.forEach(a => { altCountByChatId[a.ownerId] = (altCountByChatId[a.ownerId] || 0) + 1; });
 
     const chats = Object.values(state.chats).filter(c => !c.isGroup);
     listEl.innerHTML = chats.map(chat => {
-      const alt = altByChatId[chat.id];
+      const count = altCountByChatId[chat.id] || 0;
       return `<div class="forum-identity-row" data-chat-id="${chat.id}">
-        <span>${chat.name}${alt ? ` <span style="color:#999; font-weight:400;">(小号：${alt.altName})</span>` : ''}</span>
+        <span>${chat.name}${count > 0 ? ` <span style="color:#999; font-weight:400;">(${count}个小号)</span>` : ''}</span>
       </div>`;
     }).join('');
 
     listEl.querySelectorAll('.forum-identity-row').forEach(row => {
       row.addEventListener('click', async () => {
-        const chatId = row.dataset.chatId;
-        activeCharAltChatId = chatId;
-        const alt = altByChatId[chatId];
-        document.getElementById('forum-char-alt-editor-title').textContent = `正在为"${state.chats[chatId]?.name}"设置小号`;
-        document.getElementById('forum-char-alt-name-input').value = alt?.altName || '';
-        setCharAltAvatarPreview(alt?.altAvatar || null);
+        activeCharAltChatId = row.dataset.chatId;
+        document.getElementById('forum-char-alt-editor-title').textContent = `"${state.chats[activeCharAltChatId]?.name}"的小号`;
+        document.getElementById('forum-char-alt-name-input').value = '';
+        setCharAltAvatarPreview(null);
+        await renderForumCharAltExistingList();
         document.getElementById('forum-char-alt-editor').style.display = 'block';
       });
     });
@@ -473,18 +472,46 @@
     (function(){const m=document.getElementById('forum-char-alt-modal'); if(m) m.style.display='flex';})();
   }
 
+  async function renderForumCharAltExistingList() {
+    const listEl = document.getElementById('forum-char-alt-existing-list');
+    if (!listEl || !activeCharAltChatId) return;
+    const alts = await db.forumAlts.where({ ownerType: 'char', ownerId: activeCharAltChatId }).toArray();
+    listEl.innerHTML = alts.map(a => `
+      <div class="forum-identity-row">
+        <img class="forum-identity-avatar" src="${a.altAvatar || FORUM_DEFAULT_AVATAR}">
+        <span>${a.altName}</span>
+        <span class="forum-board-delete-btn" data-alt-id="${a.id}" style="color:#c33; cursor:pointer; padding:0 4px;">删除</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有小号</p>';
+
+    listEl.querySelectorAll('.forum-board-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        await db.forumAlts.delete(Number(btn.dataset.altId));
+        await renderForumCharAltExistingList();
+      });
+    });
+  }
+
   async function saveForumCharAlt() {
     if (!activeCharAltChatId) return;
     const name = document.getElementById('forum-char-alt-name-input').value.trim();
     if (!name) return;
 
-    const existing = await db.forumAlts.where({ ownerType: 'char', ownerId: activeCharAltChatId }).first();
-    if (existing) {
-      await db.forumAlts.update(existing.id, { altName: name, altAvatar: pendingCharAltAvatar || existing.altAvatar || '' });
-    } else {
-      await db.forumAlts.add({ ownerType: 'char', ownerId: activeCharAltChatId, altName: name, altAvatar: pendingCharAltAvatar || '' });
+    await db.forumAlts.add({ ownerType: 'char', ownerId: activeCharAltChatId, altName: name, altAvatar: pendingCharAltAvatar || '' });
+
+    document.getElementById('forum-char-alt-name-input').value = '';
+    setCharAltAvatarPreview(null);
+    await renderForumCharAltExistingList();
+  }
+
+  async function pickRandomPoolAvatarForCharAlt() {
+    const pool = await db.forumAvatarPool.toArray();
+    if (pool.length === 0) {
+      alert('头像池还是空的，先批量上传/加几张进去');
+      return;
     }
-    await openForumCharAltModal();
+    const picked = pool[Math.floor(Math.random() * pool.length)];
+    setCharAltAvatarPreview(picked.url);
   }
 
   // ---------- 板块管理 ----------
@@ -746,10 +773,11 @@ ${postsText}
 # 任务
 论坛正在热搜"${topic.keyword}"这个词条。请生成：
 1. 一段简短的"围观群众怎么说"总结(2-3句话，模拟舆论氛围，不针对具体某个人)
-2. 3条带着这个热搜话题的论坛帖子(风格多样，有人吃瓜/有人玩梗/有人认真讨论)
+2. 5到8条带着这个热搜话题的论坛帖子(风格多样，有人吃瓜/有人玩梗/有人认真讨论/有人反驳别人)
+3. 每条帖子配3到6条真实感的评论(风格多样，偶尔可以用replyTo字段互相回复)
 
 # 要求
-只输出JSON对象：{"summary": "围观群众总结", "posts": [{"authorName": "网友昵称", "content": "帖子内容", "boardName": "板块名，从这些选：${boards.map(b => b.name).join('/')}"}]}`;
+只输出JSON对象：{"summary": "围观群众总结", "posts": [{"authorName": "网友昵称", "content": "帖子内容", "boardName": "板块名，从这些选：${boards.map(b => b.name).join('/')}", "comments": [{"authorName": "网友昵称", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]}`;
 
     try {
       const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
@@ -782,6 +810,7 @@ ${postsText}
       for (const p of (result.posts || [])) {
         const board = boards.find(b => b.name === p.boardName) || boards[0];
         if (!board) continue;
+        const comments = p.comments || [];
         const id = await db.forumPosts.add({
           boardId: board.id,
           authorType: 'npc',
@@ -791,8 +820,21 @@ ${postsText}
           content: p.content || '',
           timestamp: Date.now(),
           likes: [],
-          commentCount: 0,
+          commentCount: comments.length,
         });
+        for (const c of comments) {
+          if (!c.content) continue;
+          await db.forumComments.add({
+            postId: id,
+            authorType: 'npc',
+            authorId: `hottopic_${topicId}_c_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+            authorDisplayName: c.authorName || '网友',
+            authorAvatar: '',
+            content: c.content,
+            replyToName: c.replyTo || null,
+            timestamp: Date.now(),
+          });
+        }
         newPostIds.push(id);
       }
 
@@ -888,6 +930,181 @@ ${postsText}
   }
   window.openForumForwardModal = openForumForwardModal;
 
+  // ---------- 一键批量生成初始内容 ----------
+  async function openForumSeedModal() {
+    document.getElementById('forum-identity-modal').style.display = 'none';
+    const modal = document.getElementById('forum-seed-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  async function runForumSeedGeneration() {
+    const btn = document.getElementById('forum-seed-generate-btn');
+    const postMin = Math.max(1, parseInt(document.getElementById('forum-seed-post-min-input').value) || 12);
+    const postMax = Math.max(postMin, parseInt(document.getElementById('forum-seed-post-max-input').value) || 24);
+    const commentTarget = Math.max(0, parseInt(document.getElementById('forum-seed-comment-count-input').value) || 5);
+    const includeChar = document.getElementById('forum-seed-include-char-checkbox').checked;
+    const postCount = Math.floor(Math.random() * (postMax - postMin + 1)) + postMin;
+
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span>生成中，别关页面...</span>';
+    btn.disabled = true;
+
+    try {
+      // 网友数量不够就先自动补充几个，保证有足够的"人"来发帖回帖
+      let npcs = await db.forumNpcs.toArray();
+      if (npcs.length < 5) {
+        await generateForumNpcsBatchSilent(8 - npcs.length);
+        npcs = await db.forumNpcs.toArray();
+      }
+
+      const boards = await db.forumBoards.orderBy('order').toArray();
+      const npcNamesAndPersonas = npcs.map(n => `- ${n.name}：${n.persona || '(没写详细人设，自由发挥)'}`).join('\n');
+
+      const prompt = `
+# 任务
+你是论坛内容生成器，帮我批量生成一批论坛帖子+评论，让论坛看起来热闹真实。
+
+# 可用网友(帖子和评论的作者都从这里选，也可以偶尔用同一个网友发多条)
+${npcNamesAndPersonas}
+
+# 可用板块
+${boards.map(b => b.name).join('/')}
+
+# 要求
+1. 生成${postCount}条帖子，每条帖子配大约${commentTarget}条评论(可以上下浮动，不用每条都一样多)。
+2. 帖子和评论都要符合对应网友的人设/说话风格，内容真实自然、风格多样(有认真讨论的、有玩梗的、有抬杠的、有安慰的)。
+3. 评论里偶尔可以互相@/回复(用replyTo字段写被回复的网友名字，没有specific回复对象就留空)。
+4. 只输出JSON数组，不要有其他文字：
+[{"boardName": "板块名", "authorName": "网友名", "content": "帖子内容", "comments": [{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]`;
+
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请开始生成' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const posts = JSON.parse(jsonMatch[0]);
+
+      const npcByName = {};
+      npcs.forEach(n => { npcByName[n.name] = n; });
+
+      for (const p of posts) {
+        const board = boards.find(b => b.name === p.boardName) || boards[0];
+        const author = npcByName[p.authorName];
+        if (!board || !p.content) continue;
+
+        const postId = await db.forumPosts.add({
+          boardId: board.id,
+          authorType: 'npc',
+          authorId: `npc_${author ? author.id : 'unknown'}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          authorDisplayName: p.authorName || '网友',
+          authorAvatar: author?.avatar || '',
+          content: p.content,
+          timestamp: Date.now() - Math.floor(Math.random() * 72 * 3600000), // 随机分布在过去3天内，看起来不是同一秒炸出来的
+          likes: [],
+          commentCount: (p.comments || []).length,
+        });
+
+        for (const c of (p.comments || [])) {
+          if (!c.content) continue;
+          const cAuthor = npcByName[c.authorName];
+          await db.forumComments.add({
+            postId,
+            authorType: 'npc',
+            authorId: `npc_${cAuthor ? cAuthor.id : 'unknown'}`,
+            authorDisplayName: c.authorName || '网友',
+            authorAvatar: cAuthor?.avatar || '',
+            content: c.content,
+            replyToName: c.replyTo || null,
+            timestamp: Date.now(),
+          });
+        }
+      }
+
+      // 也让几个现有角色用真实人设发几条帖子(复用background-activity.js里已有的triggerCharForumPost)
+      if (includeChar && typeof triggerCharForumPost === 'function') {
+        const chars = Object.values(state.chats).filter(c => !c.isGroup);
+        const pickedChars = chars.sort(() => Math.random() - 0.5).slice(0, Math.min(3, chars.length));
+        for (const c of pickedChars) {
+          await triggerCharForumPost(c.id).catch(e => console.warn('[论坛] 批量生成时角色发帖失败', e));
+        }
+      }
+
+      await refreshForumBoardsCache();
+      renderForumBoardTabs();
+      await renderForumFeed();
+      document.getElementById('forum-seed-modal').style.display = 'none';
+      alert(`生成完毕！新增了${posts.length}条帖子`);
+    } catch (e) {
+      console.warn('[论坛] 批量生成初始内容失败', e);
+      alert(`生成失败：${e.message || '未知错误'}`);
+    } finally {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
+  }
+
+  // 静默批量生成网友(不弹alert、不依赖弹窗里的输入框)，供一键生成初始内容时自动补充网友用
+  async function generateForumNpcsBatchSilent(count) {
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return;
+    const existingNames = (await db.forumNpcs.toArray()).map(n => n.name).join('、') || '(暂无)';
+    const prompt = `帮论坛生成${count}个"网友"账号人设，现有网友：${existingNames}，不要重复。每个网友要有昵称(2-8字)和persona(2-3句性格/说话风格描述)，风格要多样化。只输出JSON数组：[{"name": "昵称", "persona": "人设描述"}]`;
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'system', content: prompt }, ...messagesForApi], temperature: 1 }),
+          });
+      if (!response.ok) return;
+      const data = await response.json();
+      const raw = (isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) return;
+      const npcs = JSON.parse(jsonMatch[0]);
+      for (const n of npcs) {
+        if (!n.name) continue;
+        await db.forumNpcs.add({
+          name: n.name, persona: n.persona || '', avatar: await pickRandomPoolAvatar(),
+          npcGroupId: null, enableBackgroundActivity: true, actionCooldownMinutes: 15, lastActionTimestamp: 0,
+        });
+      }
+    } catch (e) {
+      console.warn('[论坛] 自动补充网友失败', e);
+    }
+  }
+
   // ---------- 网友管理 ----------
   let pendingNpcAvatar = null;
 
@@ -912,6 +1129,7 @@ ${postsText}
     document.getElementById('forum-npc-persona-input').value = '';
     document.getElementById('forum-npc-cooldown-input').value = '15';
     await renderForumNpcExistingList();
+    await renderForumAvatarPoolList();
     const modal = document.getElementById('forum-npc-manage-modal');
     if (modal) modal.style.display = 'flex';
   }
@@ -957,6 +1175,111 @@ ${postsText}
     document.getElementById('forum-npc-persona-input').value = '';
     setNpcAvatarPreview(null);
     await renderForumNpcExistingList();
+  }
+
+  // ---------- 头像池(共享：网友+角色小号都从这里挑) ----------
+  async function addAvatarsToPool(urls) {
+    for (const url of urls) {
+      if (url) await db.forumAvatarPool.add({ url });
+    }
+    await renderForumAvatarPoolList();
+  }
+
+  async function renderForumAvatarPoolList() {
+    const listEl = document.getElementById('forum-avatar-pool-list');
+    if (!listEl) return;
+    const pool = await db.forumAvatarPool.toArray();
+    listEl.innerHTML = pool.map(p => `
+      <div class="forum-avatar-pool-item" data-pool-id="${p.id}">
+        <img src="${p.url}">
+        <span class="forum-avatar-pool-remove">&times;</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip" style="padding:10px 0;">头像池是空的</p>';
+
+    listEl.querySelectorAll('.forum-avatar-pool-item').forEach(item => {
+      item.querySelector('.forum-avatar-pool-remove').addEventListener('click', async () => {
+        await db.forumAvatarPool.delete(Number(item.dataset.poolId));
+        await renderForumAvatarPoolList();
+      });
+    });
+  }
+
+  async function pickRandomPoolAvatar() {
+    const pool = await db.forumAvatarPool.toArray();
+    if (pool.length === 0) return '';
+    return pool[Math.floor(Math.random() * pool.length)].url;
+  }
+
+  // ---------- AI批量生成网友 ----------
+  async function generateForumNpcsBatch() {
+    const btn = document.getElementById('forum-npc-batch-generate-btn');
+    const count = Math.max(1, Math.min(20, parseInt(document.getElementById('forum-npc-batch-count-input').value) || 5));
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const existingNames = (await db.forumNpcs.toArray()).map(n => n.name).join('、') || '(暂无)';
+    const prompt = `
+# 任务
+帮论坛生成${count}个"网友"账号人设。现有网友：${existingNames}，不要跟这些重复或高度相似。
+
+# 要求
+1. 每个网友要有：昵称(2-8字，有网感)、persona(2-3句话描述性格/说话风格/常聊话题，越具体越好，方便之后照着这个人设发帖回帖)。
+2. 网友风格要多样化：有人毒舌、有人温柔、有人爱抬杠、有人爱玩梗、有人一本正经，不要都长一个样。
+3. 只输出JSON数组，不要有其他文字：[{"name": "昵称", "persona": "人设描述"}]`;
+
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span>生成中...</span>';
+    btn.disabled = true;
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成网友' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const npcs = JSON.parse(jsonMatch[0]);
+
+      for (const n of npcs) {
+        if (!n.name) continue;
+        await db.forumNpcs.add({
+          name: n.name,
+          persona: n.persona || '',
+          avatar: await pickRandomPoolAvatar(), // 随机从头像池分配，池子空的话就是空字符串(走默认头像)
+          npcGroupId: null,
+          enableBackgroundActivity: true,
+          actionCooldownMinutes: 15,
+          lastActionTimestamp: 0,
+        });
+      }
+      await renderForumNpcExistingList();
+    } catch (e) {
+      console.warn('[论坛] 批量生成网友失败', e);
+      alert(`生成失败：${e.message || '未知错误'}`);
+    } finally {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
   }
 
   // ---------- 发帖(user) ----------
@@ -1224,5 +1547,78 @@ ${postsText}
       const m = document.getElementById('forum-forward-modal');
       if (m) m.style.display = 'none';
     });
+
+    // 网友管理：AI批量生成
+    document.getElementById('forum-npc-batch-generate-btn')?.addEventListener('click', generateForumNpcsBatch);
+
+    // 头像池(网友管理弹窗里那个)
+    document.getElementById('forum-pool-avatar-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-pool-avatar-file-input')?.click();
+    });
+    document.getElementById('forum-pool-avatar-file-input')?.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      const urls = await Promise.all(files.map(file => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      })));
+      await addAvatarsToPool(urls);
+      e.target.value = '';
+    });
+    document.getElementById('forum-pool-avatar-url-btn')?.addEventListener('click', () => {
+      const input = document.getElementById('forum-pool-avatar-url-input');
+      if (!input) return;
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      if (input.style.display === 'block') input.focus();
+    });
+    document.getElementById('forum-pool-avatar-url-input')?.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const url = e.target.value.trim();
+      if (url) {
+        await addAvatarsToPool([url]);
+        e.target.style.display = 'none';
+        e.target.value = '';
+      }
+    });
+
+    // 角色小号弹窗里也能批量传头像到同一个池子
+    document.getElementById('forum-char-alt-avatar-frompool-btn')?.addEventListener('click', pickRandomPoolAvatarForCharAlt);
+    document.getElementById('forum-char-alt-pool-upload-btn')?.addEventListener('click', () => {
+      document.getElementById('forum-char-alt-pool-file-input')?.click();
+    });
+    document.getElementById('forum-char-alt-pool-file-input')?.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      const urls = await Promise.all(files.map(file => new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      })));
+      for (const url of urls) { if (url) await db.forumAvatarPool.add({ url }); }
+      alert(`已加入头像池${urls.length}张`);
+      e.target.value = '';
+    });
+    document.getElementById('forum-char-alt-pool-url-btn')?.addEventListener('click', () => {
+      const input = document.getElementById('forum-char-alt-pool-url-input');
+      if (!input) return;
+      input.style.display = input.style.display === 'none' ? 'block' : 'none';
+      if (input.style.display === 'block') input.focus();
+    });
+    document.getElementById('forum-char-alt-pool-url-input')?.addEventListener('keydown', async (e) => {
+      if (e.key !== 'Enter') return;
+      const url = e.target.value.trim();
+      if (url) {
+        await db.forumAvatarPool.add({ url });
+        e.target.style.display = 'none';
+        e.target.value = '';
+      }
+    });
+
+    // 一键生成初始内容
+    document.getElementById('forum-manage-seed-link')?.addEventListener('click', openForumSeedModal);
+    document.getElementById('forum-seed-close-btn')?.addEventListener('click', () => {
+      const m = document.getElementById('forum-seed-modal');
+      if (m) m.style.display = 'none';
+    });
+    document.getElementById('forum-seed-generate-btn')?.addEventListener('click', runForumSeedGeneration);
   });
 })();
