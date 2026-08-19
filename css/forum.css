@@ -324,6 +324,41 @@
   cursor: pointer;
 }
 
+/* ---------- 头像池 ---------- */
+.forum-avatar-pool-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.forum-avatar-pool-item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+}
+
+.forum-avatar-pool-item img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.forum-avatar-pool-remove {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+}
+
 /* ---------- 发帖弹窗：配图区 ---------- */
 .forum-image-preview-wrap {
   position: relative;
