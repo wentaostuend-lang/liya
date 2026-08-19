@@ -327,6 +327,110 @@
   }
   window.submitForumComment = submitForumComment;
 
+  // 手动触发给当前帖子生成一批网友评论(用现有网友人设，跟一键生成初始内容的评论逻辑类似，但只针对这一条帖子)
+  async function generateCommentsForCurrentPost() {
+    const postId = window.forumActiveDetailPostId;
+    if (postId == null) return;
+    const btn = document.getElementById('forum-generate-comments-btn');
+    const post = await db.forumPosts.get(postId);
+    if (!post) return;
+
+    const npcs = await db.forumNpcs.toArray();
+    if (npcs.length === 0) {
+      alert('还没有网友，先去"管理网友"里加几个');
+      return;
+    }
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const npcList = npcs.map(n => `- ${n.name}：${n.persona || '(没写详细人设，自由发挥)'}`).join('\n');
+    const existingComments = (await db.forumComments.where('postId').equals(postId).toArray())
+      .map(c => `- ${c.authorDisplayName || '网友'}：${c.content}`).join('\n');
+
+    const prompt = `
+# 帖子内容
+${post.content}
+
+# 已有评论(避免重复说一样的话)
+${existingComments || '(暂无)'}
+
+# 可用网友
+${npcList}
+
+# 任务
+从上面网友里选几个(3-6个)，给这条帖子生成评论，风格要符合各自人设，内容真实自然，偶尔可以用replyTo回复其他网友(自己刚发的评论也可以，形成对话感)。
+
+# 要求
+只输出JSON数组：[{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]`;
+
+    const originalHtml = btn.innerHTML;
+    btn.style.animation = 'spin 1s linear infinite';
+    btn.disabled = true;
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成评论' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\[[\s\S]*\])/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      const comments = JSON.parse(jsonMatch[0]);
+      const npcByName = {};
+      npcs.forEach(n => { npcByName[n.name] = n; });
+
+      let addedCount = 0;
+      for (const c of comments) {
+        if (!c.content) continue;
+        const author = npcByName[c.authorName];
+        await db.forumComments.add({
+          postId,
+          authorType: 'npc',
+          authorId: `npc_${author ? author.id : 'unknown'}`,
+          authorDisplayName: c.authorName || '网友',
+          authorAvatar: author?.avatar || '',
+          content: c.content,
+          replyToName: c.replyTo || null,
+          timestamp: Date.now(),
+        });
+        addedCount++;
+      }
+
+      const freshPost = await db.forumPosts.get(postId);
+      if (freshPost) {
+        freshPost.commentCount = (freshPost.commentCount || 0) + addedCount;
+        await db.forumPosts.put(freshPost);
+      }
+      await renderForumPostDetail();
+    } catch (e) {
+      console.warn('[论坛] 生成评论失败', e);
+      alert(`生成失败：${e.message || '未知错误'}`);
+    } finally {
+      btn.innerHTML = originalHtml;
+      btn.style.animation = '';
+      btn.disabled = false;
+    }
+  }
+
   // ---------- 身份/小号 ----------
   // 当前发帖/评论用的身份：{type:'main'} 主账号，或 {type:'alt', id, name} 小号
   function getActiveForumIdentity() {
@@ -933,6 +1037,19 @@ ${postsText}
   // ---------- 一键批量生成初始内容 ----------
   async function openForumSeedModal() {
     document.getElementById('forum-identity-modal').style.display = 'none';
+    const listEl = document.getElementById('forum-seed-char-list');
+    const chats = Object.values(state.chats).filter(c => !c.isGroup);
+    if (listEl) {
+      listEl.innerHTML = chats.map(c => `
+        <div class="forum-identity-row" style="cursor:default;">
+          <label style="display:flex; align-items:center; gap:8px; flex:1; cursor:pointer;">
+            <input type="checkbox" class="forum-seed-char-checkbox" data-chat-id="${c.id}" style="width:16px; height:16px;">
+            <img class="forum-identity-avatar" src="${c.settings?.aiAvatar || FORUM_DEFAULT_AVATAR}" style="margin-right:0;">
+            <span>${c.name}</span>
+          </label>
+        </div>
+      `).join('') || '<p class="forum-empty-tip">还没有可选的角色</p>';
+    }
     const modal = document.getElementById('forum-seed-modal');
     if (modal) modal.style.display = 'flex';
   }
@@ -1045,10 +1162,16 @@ ${boards.map(b => b.name).join('/')}
         }
       }
 
-      // 也让几个现有角色用真实人设发几条帖子(复用background-activity.js里已有的triggerCharForumPost)
+      // 也让角色用真实人设发几条帖子：勾选了具体角色就只让TA们发，一个都没勾就随机挑几个
       if (includeChar && typeof triggerCharForumPost === 'function') {
-        const chars = Object.values(state.chats).filter(c => !c.isGroup);
-        const pickedChars = chars.sort(() => Math.random() - 0.5).slice(0, Math.min(3, chars.length));
+        const checkedIds = Array.from(document.querySelectorAll('.forum-seed-char-checkbox:checked')).map(cb => cb.dataset.chatId);
+        let pickedChars;
+        if (checkedIds.length > 0) {
+          pickedChars = checkedIds.map(id => state.chats[id]).filter(Boolean);
+        } else {
+          const chars = Object.values(state.chats).filter(c => !c.isGroup);
+          pickedChars = chars.sort(() => Math.random() - 0.5).slice(0, Math.min(3, chars.length));
+        }
         for (const c of pickedChars) {
           await triggerCharForumPost(c.id).catch(e => console.warn('[论坛] 批量生成时角色发帖失败', e));
         }
@@ -1281,6 +1404,98 @@ ${boards.map(b => b.name).join('/')}
       btn.disabled = false;
     }
   }
+
+  // 从一句话提示生成单个更详细的网友，先给预览、确认了才真正入库(避免手感不对还得删)
+  let pendingNpcHintResult = null;
+
+  async function generateForumNpcFromHint() {
+    const btn = document.getElementById('forum-npc-hint-generate-btn');
+    const hint = document.getElementById('forum-npc-hint-input').value.trim();
+    if (!hint) { alert('先填一句描述'); return; }
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
+      alert('还没配置API，去设置里先配一个');
+      return;
+    }
+
+    const prompt = `
+# 任务
+根据这句描述，帮论坛生成一个详细的"网友"账号人设：「${hint}」
+
+# 要求
+1. 想一个符合描述的昵称(2-8字，有网感，不要直接用描述里的词当昵称)。
+2. persona要详细(4-6句话)：包含性格特点、说话语气/口头禅、常聊的话题方向、大概的价值观或槽点，让人一看就知道TA发帖/评论会是什么风格。
+3. 只输出JSON对象，不要有其他文字：{"name": "昵称", "persona": "详细人设描述"}`;
+
+    const originalHtml = btn.innerHTML;
+    btn.innerHTML = '<span>生成中...</span>';
+    btn.disabled = true;
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请生成' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) throw new Error('AI没有返回有效格式');
+      pendingNpcHintResult = JSON.parse(jsonMatch[0]);
+
+      const previewEl = document.getElementById('forum-npc-hint-preview');
+      previewEl.style.display = 'block';
+      previewEl.innerHTML = `
+        <div class="forum-identity-row" style="flex-direction:column; align-items:flex-start; gap:6px;">
+          <span style="font-weight:700;">${pendingNpcHintResult.name}</span>
+          <span style="color:#666; font-weight:400; font-size:12.5px; line-height:1.5;">${pendingNpcHintResult.persona}</span>
+          <div style="display:flex; gap:10px; margin-top:4px;">
+            <span id="forum-npc-hint-confirm-btn" style="color:#111; font-weight:700; cursor:pointer;">+ 添加这个网友</span>
+            <span id="forum-npc-hint-regenerate-btn" style="color:#999; cursor:pointer;">重新生成</span>
+          </div>
+        </div>
+      `;
+      document.getElementById('forum-npc-hint-confirm-btn').addEventListener('click', async () => {
+        if (!pendingNpcHintResult) return;
+        await db.forumNpcs.add({
+          name: pendingNpcHintResult.name,
+          persona: pendingNpcHintResult.persona || '',
+          avatar: await pickRandomPoolAvatar(),
+          npcGroupId: null,
+          enableBackgroundActivity: true,
+          actionCooldownMinutes: 15,
+          lastActionTimestamp: 0,
+        });
+        previewEl.style.display = 'none';
+        previewEl.innerHTML = '';
+        document.getElementById('forum-npc-hint-input').value = '';
+        pendingNpcHintResult = null;
+        await renderForumNpcExistingList();
+      });
+      document.getElementById('forum-npc-hint-regenerate-btn').addEventListener('click', generateForumNpcFromHint);
+    } catch (e) {
+      console.warn('[论坛] 从提示生成网友失败', e);
+      alert(`生成失败：${e.message || '未知错误'}`);
+    } finally {
+      btn.innerHTML = originalHtml;
+      btn.disabled = false;
+    }
+  }
+
 
   // ---------- 发帖(user) ----------
   let pendingForumImage = null; // 待发布帖子选中的图片(dataURL或外链URL)
@@ -1550,6 +1765,8 @@ ${boards.map(b => b.name).join('/')}
 
     // 网友管理：AI批量生成
     document.getElementById('forum-npc-batch-generate-btn')?.addEventListener('click', generateForumNpcsBatch);
+    document.getElementById('forum-npc-hint-generate-btn')?.addEventListener('click', generateForumNpcFromHint);
+    document.getElementById('forum-generate-comments-btn')?.addEventListener('click', generateCommentsForCurrentPost);
 
     // 头像池(网友管理弹窗里那个)
     document.getElementById('forum-pool-avatar-upload-btn')?.addEventListener('click', () => {
