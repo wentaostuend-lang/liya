@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.6.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.7.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -108,7 +108,7 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.6.0" defer></script>
+  <script src="modules/forum.js?v=0.7.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
@@ -5376,9 +5376,12 @@
           </div>
           <div class="forum-board-section-title">每条帖子配几条评论(大致)</div>
           <input type="number" id="forum-seed-comment-count-input" class="forum-image-url-input" value="5" min="0" max="15">
-          <div style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+          <div class="forum-board-section-title">要不要让角色也发帖(用TA们真实人设)</div>
+          <div id="forum-seed-char-list" class="forum-identity-list"></div>
+          <p class="forum-empty-tip" style="padding:6px 0; font-size:12px;">勾选具体角色就只让TA们发；一个都不勾就是"随机挑几个"；都不想要就把下面这个开关关掉</p>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
             <input type="checkbox" id="forum-seed-include-char-checkbox" checked style="width:16px; height:16px;">
-            <label for="forum-seed-include-char-checkbox" style="font-size:13px; color:#333;">也让现有角色发几条帖子(用TA们真实人设)</label>
+            <label for="forum-seed-include-char-checkbox" style="font-size:13px; color:#333;">启用角色发帖</label>
           </div>
           <p class="forum-empty-tip" style="padding:12px 0; font-size:12.5px;">如果网友数量不够，会先自动补充几个网友再开始生成。生成过程可能需要几十秒，请耐心等待。</p>
           <button id="forum-seed-generate-btn" class="forum-primary-btn" style="margin-top:8px;">开始生成</button>
@@ -5429,6 +5432,14 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
             <span>AI批量生成</span>
           </button>
+
+          <div class="forum-board-section-title">从一句话描述生成单个网友</div>
+          <input type="text" id="forum-npc-hint-input" class="forum-image-url-input" placeholder="比如：毒舌产科医生，喜欢吐槽同事">
+          <button id="forum-npc-hint-generate-btn" class="forum-image-tool-btn" style="margin-top:8px; width:100%; justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>生成预览</span>
+          </button>
+          <div id="forum-npc-hint-preview" style="display:none;"></div>
 
           <div class="forum-board-section-title">头像池<span style="color:#999; font-weight:400;">(AI建网友时随机从这里挑)</span></div>
           <div id="forum-avatar-pool-list" class="forum-avatar-pool-list"></div>
@@ -5482,7 +5493,11 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
         </span>
         <span>帖子</span>
-        <div class="header-actions"></div>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-generate-comments-btn" title="生成网友评论">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </span>
+        </div>
       </div>
       <div id="forum-post-detail-body" class="forum-post-detail-body"></div>
       <div class="forum-comment-input-bar">
