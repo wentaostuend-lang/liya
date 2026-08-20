@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.7.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.9.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -108,12 +108,12 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.7.0" defer></script>
+  <script src="modules/forum.js?v=0.9.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
   <script src="modules/notification-battery.js?v=0.0.36" defer></script>
-  <script src="modules/background-activity.js?v=0.0.40" defer></script>
+  <script src="modules/background-activity.js?v=0.0.41" defer></script>
   <script src="modules/card-import.js?v=0.0.36" defer></script>
   <script src="modules/character-export.js?v=0.0.36" defer></script>
   <script src="modules/data-management.js?v=0.0.36" defer></script>
@@ -5343,8 +5343,9 @@
               <button id="forum-char-alt-save-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">添加</button>
             </div>
 
-            <div class="forum-board-section-title">批量上传头像到共享头像池</div>
-            <div class="forum-image-toolbar">
+            <div class="forum-board-section-title">角色小号头像池<span style="color:#999; font-weight:400;">(独立于网友头像池)</span></div>
+            <div id="forum-char-avatar-pool-list" class="forum-avatar-pool-list"></div>
+            <div class="forum-image-toolbar" style="margin-top:8px;">
               <button type="button" id="forum-char-alt-pool-upload-btn" class="forum-image-tool-btn">
                 <span>批量上传</span>
               </button>
@@ -5538,6 +5539,19 @@
             <input type="file" id="forum-image-file-input" accept="image/*" style="display:none;">
           </div>
           <input type="text" id="forum-image-url-input" class="forum-image-url-input" placeholder="粘贴图片链接，回车确认" style="display:none;">
+
+          <div class="forum-board-section-title">互动组件<span style="color:#999; font-weight:400;">(可选)</span></div>
+          <select id="forum-widget-type-select" class="forum-board-select">
+            <option value="">不添加</option>
+            <option value="poll">投票</option>
+            <option value="donation">打赏/众筹进度条</option>
+            <option value="chain">接龙/接话条</option>
+            <option value="bounty">悬赏倒计时</option>
+            <option value="rating">易得分卡</option>
+            <option value="dice">骰子</option>
+            <option value="wheel">转盘</option>
+          </select>
+          <div id="forum-widget-config-area"></div>
         </div>
         <div class="modal-footer">
           <button id="forum-create-post-submit-btn" class="forum-primary-btn">发布</button>
