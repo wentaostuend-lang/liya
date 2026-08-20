@@ -186,6 +186,7 @@
       </div>
       ${imageHtml}
       <div class="forum-post-content">${contentHtml}</div>
+      ${post.widget ? renderForumWidgetHtml(post) : ''}
       <div class="forum-post-footer">
         <div class="forum-post-actions-left">
           <span class="forum-post-action forum-like-btn${liked ? ' liked' : ''}">${ICON_HEART(liked)}</span>
@@ -204,6 +205,7 @@
     el.querySelector('.forum-comment-btn').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-post-content').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-share-btn').addEventListener('click', () => openForumForwardModal(post.id));
+    if (post.widget) bindForumWidgetEvents(el, post);
 
     return el;
   }
@@ -217,6 +219,310 @@
   const ICON_COMMENT = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
   const ICON_SHARE = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
   const ICON_BOOKMARK = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+
+  // ============================================================
+  // 互动组件：投票/打赏进度条/接龙/悬赏倒计时/评分卡/骰子/转盘
+  // 数据都存在 post.widget = {type, data(发帖时的配置), state(运行时数据，会变化)}
+  // ============================================================
+  function getCurrentForumDisplayName() {
+    const identity = getActiveForumIdentity();
+    if (identity.type === 'alt') return identity.name;
+    return state.qzoneSettings?.nickname || '我';
+  }
+
+  async function saveWidgetState(postId, state) {
+    const post = await db.forumPosts.get(postId);
+    if (!post) return null;
+    post.widget.state = state;
+    await db.forumPosts.put(post);
+    return post;
+  }
+
+  function renderForumWidgetHtml(post) {
+    const w = post.widget;
+    if (!w) return '';
+    if (w.type === 'poll') return renderPollHtml(post);
+    if (w.type === 'donation') return renderDonationHtml(post);
+    if (w.type === 'chain') return renderChainHtml(post);
+    if (w.type === 'bounty') return renderBountyHtml(post);
+    if (w.type === 'rating') return renderRatingHtml(post);
+    if (w.type === 'dice') return renderDiceHtml(post);
+    if (w.type === 'wheel') return renderWheelHtml(post);
+    return '';
+  }
+
+  function bindForumWidgetEvents(el, post) {
+    const w = post.widget;
+    if (!w) return;
+    const wrap = el.querySelector('.forum-widget');
+    if (!wrap) return;
+    if (w.type === 'poll') bindPollEvents(wrap, post);
+    else if (w.type === 'donation') bindDonationEvents(wrap, post);
+    else if (w.type === 'chain') bindChainEvents(wrap, post);
+    else if (w.type === 'bounty') bindBountyEvents(wrap, post);
+    else if (w.type === 'rating') bindRatingEvents(wrap, post);
+    else if (w.type === 'dice') bindDiceEvents(wrap, post);
+    else if (w.type === 'wheel') bindWheelEvents(wrap, post);
+  }
+
+  // 重新渲染某个widget容器(不刷新整个帖子卡片，避免详情页评论区跟着重排)
+  async function refreshWidgetInPlace(wrap, postId) {
+    const post = await db.forumPosts.get(postId);
+    if (!post || !post.widget) return;
+    const temp = document.createElement('div');
+    temp.innerHTML = renderForumWidgetHtml(post);
+    const newWrap = temp.firstElementChild;
+    wrap.replaceWith(newWrap);
+    bindForumWidgetEvents(newWrap.closest('.forum-post-card, .forum-post-detail-body') || newWrap.parentElement, post);
+  }
+
+  // ---------- 投票 ----------
+  function renderPollHtml(post) {
+    const { options } = post.widget.data;
+    const { votes } = post.widget.state;
+    const total = votes.reduce((a, b) => a + b, 0);
+    const voted = localStorage.getItem(`forum_voted_${post.id}`) !== null;
+    return `
+      <div class="forum-widget forum-widget-poll" data-post-id="${post.id}">
+        ${options.map((opt, i) => {
+          const pct = total > 0 ? Math.round((votes[i] / total) * 100) : 0;
+          return `<div class="forum-poll-option${voted ? ' voted' : ''}" data-index="${i}">
+            ${voted ? `<div class="forum-poll-bar" style="width:${pct}%"></div>` : ''}
+            <span class="forum-poll-label">${opt}</span>
+            ${voted ? `<span class="forum-poll-pct">${pct}%</span>` : ''}
+          </div>`;
+        }).join('')}
+        <div class="forum-widget-meta">${total}人投票${voted ? '' : ' · 点选项投票'}</div>
+      </div>`;
+  }
+  function bindPollEvents(wrap, post) {
+    if (localStorage.getItem(`forum_voted_${post.id}`) !== null) return;
+    wrap.querySelectorAll('.forum-poll-option').forEach(opt => {
+      opt.addEventListener('click', async () => {
+        const i = Number(opt.dataset.index);
+        const state = post.widget.state;
+        state.votes[i] = (state.votes[i] || 0) + 1;
+        localStorage.setItem(`forum_voted_${post.id}`, String(i));
+        await saveWidgetState(post.id, state);
+        await refreshWidgetInPlace(wrap, post.id);
+      });
+    });
+  }
+
+  // ---------- 打赏/众筹进度条 ----------
+  function renderDonationHtml(post) {
+    const { title, goal } = post.widget.data;
+    const { raised, contributors } = post.widget.state;
+    const pct = Math.min(100, Math.round((raised / goal) * 100));
+    return `
+      <div class="forum-widget forum-widget-donation" data-post-id="${post.id}">
+        <div class="forum-donation-title">${title}</div>
+        <div class="forum-donation-bar-track"><div class="forum-donation-bar-fill" style="width:${pct}%"></div></div>
+        <div class="forum-widget-meta">¥${raised} / ¥${goal}${contributors.length > 0 ? ` · ${contributors.length}人打赏` : ''}</div>
+        <button class="forum-widget-btn forum-donation-btn">打赏</button>
+      </div>`;
+  }
+  function bindDonationEvents(wrap, post) {
+    wrap.querySelector('.forum-donation-btn')?.addEventListener('click', async () => {
+      const amountStr = prompt('打赏多少钱？');
+      const amount = Number(amountStr);
+      if (!amount || amount <= 0) return;
+      const state = post.widget.state;
+      state.raised = (state.raised || 0) + amount;
+      state.contributors = state.contributors || [];
+      state.contributors.push({ name: getCurrentForumDisplayName(), amount });
+      await saveWidgetState(post.id, state);
+      await refreshWidgetInPlace(wrap, post.id);
+    });
+  }
+
+  // ---------- 接龙 ----------
+  function renderChainHtml(post) {
+    const { prompt: chainPrompt } = post.widget.data;
+    const { entries } = post.widget.state;
+    return `
+      <div class="forum-widget forum-widget-chain" data-post-id="${post.id}">
+        ${chainPrompt ? `<div class="forum-widget-subtitle">🔗 ${chainPrompt}</div>` : ''}
+        <div class="forum-chain-entries">${entries.map(e => `<div class="forum-chain-entry"><b>${e.author}：</b>${e.text}</div>`).join('') || '<span class="forum-widget-meta">还没人接，来第一个</span>'}</div>
+        <div class="forum-widget-input-row">
+          <input type="text" class="forum-widget-text-input forum-chain-input" placeholder="接一句...">
+          <button class="forum-widget-btn forum-chain-submit-btn">接龙</button>
+        </div>
+      </div>`;
+  }
+  function bindChainEvents(wrap, post) {
+    const submit = async () => {
+      const input = wrap.querySelector('.forum-chain-input');
+      const text = input.value.trim();
+      if (!text) return;
+      const state = post.widget.state;
+      state.entries.push({ author: getCurrentForumDisplayName(), text });
+      await saveWidgetState(post.id, state);
+      await refreshWidgetInPlace(wrap, post.id);
+    };
+    wrap.querySelector('.forum-chain-submit-btn')?.addEventListener('click', submit);
+    wrap.querySelector('.forum-chain-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  }
+
+  // ---------- 悬赏倒计时 ----------
+  function formatCountdown(ms) {
+    if (ms <= 0) return '已截止';
+    const h = Math.floor(ms / 3600000);
+    const m = Math.floor((ms % 3600000) / 60000);
+    return `剩余 ${h}小时${m}分钟`;
+  }
+  function renderBountyHtml(post) {
+    const { prompt: bountyPrompt, deadline } = post.widget.data;
+    const { submissions } = post.widget.state;
+    const remaining = deadline - Date.now();
+    const ended = remaining <= 0;
+    return `
+      <div class="forum-widget forum-widget-bounty" data-post-id="${post.id}" data-deadline="${deadline}">
+        <div class="forum-widget-subtitle">🎯 ${bountyPrompt}</div>
+        <div class="forum-bounty-countdown">${formatCountdown(remaining)}</div>
+        <div class="forum-chain-entries">${submissions.map(s => `<div class="forum-chain-entry"><b>${s.author}：</b>${s.text}</div>`).join('')}</div>
+        ${ended
+          ? '<div class="forum-widget-meta">征集已结束</div>'
+          : `<div class="forum-widget-input-row">
+              <input type="text" class="forum-widget-text-input forum-bounty-input" placeholder="提交答案...">
+              <button class="forum-widget-btn forum-bounty-submit-btn">提交</button>
+            </div>`}
+      </div>`;
+  }
+  function bindBountyEvents(wrap, post) {
+    const submit = async () => {
+      const input = wrap.querySelector('.forum-bounty-input');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      const state = post.widget.state;
+      state.submissions.push({ author: getCurrentForumDisplayName(), text });
+      await saveWidgetState(post.id, state);
+      await refreshWidgetInPlace(wrap, post.id);
+    };
+    wrap.querySelector('.forum-bounty-submit-btn')?.addEventListener('click', submit);
+    wrap.querySelector('.forum-bounty-input')?.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+    // 倒计时每分钟自己刷新一次文字，不用整个组件重渲染
+    const countdownEl = wrap.querySelector('.forum-bounty-countdown');
+    if (countdownEl) {
+      const deadline = Number(wrap.dataset.deadline);
+      const timer = setInterval(() => {
+        if (!document.body.contains(countdownEl)) { clearInterval(timer); return; }
+        const remaining = deadline - Date.now();
+        countdownEl.textContent = formatCountdown(remaining);
+        if (remaining <= 0) clearInterval(timer);
+      }, 60000);
+    }
+  }
+
+  // ---------- 易得分卡 ----------
+  function renderRatingHtml(post) {
+    const { dims } = post.widget.data;
+    const { ratings } = post.widget.state;
+    const avgs = dims.map((_, i) => {
+      if (ratings.length === 0) return 0;
+      return ratings.reduce((sum, r) => sum + (r.scores[i] || 0), 0) / ratings.length;
+    });
+    const totalAvg = avgs.length > 0 ? avgs.reduce((a, b) => a + b, 0) / avgs.length : 0;
+    return `
+      <div class="forum-widget forum-widget-rating" data-post-id="${post.id}">
+        ${dims.map((d, i) => `<div class="forum-rating-dim"><span>${d}</span><span>${avgs[i].toFixed(1)} ★</span></div>`).join('')}
+        <div class="forum-widget-meta">总分 ${totalAvg.toFixed(1)} · ${ratings.length}人评分</div>
+        <div class="forum-rating-form-area"></div>
+        <button class="forum-widget-btn forum-rating-btn">我要评分</button>
+      </div>`;
+  }
+  function bindRatingEvents(wrap, post) {
+    wrap.querySelector('.forum-rating-btn')?.addEventListener('click', () => {
+      const { dims } = post.widget.data;
+      const formArea = wrap.querySelector('.forum-rating-form-area');
+      const btn = wrap.querySelector('.forum-rating-btn');
+      formArea.innerHTML = dims.map((d, i) => `
+        <div class="forum-rating-input-row">
+          <span>${d}</span>
+          <input type="number" class="forum-rating-score-input" data-dim="${i}" min="1" max="5" value="5" style="width:50px;">
+        </div>
+      `).join('') + `<button class="forum-widget-btn forum-rating-confirm-btn">提交评分</button>`;
+      btn.style.display = 'none';
+      formArea.querySelector('.forum-rating-confirm-btn').addEventListener('click', async () => {
+        const scores = Array.from(formArea.querySelectorAll('.forum-rating-score-input')).map(inp => Math.max(1, Math.min(5, Number(inp.value) || 1)));
+        const state = post.widget.state;
+        state.ratings.push({ scores });
+        await saveWidgetState(post.id, state);
+        await refreshWidgetInPlace(wrap, post.id);
+      });
+    });
+  }
+
+  // ---------- 骰子 ----------
+  const DICE_FACES = ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+  function renderDiceHtml(post) {
+    const { history } = post.widget.state;
+    const last = history.length > 0 ? history[history.length - 1].result : 0;
+    return `
+      <div class="forum-widget forum-widget-dice" data-post-id="${post.id}">
+        <div class="forum-dice-face">${last ? DICE_FACES[last] : '🎲'}</div>
+        <button class="forum-widget-btn forum-dice-roll-btn">掷骰子</button>
+        ${history.length > 0 ? `<div class="forum-widget-meta">最近：${history.slice(-8).map(h => h.result).join(' ')}</div>` : ''}
+      </div>`;
+  }
+  function bindDiceEvents(wrap, post) {
+    wrap.querySelector('.forum-dice-roll-btn')?.addEventListener('click', async () => {
+      const faceEl = wrap.querySelector('.forum-dice-face');
+      faceEl.classList.add('forum-dice-rolling');
+      const result = Math.floor(Math.random() * 6) + 1;
+      setTimeout(async () => {
+        faceEl.classList.remove('forum-dice-rolling');
+        const state = post.widget.state;
+        state.history.push({ result, timestamp: Date.now() });
+        await saveWidgetState(post.id, state);
+        await refreshWidgetInPlace(wrap, post.id);
+      }, 500);
+    });
+  }
+
+  // ---------- 转盘 ----------
+  const WHEEL_COLORS = ['#111', '#444', '#777', '#aaa', '#222', '#555', '#888', '#333'];
+  function renderWheelHtml(post) {
+    const { options } = post.widget.data;
+    const { history } = post.widget.state;
+    const n = options.length;
+    const seg = 360 / n;
+    const gradient = options.map((_, i) => `${WHEEL_COLORS[i % WHEEL_COLORS.length]} ${i * seg}deg ${(i + 1) * seg}deg`).join(', ');
+    return `
+      <div class="forum-widget forum-widget-wheel" data-post-id="${post.id}">
+        <div class="forum-wheel-outer">
+          <div class="forum-wheel-pointer">▼</div>
+          <div class="forum-wheel-circle" style="background: conic-gradient(${gradient});"></div>
+        </div>
+        <div class="forum-wheel-labels">${options.map((o, i) => `<span>${i + 1}.${o}</span>`).join(' ')}</div>
+        <button class="forum-widget-btn forum-wheel-spin-btn">转一下</button>
+        <div class="forum-wheel-result">${history.length > 0 ? `上次结果：${history[history.length - 1].result}` : ''}</div>
+      </div>`;
+  }
+  function bindWheelEvents(wrap, post) {
+    wrap.querySelector('.forum-wheel-spin-btn')?.addEventListener('click', async () => {
+      const { options } = post.widget.data;
+      const circle = wrap.querySelector('.forum-wheel-circle');
+      const btn = wrap.querySelector('.forum-wheel-spin-btn');
+      btn.disabled = true;
+      const n = options.length;
+      const seg = 360 / n;
+      const targetIndex = Math.floor(Math.random() * n);
+      // 转盘指针固定指向顶部，让目标扇区的中心转到顶部：需要转到 -(targetIndex*seg + seg/2)，再加几圈整数360度制造转动感
+      const targetAngle = 360 * 4 + (360 - (targetIndex * seg + seg / 2));
+      circle.style.transition = 'transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99)';
+      circle.style.transform = `rotate(${targetAngle}deg)`;
+      setTimeout(async () => {
+        const result = options[targetIndex];
+        const state = post.widget.state;
+        state.history.push({ result, timestamp: Date.now() });
+        await saveWidgetState(post.id, state);
+        wrap.querySelector('.forum-wheel-result').textContent = `结果：${result}`;
+        btn.disabled = false;
+      }, 3100);
+    });
+  }
 
   async function toggleForumLike(postId, el) {
     const post = await db.forumPosts.get(postId);
@@ -324,8 +630,110 @@
 
     input.value = '';
     await renderForumPostDetail();
+
+    maybeTriggerPostAuthorReply(postId, content).catch(e => console.warn('[论坛] 帖主回复失败', e));
   }
   window.submitForumComment = submitForumComment;
+
+  // ---------- 帖主回复评论(char/网友发的帖子，user评论了会自动回一条) ----------
+  async function maybeTriggerPostAuthorReply(postId, commentContent) {
+    const post = await db.forumPosts.get(postId);
+    if (!post) return;
+    if (post.authorType !== 'char' && post.authorType !== 'npc') return; // user自己的帖子不用自动回复
+
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return; // 没配API就悄悄跳过，不打扰
+
+    let authorPersona = '';
+    let authorNameForPrompt = '';
+    if (post.authorType === 'char') {
+      const chat = state.chats[post.authorId];
+      if (!chat) return;
+      authorPersona = chat.settings?.aiPersona || '';
+      authorNameForPrompt = post.authorAltId ? post.authorDisplayName : chat.name;
+    } else {
+      const npc = post.authorAltId
+        ? null
+        : await db.forumNpcs.where('name').equals(post.authorDisplayName || '').first();
+      if (!npc && post.authorType === 'npc') return; // 找不到对应网友人设就算了，别瞎编
+      authorPersona = npc?.persona || '';
+      authorNameForPrompt = post.authorDisplayName || '网友';
+    }
+
+    const commenterName = getCurrentForumDisplayName();
+    const prompt = `
+# 你的任务
+你是"${authorNameForPrompt}"，人设：${authorPersona || '(没有详细人设，符合网友身份自由发挥)'}
+这是你发的帖子：「${post.content}」
+现在"${commenterName}"评论了你："${commentContent}"
+请回复这条评论。
+
+# 要求
+【重要】像真人刷手机随手回复，不是写文章：大部分回复应该很短(一句话甚至几个字)，不用完整通顺、有头有尾，别用书面语。
+只输出JSON对象，不要有其他文字：{"reply": "回复内容"}`;
+
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请回复' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({
+              model: apiConfig.model,
+              messages: [{ role: 'system', content: prompt }, ...messagesForApi],
+              temperature: 1,
+            }),
+          });
+      if (!response.ok) return;
+      const data = await response.json();
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) return;
+      const result = JSON.parse(jsonMatch[0]);
+      if (!result.reply) return;
+
+      // 稍微等一下再回复，看起来像真的在打字，不是秒回
+      await new Promise(resolve => setTimeout(resolve, 1200 + Math.random() * 1800));
+
+      const replyComment = {
+        postId,
+        authorType: post.authorType,
+        authorId: post.authorId,
+        content: result.reply,
+        replyToName: commenterName,
+        timestamp: Date.now(),
+      };
+      if (post.authorAltId) {
+        replyComment.authorAltId = post.authorAltId;
+        replyComment.authorDisplayName = post.authorDisplayName;
+        replyComment.authorAvatar = post.authorAvatar;
+      } else if (post.authorType === 'npc') {
+        replyComment.authorDisplayName = post.authorDisplayName;
+        replyComment.authorAvatar = post.authorAvatar || '';
+      }
+      await db.forumComments.add(replyComment);
+
+      const freshPost = await db.forumPosts.get(postId);
+      if (freshPost) {
+        freshPost.commentCount = (freshPost.commentCount || 0) + 1;
+        await db.forumPosts.put(freshPost);
+      }
+      if (window.forumActiveDetailPostId === postId) {
+        await renderForumPostDetail();
+      }
+    } catch (e) {
+      console.warn('[论坛] 帖主自动回复生成失败', e);
+    }
+  }
+
 
   // 手动触发给当前帖子生成一批网友评论(用现有网友人设，跟一键生成初始内容的评论逻辑类似，但只针对这一条帖子)
   async function generateCommentsForCurrentPost() {
@@ -364,7 +772,8 @@ ${npcList}
 从上面网友里选几个(3-6个)，给这条帖子生成评论，风格要符合各自人设，内容真实自然，偶尔可以用replyTo回复其他网友(自己刚发的评论也可以，形成对话感)。
 
 # 要求
-只输出JSON数组：[{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]`;
+1. 【重要】像真人刷论坛随手打字，不是写文章：大部分评论应该很短(一句话甚至几个字，比如"哈哈哈笑死""说得对""蹲一个")，不用每条都完整通顺、有头有尾，可以省略主语、用网络用语，不要用"我认为""确实如此"这类书面语。
+2. 只输出JSON数组：[{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]`;
 
     const originalHtml = btn.innerHTML;
     btn.style.animation = 'spin 1s linear infinite';
@@ -569,6 +978,7 @@ ${npcList}
         document.getElementById('forum-char-alt-name-input').value = '';
         setCharAltAvatarPreview(null);
         await renderForumCharAltExistingList();
+        await renderForumCharAvatarPoolList();
         document.getElementById('forum-char-alt-editor').style.display = 'block';
       });
     });
@@ -609,13 +1019,12 @@ ${npcList}
   }
 
   async function pickRandomPoolAvatarForCharAlt() {
-    const pool = await db.forumAvatarPool.toArray();
-    if (pool.length === 0) {
-      alert('头像池还是空的，先批量上传/加几张进去');
+    const url = await pickRandomCharPoolAvatar();
+    if (!url) {
+      alert('角色小号头像池还是空的，先批量上传/加几张进去');
       return;
     }
-    const picked = pool[Math.floor(Math.random() * pool.length)];
-    setCharAltAvatarPreview(picked.url);
+    setCharAltAvatarPreview(url);
   }
 
   // ---------- 板块管理 ----------
@@ -881,7 +1290,8 @@ ${postsText}
 3. 每条帖子配3到6条真实感的评论(风格多样，偶尔可以用replyTo字段互相回复)
 
 # 要求
-只输出JSON对象：{"summary": "围观群众总结", "posts": [{"authorName": "网友昵称", "content": "帖子内容", "boardName": "板块名，从这些选：${boards.map(b => b.name).join('/')}", "comments": [{"authorName": "网友昵称", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]}`;
+只输出JSON对象：{"summary": "围观群众总结", "posts": [{"authorName": "网友昵称", "content": "帖子内容", "boardName": "板块名，从这些选：${boards.map(b => b.name).join('/')}", "comments": [{"authorName": "网友昵称", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]}
+评论要像真人随手打字，大部分很短(一句话甚至几个字)，不用每条都完整通顺，别用书面语。`;
 
     try {
       const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
@@ -1097,7 +1507,8 @@ ${boards.map(b => b.name).join('/')}
 1. 生成${postCount}条帖子，每条帖子配大约${commentTarget}条评论(可以上下浮动，不用每条都一样多)。
 2. 帖子和评论都要符合对应网友的人设/说话风格，内容真实自然、风格多样(有认真讨论的、有玩梗的、有抬杠的、有安慰的)。
 3. 评论里偶尔可以互相@/回复(用replyTo字段写被回复的网友名字，没有specific回复对象就留空)。
-4. 只输出JSON数组，不要有其他文字：
+4. 【重要】评论要像真人刷手机随手打字：大部分应该很短(一句话甚至几个字)，不用每条都完整通顺、有头有尾，别用"我认为""确实如此"这类书面语，多用口语和网络用语。帖子本身可以稍微完整一点，但也别写成小作文。
+5. 只输出JSON数组，不要有其他文字：
 [{"boardName": "板块名", "authorName": "网友名", "content": "帖子内容", "comments": [{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]`;
 
       const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
@@ -1301,9 +1712,11 @@ ${boards.map(b => b.name).join('/')}
   }
 
   // ---------- 头像池(共享：网友+角色小号都从这里挑) ----------
-  async function addAvatarsToPool(urls) {
+  // 头像池按poolType分成 'npc'(网友) 和 'char'(角色小号) 两组，互不干扰
+  // 老数据没有poolType字段的，一律当npc池处理(那是最早建的池子)
+  async function addAvatarsToPool(urls, poolType = 'npc') {
     for (const url of urls) {
-      if (url) await db.forumAvatarPool.add({ url });
+      if (url) await db.forumAvatarPool.add({ url, poolType });
     }
     await renderForumAvatarPoolList();
   }
@@ -1311,7 +1724,7 @@ ${boards.map(b => b.name).join('/')}
   async function renderForumAvatarPoolList() {
     const listEl = document.getElementById('forum-avatar-pool-list');
     if (!listEl) return;
-    const pool = await db.forumAvatarPool.toArray();
+    const pool = (await db.forumAvatarPool.toArray()).filter(p => !p.poolType || p.poolType === 'npc');
     listEl.innerHTML = pool.map(p => `
       <div class="forum-avatar-pool-item" data-pool-id="${p.id}">
         <img src="${p.url}">
@@ -1327,8 +1740,33 @@ ${boards.map(b => b.name).join('/')}
     });
   }
 
+  async function renderForumCharAvatarPoolList() {
+    const listEl = document.getElementById('forum-char-avatar-pool-list');
+    if (!listEl) return;
+    const pool = (await db.forumAvatarPool.toArray()).filter(p => p.poolType === 'char');
+    listEl.innerHTML = pool.map(p => `
+      <div class="forum-avatar-pool-item" data-pool-id="${p.id}">
+        <img src="${p.url}">
+        <span class="forum-avatar-pool-remove">&times;</span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip" style="padding:10px 0;">头像池是空的</p>';
+
+    listEl.querySelectorAll('.forum-avatar-pool-item').forEach(item => {
+      item.querySelector('.forum-avatar-pool-remove').addEventListener('click', async () => {
+        await db.forumAvatarPool.delete(Number(item.dataset.poolId));
+        await renderForumCharAvatarPoolList();
+      });
+    });
+  }
+
   async function pickRandomPoolAvatar() {
-    const pool = await db.forumAvatarPool.toArray();
+    const pool = (await db.forumAvatarPool.toArray()).filter(p => !p.poolType || p.poolType === 'npc');
+    if (pool.length === 0) return '';
+    return pool[Math.floor(Math.random() * pool.length)].url;
+  }
+
+  async function pickRandomCharPoolAvatar() {
+    const pool = (await db.forumAvatarPool.toArray()).filter(p => p.poolType === 'char');
     if (pool.length === 0) return '';
     return pool[Math.floor(Math.random() * pool.length)].url;
   }
@@ -1526,11 +1964,87 @@ ${boards.map(b => b.name).join('/')}
     if (select && window.forumActiveBoardId !== 'all') {
       select.value = String(window.forumActiveBoardId);
     }
+    const widgetSelect = document.getElementById('forum-widget-type-select');
+    if (widgetSelect) widgetSelect.value = '';
+    renderWidgetConfigArea('');
     modal.style.display = 'flex';
   }
 
   function closeForumCreatePostModal() {
     (function(){const m=document.getElementById('forum-create-post-modal'); if(m) m.style.display='none';})();
+  }
+
+  // ---------- 互动组件：发帖时的配置表单 ----------
+  function renderWidgetConfigArea(type) {
+    const area = document.getElementById('forum-widget-config-area');
+    if (!area) return;
+    const templates = {
+      '': '',
+      poll: `
+        <div class="forum-board-section-title">投票选项(每行一个，2-6个)</div>
+        <textarea id="forum-widget-poll-options" class="forum-post-textarea" rows="4" placeholder="选项A&#10;选项B&#10;选项C"></textarea>`,
+      donation: `
+        <div class="forum-board-section-title">众筹标题</div>
+        <input type="text" id="forum-widget-donation-title" class="forum-image-url-input" placeholder="比如：帮我凑猫粮钱">
+        <div class="forum-board-section-title">目标金额</div>
+        <input type="number" id="forum-widget-donation-goal" class="forum-image-url-input" placeholder="100" min="1">`,
+      chain: `
+        <div class="forum-board-section-title">接龙主题(可选)</div>
+        <input type="text" id="forum-widget-chain-prompt" class="forum-image-url-input" placeholder="比如：接一句歌词/续写故事">`,
+      bounty: `
+        <div class="forum-board-section-title">悬赏内容</div>
+        <input type="text" id="forum-widget-bounty-prompt" class="forum-image-url-input" placeholder="比如：谁知道这是哪部电影的台词">
+        <div class="forum-board-section-title">征集时长(小时)</div>
+        <input type="number" id="forum-widget-bounty-hours" class="forum-image-url-input" placeholder="24" min="1" value="24">`,
+      rating: `
+        <div class="forum-board-section-title">评分维度(每行一个，2-5个)</div>
+        <textarea id="forum-widget-rating-dims" class="forum-post-textarea" rows="3" placeholder="颜值&#10;性格&#10;才华"></textarea>`,
+      dice: `<p class="forum-empty-tip" style="padding:8px 0; font-size:12.5px;">骰子不用配置，发布后大家可以点它掷1-6点</p>`,
+      wheel: `
+        <div class="forum-board-section-title">转盘选项(每行一个，2-8个)</div>
+        <textarea id="forum-widget-wheel-options" class="forum-post-textarea" rows="4" placeholder="选项A&#10;选项B&#10;选项C"></textarea>`,
+    };
+    area.innerHTML = templates[type] || '';
+  }
+
+  function collectWidgetConfigFromForm() {
+    const type = document.getElementById('forum-widget-type-select')?.value;
+    if (!type) return null;
+
+    if (type === 'poll') {
+      const options = document.getElementById('forum-widget-poll-options').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (options.length < 2) { alert('投票至少要2个选项'); return undefined; }
+      return { type, data: { options }, state: { votes: options.map(() => 0), voters: [] } };
+    }
+    if (type === 'donation') {
+      const title = document.getElementById('forum-widget-donation-title').value.trim() || '众筹';
+      const goal = Number(document.getElementById('forum-widget-donation-goal').value) || 100;
+      return { type, data: { title, goal }, state: { raised: 0, contributors: [] } };
+    }
+    if (type === 'chain') {
+      const prompt = document.getElementById('forum-widget-chain-prompt').value.trim();
+      return { type, data: { prompt }, state: { entries: [] } };
+    }
+    if (type === 'bounty') {
+      const prompt = document.getElementById('forum-widget-bounty-prompt').value.trim();
+      if (!prompt) { alert('悬赏内容不能为空'); return undefined; }
+      const hours = Math.max(1, Number(document.getElementById('forum-widget-bounty-hours').value) || 24);
+      return { type, data: { prompt, deadline: Date.now() + hours * 3600000 }, state: { submissions: [] } };
+    }
+    if (type === 'rating') {
+      const dims = document.getElementById('forum-widget-rating-dims').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (dims.length < 2) { alert('评分维度至少要2个'); return undefined; }
+      return { type, data: { dims }, state: { ratings: [] } };
+    }
+    if (type === 'dice') {
+      return { type, data: {}, state: { history: [] } };
+    }
+    if (type === 'wheel') {
+      const options = document.getElementById('forum-widget-wheel-options').value.split('\n').map(s => s.trim()).filter(Boolean);
+      if (options.length < 2) { alert('转盘至少要2个选项'); return undefined; }
+      return { type, data: { options }, state: { history: [] } };
+    }
+    return null;
   }
 
   // AI配图：接你项目里 nai-imagen.js 已有的生图能力——
@@ -1602,6 +2116,9 @@ ${boards.map(b => b.name).join('/')}
     const content = textarea.value.trim();
     if (!content && !pendingForumImage) return; // 纯图片没文字也允许发，但两个都空就不让发
 
+    const widget = collectWidgetConfigFromForm();
+    if (widget === undefined) return; // 配置没填完整，collectWidgetConfigFromForm已经alert提示了，不发布
+
     const boardId = Number(select.value);
     const newPost = {
       boardId,
@@ -1612,6 +2129,7 @@ ${boards.map(b => b.name).join('/')}
       commentCount: 0,
     };
     if (pendingForumImage) newPost.imageUrl = pendingForumImage;
+    if (widget) newPost.widget = widget;
     await db.forumPosts.add(newPost);
 
     closeForumCreatePostModal();
@@ -1623,6 +2141,7 @@ ${boards.map(b => b.name).join('/')}
   document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('forum-create-post-btn')?.addEventListener('click', openForumCreatePostModal);
     document.getElementById('forum-create-post-close-btn')?.addEventListener('click', closeForumCreatePostModal);
+    document.getElementById('forum-widget-type-select')?.addEventListener('change', (e) => renderWidgetConfigArea(e.target.value));
     document.getElementById('forum-create-post-submit-btn')?.addEventListener('click', submitForumPost);
 
     document.getElementById('forum-image-ai-btn')?.addEventListener('click', handleForumAiImageBtn);
@@ -1810,8 +2329,9 @@ ${boards.map(b => b.name).join('/')}
         reader.onload = () => resolve(reader.result);
         reader.readAsDataURL(file);
       })));
-      for (const url of urls) { if (url) await db.forumAvatarPool.add({ url }); }
-      alert(`已加入头像池${urls.length}张`);
+      for (const url of urls) { if (url) await db.forumAvatarPool.add({ url, poolType: 'char' }); }
+      await renderForumCharAvatarPoolList();
+      alert(`已加入角色小号头像池${urls.length}张`);
       e.target.value = '';
     });
     document.getElementById('forum-char-alt-pool-url-btn')?.addEventListener('click', () => {
@@ -1824,7 +2344,8 @@ ${boards.map(b => b.name).join('/')}
       if (e.key !== 'Enter') return;
       const url = e.target.value.trim();
       if (url) {
-        await db.forumAvatarPool.add({ url });
+        await db.forumAvatarPool.add({ url, poolType: 'char' });
+        await renderForumCharAvatarPoolList();
         e.target.style.display = 'none';
         e.target.value = '';
       }
