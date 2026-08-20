@@ -882,3 +882,250 @@
 #phone-screen.dark-mode .forum-forward-chat-name {
   color: #eee;
 }
+
+/* ============================================================
+   互动组件通用样式
+   ============================================================ */
+.forum-widget {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  background-color: #fafafa;
+}
+
+.forum-widget-subtitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.forum-widget-meta {
+  font-size: 11.5px;
+  color: #999;
+  margin-top: 6px;
+}
+
+.forum-widget-btn {
+  margin-top: 8px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 16px;
+  background-color: #111;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.forum-widget-btn:disabled {
+  opacity: 0.5;
+}
+
+.forum-widget-input-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.forum-widget-text-input {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid #ddd;
+  border-radius: 14px;
+  font-size: 12.5px;
+  background-color: #fff;
+  color: #111;
+}
+
+/* ---------- 投票 ---------- */
+.forum-poll-option {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: #333;
+  overflow: hidden;
+  cursor: pointer;
+}
+.forum-poll-option.voted {
+  cursor: default;
+}
+.forum-poll-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: #e5e5e5;
+  z-index: 0;
+  transition: width 0.4s ease;
+}
+.forum-poll-label,
+.forum-poll-pct {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- 打赏/众筹 ---------- */
+.forum-donation-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8px;
+}
+.forum-donation-bar-track {
+  height: 8px;
+  border-radius: 4px;
+  background-color: #e5e5e5;
+  overflow: hidden;
+}
+.forum-donation-bar-fill {
+  height: 100%;
+  background-color: #111;
+  transition: width 0.4s ease;
+}
+
+/* ---------- 接龙/悬赏 ---------- */
+.forum-chain-entries {
+  max-height: 150px;
+  overflow-y: auto;
+}
+.forum-chain-entry {
+  font-size: 12.5px;
+  color: #333;
+  padding: 4px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.forum-bounty-countdown {
+  font-size: 12px;
+  color: #ed4956;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+/* ---------- 易得分卡 ---------- */
+.forum-rating-dim {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  color: #333;
+  padding: 4px 0;
+}
+.forum-rating-input-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: #333;
+  padding: 4px 0;
+}
+
+/* ---------- 骰子 ---------- */
+.forum-widget-dice {
+  text-align: center;
+}
+.forum-dice-face {
+  font-size: 48px;
+  line-height: 1;
+  transition: transform 0.15s;
+}
+.forum-dice-face.forum-dice-rolling {
+  animation: diceShake 0.5s ease;
+}
+@keyframes diceShake {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-15deg); }
+  50% { transform: rotate(15deg); }
+  75% { transform: rotate(-8deg); }
+}
+
+/* ---------- 转盘 ---------- */
+.forum-widget-wheel {
+  text-align: center;
+}
+.forum-wheel-outer {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+}
+.forum-wheel-circle {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #ddd;
+}
+.forum-wheel-pointer {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #ed4956;
+  font-size: 16px;
+  z-index: 2;
+}
+.forum-wheel-labels {
+  font-size: 11px;
+  color: #888;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+.forum-wheel-result {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #111;
+  margin-top: 6px;
+}
+
+/* ---------- 夜间模式 ---------- */
+#phone-screen.dark-mode .forum-widget {
+  background-color: #0a0a0a;
+  border-color: #222;
+}
+#phone-screen.dark-mode .forum-widget-subtitle,
+#phone-screen.dark-mode .forum-donation-title {
+  color: #eee;
+}
+#phone-screen.dark-mode .forum-widget-meta {
+  color: #777;
+}
+#phone-screen.dark-mode .forum-widget-btn {
+  background-color: #eee;
+  color: #000;
+}
+#phone-screen.dark-mode .forum-widget-text-input {
+  background-color: #111;
+  border-color: #333;
+  color: #eee;
+}
+#phone-screen.dark-mode .forum-poll-option {
+  border-color: #333;
+  color: #ddd;
+}
+#phone-screen.dark-mode .forum-poll-bar {
+  background-color: #1c1c1c;
+}
+#phone-screen.dark-mode .forum-donation-bar-track {
+  background-color: #1c1c1c;
+}
+#phone-screen.dark-mode .forum-donation-bar-fill {
+  background-color: #eee;
+}
+#phone-screen.dark-mode .forum-chain-entry {
+  color: #ddd;
+  border-bottom-color: #1c1c1c;
+}
+#phone-screen.dark-mode .forum-rating-dim,
+#phone-screen.dark-mode .forum-rating-input-row {
+  color: #ddd;
+}
+#phone-screen.dark-mode .forum-wheel-result {
+  color: #eee;
+}
