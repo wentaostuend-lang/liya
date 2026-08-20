@@ -308,7 +308,10 @@ ${chat.settings.aiPersona}
           });
       if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
       const data = await response.json();
-      const raw = getGeminiResponseText(data);
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
       const jsonMatch = raw.match(/(\{[\s\S]*\})/);
       if (!jsonMatch) return;
       const result = JSON.parse(jsonMatch[0]);
@@ -401,6 +404,11 @@ ${chat.settings.aiPersona}
               post.commentCount = (post.commentCount || 0) + 1;
               await db.forumPosts.put(post);
             }
+            // 网友评论了别人的帖子，帖主(char或另一个网友)也可能回复
+            if (typeof window.maybeTriggerPostAuthorReply === 'function') {
+              window.maybeTriggerPostAuthorReply(action.postId, action.commentText, npc.name)
+                .catch(e => console.warn('[论坛] 帖主回复网友评论失败', e));
+            }
           } else if (action.type === 'forum_post' && action.content) {
             const board = boards.find(b => b.name === action.boardName) || boards[0];
             if (board) {
@@ -479,7 +487,10 @@ ${tasksString || '(暂无)'}
           });
       if (!response.ok) throw new Error(`API错误: ${response.statusText}`);
       const data = await response.json();
-      const raw = getGeminiResponseText(data);
+      const raw = (isGemini
+        ? data.candidates[0].content.parts[0].text
+        : data.choices[0].message.content
+      ).replace(/```json\s*|```\s*$/g, '').trim();
       const jsonMatch = raw.match(/(\[[\s\S]*\])/);
       if (!jsonMatch) return null;
       return JSON.parse(jsonMatch[0]);

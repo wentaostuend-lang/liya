@@ -123,6 +123,12 @@
   }
   window.loadMoreForumPosts = loadMoreForumPosts;
 
+  // 大数字显示成"1.2万"这种，热搜相关帖子会有夸张的高点赞/评论数，不格式化的话一长串数字很难看
+  function formatEngagementCount(n) {
+    if (n >= 10000) return `${(n / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+    return String(n);
+  }
+
   function getBoardNameById(boardId) {
     const board = window.forumBoardsCache.find(b => b.id === boardId);
     return board ? board.name : '';
@@ -168,8 +174,8 @@
       ? parseMarkdown(post.content || '').replace(/\n/g, '<br>')
       : (post.content || '').replace(/\n/g, '<br>');
 
-    const likeCount = (post.likes || []).length;
-    const commentCount = post.commentCount || 0;
+    const likeCount = (post.likes || []).length + (post.baseLikes || 0);
+    const commentCount = (post.commentCount || 0) + (post.baseCommentCount || 0);
     const liked = (post.likes || []).includes('user');
 
     const imageHtml = post.imageUrl
@@ -196,8 +202,8 @@
         <span class="forum-post-action forum-bookmark-btn">${ICON_BOOKMARK}</span>
       </div>
       <div class="forum-post-engagement">
-        ${likeCount > 0 ? `<span class="forum-like-count-text">${likeCount}人点赞</span>` : ''}
-        ${commentCount > 0 ? `<span class="forum-comment-count-text">查看全部${commentCount}条评论</span>` : ''}
+        ${likeCount > 0 ? `<span class="forum-like-count-text">${formatEngagementCount(likeCount)}人点赞</span>` : ''}
+        ${commentCount > 0 ? `<span class="forum-comment-count-text">查看全部${formatEngagementCount(commentCount)}条评论</span>` : ''}
       </div>
     `;
 
@@ -546,8 +552,8 @@
     const likeCount = post.likes.length;
     const commentCount = post.commentCount || 0;
     engagementEl.innerHTML = `
-      ${likeCount > 0 ? `<span class="forum-like-count-text">${likeCount}人点赞</span>` : ''}
-      ${commentCount > 0 ? `<span class="forum-comment-count-text">查看全部${commentCount}条评论</span>` : ''}
+      ${likeCount > 0 ? `<span class="forum-like-count-text">${formatEngagementCount(likeCount)}人点赞</span>` : ''}
+      ${commentCount > 0 ? `<span class="forum-comment-count-text">查看全部${formatEngagementCount(commentCount)}条评论</span>` : ''}
     `;
   }
 
@@ -636,7 +642,7 @@
   window.submitForumComment = submitForumComment;
 
   // ---------- 帖主回复评论(char/网友发的帖子，user评论了会自动回一条) ----------
-  async function maybeTriggerPostAuthorReply(postId, commentContent) {
+  async function maybeTriggerPostAuthorReply(postId, commentContent, commenterNameOverride) {
     const post = await db.forumPosts.get(postId);
     if (!post) return;
     if (post.authorType !== 'char' && post.authorType !== 'npc') return; // user自己的帖子不用自动回复
@@ -660,7 +666,9 @@
       authorNameForPrompt = post.authorDisplayName || '网友';
     }
 
-    const commenterName = getCurrentForumDisplayName();
+    const commenterName = commenterNameOverride || getCurrentForumDisplayName();
+    if (commenterName === authorNameForPrompt) return; // 别自己回自己的评论
+
     const prompt = `
 # 你的任务
 你是"${authorNameForPrompt}"，人设：${authorPersona || '(没有详细人设，符合网友身份自由发挥)'}
@@ -733,6 +741,7 @@
       console.warn('[论坛] 帖主自动回复生成失败', e);
     }
   }
+  window.maybeTriggerPostAuthorReply = maybeTriggerPostAuthorReply;
 
 
   // 手动触发给当前帖子生成一批网友评论(用现有网友人设，跟一键生成初始内容的评论逻辑类似，但只针对这一条帖子)
@@ -830,6 +839,12 @@ ${npcList}
         await db.forumPosts.put(freshPost);
       }
       await renderForumPostDetail();
+
+      // 挑最后一条有效评论，让帖主也可能回复一下(不用给每条评论都触发，避免刷屏)
+      const lastValid = [...comments].reverse().find(c => c.content);
+      if (lastValid) {
+        maybeTriggerPostAuthorReply(postId, lastValid.content, lastValid.authorName).catch(e => console.warn('[论坛] 帖主回复失败', e));
+      }
     } catch (e) {
       console.warn('[论坛] 生成评论失败', e);
       alert(`生成失败：${e.message || '未知错误'}`);
@@ -1178,7 +1193,7 @@ ${npcList}
     listEl.innerHTML = topics.map((t, i) => `
       <div class="forum-hottopic-row" data-topic-id="${t.id}">
         <span class="forum-hottopic-rank${i < 3 ? ' top' : ''}">${i + 1}</span>
-        <span class="forum-hottopic-keyword">${t.keyword}</span>
+        <span class="forum-hottopic-keyword">#${t.keyword}#</span>
         <span class="forum-hottopic-heat">🔥${t.heat}</span>
       </div>
     `).join('');
@@ -1208,7 +1223,7 @@ ${npcList}
 ${postsText}
 
 # 要求
-1. 提炼5-8个热搜词条，每个词条4-12字。
+1. 提炼8-12个热搜词条，每个词条4-12字。
 2. 每个词条给一个热度值(数字，1000-50000之间，越有梗/越多帖子提到的越高)。
 3. 只输出JSON数组，不要有其他文字：[{"keyword": "词条", "heat": 数字}]`;
 
@@ -1325,6 +1340,9 @@ ${postsText}
         const board = boards.find(b => b.name === p.boardName) || boards[0];
         if (!board) continue;
         const comments = p.comments || [];
+        // 热搜相关的帖子要有"爆款感"：夸张的点赞/评论基数，参考微博热搜内容的量级
+        const baseLikes = Math.floor(Math.random() * 400000) + 10000; // 1万~41万
+        const baseCommentCount = Math.floor(Math.random() * 15000) + 800; // 800~15800
         const id = await db.forumPosts.add({
           boardId: board.id,
           authorType: 'npc',
@@ -1334,7 +1352,9 @@ ${postsText}
           content: p.content || '',
           timestamp: Date.now(),
           likes: [],
+          baseLikes,
           commentCount: comments.length,
+          baseCommentCount,
         });
         for (const c of comments) {
           if (!c.content) continue;
