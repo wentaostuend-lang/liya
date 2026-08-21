@@ -354,7 +354,8 @@ ${dailyOutlineBlock}
 - 改自己的备注名：{"type": "change_remark_name", "hours_after": 数字, "new_name": "新备注名"}(心情/关系有变化时偶尔用，不要频繁改)
 ${forumBoardsForProactive.length > 0 ? `- 去论坛发帖：{"type": "forum_post", "hours_after": 数字, "boardName": "板块名，从这些里选一个：${forumBoardsForProactive.map(b => b.name).join('/')}", "content": "帖子内容", "asAlt": "小号名字(可选)", "createAlt": "新小号名字(可选)"}
   关于身份：不填asAlt/createAlt就是用真实身份发。${forumCharAltsForProactive.length > 0 ? `你已经有这些小号了：${forumCharAltsForProactive.map(a => a.altName).join('/')}——想匿名发就把asAlt填成其中一个名字；一般不需要再新建小号，除非确实想要一个全新的、没人认识的马甲，那才用createAlt取个新名字。` : '如果想匿名发但还没有小号，用createAlt取一个符合人设的名字，系统会自动帮你创建。'}
-  (不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)` : ''}
+  (不局限于负面情绪触发，符合人设的日常分享、突然想到的问题、想吐槽的小事、单纯手痒想发条状态，都可以去论坛发——但别每次都发，频率和内容要贴合角色平时的性格和使用习惯，不是每次主动回复都要带一条)
+  ${typeof window.FORUM_WIDGET_PROMPT_HINT === 'string' ? window.FORUM_WIDGET_PROMPT_HINT : ''}` : ''}
 ${forumRecentPostsForShare.length > 0 ? `- 转发论坛帖子给对方看：{"type": "forum_share_post", "hours_after": 数字, "postId": 帖子ID(从下面列表选), "comment": "转发时附带说的话，比如'笑死这个'、'你看这个'"}(看到论坛上有意思/相关的帖子，可以转发给对方一起看，偶尔用就好，不要频繁转)
   最近的论坛帖子(可选来转发)：\n${forumRecentPostsForShare.map(p => `  - ID:${p.id} 内容:${(p.content || '').substring(0, 50)}`).join('\n')}` : ''}
 - 发起外卖代付(想让对方帮忙付钱)：{"type": "waimai_request", "hours_after": 数字, "productInfo": "商品名，比如'奶茶'", "amount": 金额数字}
@@ -630,6 +631,10 @@ ${thoughtsAndStatusBlock}
             } : {}),
           };
           if (createAltName) newPost._pendingCreateAltName = createAltName; // AI自己取的新小号名，等forEach跑完统一await创建
+          if (entry.widget && typeof window.buildForumWidgetFromAIOutput === 'function') {
+            const proactiveWidget = window.buildForumWidgetFromAIOutput(entry.widget);
+            if (proactiveWidget) newPost.widget = proactiveWidget;
+          }
           forumPostsToCreate.push(newPost);
           // 论坛帖子本身在论坛app里看，这里只在聊天里留一条小提示，让用户知道TA去论坛发泄了
           // 用小号发的话，聊天里的提示也不点破具体内容，保留"小号=匿名"的悬念感

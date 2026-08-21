@@ -289,7 +289,8 @@ ${chat.settings.aiPersona}
 
 # 要求
 1. 板块从这些里选一个：${boardNames}
-2. 只输出JSON对象，不要有其他文字：{"boardName": "板块名", "content": "帖子内容"${charAlt ? `, "asAlt": true或false(true表示用小号"${charAlt.altName}"匿名发)` : `, "createAlt": "小号名字"(可选，如果你还没有小号但这次想匿名发，取一个符合人设的名字，系统会自动帮你创建这个小号并用它发布，以后就是你固定的马甲了)`}}`;
+2. 只输出JSON对象，不要有其他文字：{"boardName": "板块名", "content": "帖子内容"${charAlt ? `, "asAlt": true或false(true表示用小号"${charAlt.altName}"匿名发)` : `, "createAlt": "小号名字"(可选，如果你还没有小号但这次想匿名发，取一个符合人设的名字，系统会自动帮你创建这个小号并用它发布，以后就是你固定的马甲了)`}, "widget": {...}(可选)}
+${typeof window.FORUM_WIDGET_PROMPT_HINT === 'string' ? window.FORUM_WIDGET_PROMPT_HINT : ''}`;
 
     try {
       const messagesForApi = [{ role: 'user', content: '请生成这条帖子' }];
@@ -333,6 +334,9 @@ ${chat.settings.aiPersona}
         }
       }
 
+      const charWidget = (typeof window.buildForumWidgetFromAIOutput === 'function' && result.widget)
+        ? window.buildForumWidgetFromAIOutput(result.widget)
+        : null;
       await db.forumPosts.add({
         boardId: matchedBoard.id,
         authorType: 'char',
@@ -342,6 +346,7 @@ ${chat.settings.aiPersona}
         likes: [],
         commentCount: 0,
         ...(useAlt ? { authorAltId: finalAltId, authorDisplayName: finalAltName, authorAvatar: finalAltAvatar } : {}),
+        ...(charWidget ? { widget: charWidget } : {}),
       });
       console.log(`[论坛] 角色 "${chat.name}" 后台发布了一条帖子${useAlt ? '(小号)' : ''}`);
       if (document.getElementById('forum-screen')?.classList.contains('active') && typeof renderForumFeed === 'function') {
@@ -412,6 +417,9 @@ ${chat.settings.aiPersona}
           } else if (action.type === 'forum_post' && action.content) {
             const board = boards.find(b => b.name === action.boardName) || boards[0];
             if (board) {
+              const npcWidget = (typeof window.buildForumWidgetFromAIOutput === 'function' && action.widget)
+                ? window.buildForumWidgetFromAIOutput(action.widget)
+                : null;
               await db.forumPosts.add({
                 boardId: board.id,
                 authorType: 'npc',
@@ -422,6 +430,7 @@ ${chat.settings.aiPersona}
                 timestamp: Date.now(),
                 likes: [],
                 commentCount: 0,
+                ...(npcWidget ? { widget: npcWidget } : {}),
               });
             }
           }
@@ -468,7 +477,8 @@ ${tasksString || '(暂无)'}
    - 不用每句话都有主谓宾、有头有尾，可以说半句、带错别字谐音、省略主语，跟真实刷手机打字的状态一样
    - 别每条评论都在"认真回应楼主观点"，很多时候网友就是随便附和一句、玩个梗、或者跟别的评论互怼，不需要真的针对帖子内容展开论述
    - 不要用书面语/公文腔("我认为""值得关注""确实如此"这类)，要用口语、网络用语
-4. 只输出JSON数组：[{"type":"forum_comment","postId":123,"commentText":"..."}] 或 [{"type":"forum_post","boardName":"...","content":"..."}]，可以为空数组。`;
+4. 只输出JSON数组：[{"type":"forum_comment","postId":123,"commentText":"..."}] 或 [{"type":"forum_post","boardName":"...","content":"...","widget":{...}(可选，只有发新帖时能加)}]，可以为空数组。
+${typeof window.FORUM_WIDGET_PROMPT_HINT === 'string' ? window.FORUM_WIDGET_PROMPT_HINT : ''}`;
 
     try {
       const messagesForApi = [{ role: 'user', content: '请开始你的行动' }];

@@ -192,12 +192,14 @@
       </div>
       ${imageHtml}
       <div class="forum-post-content">${contentHtml}</div>
+      ${post.quotedPostSnapshot ? renderQuotedPostHtml(post) : ''}
       ${post.widget ? renderForumWidgetHtml(post) : ''}
       <div class="forum-post-footer">
         <div class="forum-post-actions-left">
           <span class="forum-post-action forum-like-btn${liked ? ' liked' : ''}">${ICON_HEART(liked)}</span>
           <span class="forum-post-action forum-comment-btn">${ICON_COMMENT}</span>
           <span class="forum-post-action forum-share-btn">${ICON_SHARE}</span>
+          <span class="forum-post-action forum-quote-btn" title="引用发帖">${ICON_QUOTE}</span>
         </div>
         <span class="forum-post-action forum-bookmark-btn">${ICON_BOOKMARK}</span>
       </div>
@@ -211,6 +213,11 @@
     el.querySelector('.forum-comment-btn').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-post-content').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-share-btn').addEventListener('click', () => openForumForwardModal(post.id));
+    el.querySelector('.forum-quote-btn').addEventListener('click', () => openForumCreatePostModal(post.id));
+    el.querySelector('.forum-quoted-card')?.addEventListener('click', (e) => {
+      e.stopPropagation(); // 别触发到外层content的点击（那个会跳到本帖详情，这里要跳去被引用的那条）
+      if (post.quotedPostId != null) openForumPostDetail(post.quotedPostId);
+    });
     if (post.widget) bindForumWidgetEvents(el, post);
 
     return el;
@@ -225,6 +232,21 @@
   const ICON_COMMENT = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>`;
   const ICON_SHARE = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>`;
   const ICON_BOOKMARK = `<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path></svg>`;
+  const ICON_QUOTE = `<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V21z"></path><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v4z"></path></svg>`;
+
+  function renderQuotedPostHtml(post) {
+    const q = post.quotedPostSnapshot;
+    const previewText = (q.content || '').length > 80 ? q.content.slice(0, 80) + '...' : (q.content || '');
+    return `
+      <div class="forum-quoted-card" data-quoted-post-id="${post.quotedPostId}">
+        <div class="forum-quoted-card-header">
+          ${q.avatar ? `<img src="${q.avatar}" class="forum-share-card-avatar">` : ''}
+          <span class="forum-share-card-name">${q.authorName || '未知用户'}</span>
+          ${q.boardName ? `<span class="forum-share-card-board">· ${q.boardName}</span>` : ''}
+        </div>
+        <div class="forum-quoted-card-content">${previewText}</div>
+      </div>`;
+  }
 
   // ============================================================
   // 互动组件：投票/打赏进度条/接龙/悬赏倒计时/评分卡/骰子/转盘
@@ -256,6 +278,53 @@
     if (w.type === 'wheel') return renderWheelHtml(post);
     return '';
   }
+
+  // 把AI生成的简化widget配置转成完整的{type,data,state}对象，供NPC/char自动发帖时使用
+  // (跟手动发帖弹窗collectWidgetConfigFromForm是同一套shape，只是数据来源不同)
+  function buildForumWidgetFromAIOutput(w) {
+    if (!w || !w.type) return null;
+    try {
+      if (w.type === 'poll' && Array.isArray(w.options) && w.options.length >= 2) {
+        return { type: 'poll', data: { options: w.options }, state: { votes: w.options.map(() => 0), voters: [] } };
+      }
+      if (w.type === 'donation' && w.goal) {
+        return { type: 'donation', data: { title: w.title || '众筹', goal: Number(w.goal) || 100 }, state: { raised: 0, contributors: [] } };
+      }
+      if (w.type === 'chain') {
+        return { type: 'chain', data: { prompt: w.prompt || '' }, state: { entries: [] } };
+      }
+      if (w.type === 'bounty' && w.prompt) {
+        const hours = Math.max(1, Number(w.hours) || 24);
+        return { type: 'bounty', data: { prompt: w.prompt, deadline: Date.now() + hours * 3600000 }, state: { submissions: [] } };
+      }
+      if (w.type === 'rating' && Array.isArray(w.dims) && w.dims.length >= 2) {
+        return { type: 'rating', data: { dims: w.dims }, state: { ratings: [] } };
+      }
+      if (w.type === 'dice') {
+        return { type: 'dice', data: {}, state: { history: [] } };
+      }
+      if (w.type === 'wheel' && Array.isArray(w.options) && w.options.length >= 2) {
+        return { type: 'wheel', data: { options: w.options }, state: { history: [] } };
+      }
+    } catch (e) {
+      console.warn('[论坛] 解析AI生成的widget失败', e);
+    }
+    return null;
+  }
+  window.buildForumWidgetFromAIOutput = buildForumWidgetFromAIOutput;
+
+  // 塞进prompt里的通用widget说明文字，7种类型的生成入口都复用这一段，保持格式统一
+  const FORUM_WIDGET_PROMPT_HINT = `
+可选：给帖子附带一个互动小组件(不是每次都要加，大概10-20%概率加，太频繁会很奇怪)，格式为widget字段：
+- 投票：{"type":"poll","options":["选项A","选项B",...]}(2-6个选项)
+- 打赏/众筹：{"type":"donation","title":"标题","goal":数字}
+- 接龙：{"type":"chain","prompt":"接龙主题(可选)"}
+- 悬赏倒计时：{"type":"bounty","prompt":"悬赏内容","hours":数字}
+- 评分卡：{"type":"rating","dims":["维度1","维度2",...]}(2-5个维度)
+- 骰子：{"type":"dice"}
+- 转盘：{"type":"wheel","options":["选项A","选项B",...]}(2-8个选项)
+不想加就不要输出widget字段。`;
+  window.FORUM_WIDGET_PROMPT_HINT = FORUM_WIDGET_PROMPT_HINT;
 
   function bindForumWidgetEvents(el, post) {
     const w = post.widget;
@@ -1529,7 +1598,8 @@ ${boards.map(b => b.name).join('/')}
 3. 评论里偶尔可以互相@/回复(用replyTo字段写被回复的网友名字，没有specific回复对象就留空)。
 4. 【重要】评论要像真人刷手机随手打字：大部分应该很短(一句话甚至几个字)，不用每条都完整通顺、有头有尾，别用"我认为""确实如此"这类书面语，多用口语和网络用语。帖子本身可以稍微完整一点，但也别写成小作文。
 5. 只输出JSON数组，不要有其他文字：
-[{"boardName": "板块名", "authorName": "网友名", "content": "帖子内容", "comments": [{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]`;
+[{"boardName": "板块名", "authorName": "网友名", "content": "帖子内容", "widget": {...}(可选，只有少数帖子加就好), "comments": [{"authorName": "网友名", "content": "评论内容", "replyTo": "被回复的网友名(可选)"}]}]
+${typeof FORUM_WIDGET_PROMPT_HINT === 'string' ? FORUM_WIDGET_PROMPT_HINT : ''}`;
 
       const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
       const messagesForApi = [{ role: 'user', content: '请开始生成' }];
@@ -1565,6 +1635,7 @@ ${boards.map(b => b.name).join('/')}
         const author = npcByName[p.authorName];
         if (!board || !p.content) continue;
 
+        const seedWidget = p.widget ? buildForumWidgetFromAIOutput(p.widget) : null;
         const postId = await db.forumPosts.add({
           boardId: board.id,
           authorType: 'npc',
@@ -1575,6 +1646,7 @@ ${boards.map(b => b.name).join('/')}
           timestamp: Date.now() - Math.floor(Math.random() * 72 * 3600000), // 随机分布在过去3天内，看起来不是同一秒炸出来的
           likes: [],
           commentCount: (p.comments || []).length,
+          ...(seedWidget ? { widget: seedWidget } : {}),
         });
 
         for (const c of (p.comments || [])) {
@@ -1972,7 +2044,9 @@ ${boards.map(b => b.name).join('/')}
     }
   }
 
-  function openForumCreatePostModal() {
+  let pendingQuotePostId = null;
+
+  async function openForumCreatePostModal(quotePostId = null) {
     const modal = document.getElementById('forum-create-post-modal');
     const textarea = document.getElementById('forum-create-post-textarea');
     const select = document.getElementById('forum-create-post-board-select');
@@ -1987,11 +2061,37 @@ ${boards.map(b => b.name).join('/')}
     const widgetSelect = document.getElementById('forum-widget-type-select');
     if (widgetSelect) widgetSelect.value = '';
     renderWidgetConfigArea('');
+
+    pendingQuotePostId = quotePostId;
+    const quoteWrap = document.getElementById('forum-quote-preview-wrap');
+    if (quotePostId) {
+      const quotedPost = await db.forumPosts.get(quotePostId);
+      if (quotedPost) {
+        const author = resolveForumAuthor(quotedPost);
+        const boardName = getBoardNameById(quotedPost.boardId);
+        const previewText = (quotedPost.content || '').length > 80 ? quotedPost.content.slice(0, 80) + '...' : (quotedPost.content || '');
+        document.getElementById('forum-quote-preview-content').innerHTML = `
+          <div class="forum-quoted-card">
+            <div class="forum-quoted-card-header">
+              ${author.avatar ? `<img src="${author.avatar}" class="forum-share-card-avatar">` : ''}
+              <span class="forum-share-card-name">${author.name}</span>
+              ${boardName ? `<span class="forum-share-card-board">· ${boardName}</span>` : ''}
+            </div>
+            <div class="forum-quoted-card-content">${previewText}</div>
+          </div>`;
+        quoteWrap.style.display = 'block';
+      }
+    } else {
+      quoteWrap.style.display = 'none';
+      document.getElementById('forum-quote-preview-content').innerHTML = '';
+    }
+
     modal.style.display = 'flex';
   }
 
   function closeForumCreatePostModal() {
     (function(){const m=document.getElementById('forum-create-post-modal'); if(m) m.style.display='none';})();
+    pendingQuotePostId = null;
   }
 
   // ---------- 互动组件：发帖时的配置表单 ----------
@@ -2150,8 +2250,23 @@ ${boards.map(b => b.name).join('/')}
     };
     if (pendingForumImage) newPost.imageUrl = pendingForumImage;
     if (widget) newPost.widget = widget;
+    if (pendingQuotePostId != null) {
+      const quotedPost = await db.forumPosts.get(pendingQuotePostId);
+      if (quotedPost) {
+        const author = resolveForumAuthor(quotedPost);
+        const boardName = getBoardNameById(quotedPost.boardId);
+        newPost.quotedPostId = pendingQuotePostId;
+        newPost.quotedPostSnapshot = {
+          authorName: author.name,
+          avatar: author.avatar,
+          boardName,
+          content: quotedPost.content || '',
+        };
+      }
+    }
     await db.forumPosts.add(newPost);
 
+    pendingQuotePostId = null;
     closeForumCreatePostModal();
     await renderForumFeed();
   }
@@ -2159,7 +2274,7 @@ ${boards.map(b => b.name).join('/')}
 
   // ---------- 事件绑定 ----------
   document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('forum-create-post-btn')?.addEventListener('click', openForumCreatePostModal);
+    document.getElementById('forum-create-post-btn')?.addEventListener('click', () => openForumCreatePostModal());
     document.getElementById('forum-create-post-close-btn')?.addEventListener('click', closeForumCreatePostModal);
     document.getElementById('forum-widget-type-select')?.addEventListener('change', (e) => renderWidgetConfigArea(e.target.value));
     document.getElementById('forum-create-post-submit-btn')?.addEventListener('click', submitForumPost);
