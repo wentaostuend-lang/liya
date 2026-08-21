@@ -845,6 +845,39 @@
   margin-bottom: 6px;
 }
 
+/* ---------- 引用发帖：帖子正文里嵌的引用卡片，跟随论坛dark-mode ---------- */
+.forum-quoted-card {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background-color: #fafafa;
+  cursor: pointer;
+}
+.forum-quoted-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.forum-quoted-card-content {
+  font-size: 13px;
+  color: #444;
+  line-height: 1.5;
+}
+#phone-screen.dark-mode .forum-quoted-card {
+  background-color: #0a0a0a;
+  border-color: #222;
+}
+#phone-screen.dark-mode .forum-quoted-card-content {
+  color: #bbb;
+}
+
+/* 发帖弹窗里的引用预览(结构复用forum-quoted-card，样式跟随全局light/dark) */
+#forum-quote-preview-content .forum-quoted-card {
+  cursor: default;
+}
+
 /* ---------- 转发选择聊天的弹窗 ---------- */
 .forum-forward-chat-row {
   display: flex;
