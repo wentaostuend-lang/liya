@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.11.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.12.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -108,7 +108,7 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.12.0" defer></script>
+  <script src="modules/forum.js?v=0.13.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
@@ -5267,11 +5267,15 @@
         <div class="header-actions"></div>
       </div>
       <div id="forum-profile-body" class="forum-post-detail-body">
+        <div class="forum-profile-banner"></div>
         <div class="forum-profile-header">
           <img id="forum-profile-avatar" class="forum-profile-avatar" src="">
+          <button id="forum-profile-dm-btn" class="forum-profile-dm-btn">私信</button>
+        </div>
+        <div class="forum-profile-info">
           <div class="forum-profile-name" id="forum-profile-name"></div>
-          <div class="forum-profile-actions">
-            <button id="forum-profile-dm-btn" class="forum-widget-btn">私信</button>
+          <div class="forum-profile-stats">
+            <span id="forum-profile-post-count">0</span> 条帖子
           </div>
         </div>
         <div class="forum-profile-tabs">
@@ -5280,9 +5284,12 @@
         </div>
         <div id="forum-profile-posts-list"></div>
         <div id="forum-profile-askbox-area" style="display:none;">
-          <div class="forum-widget-input-row">
-            <input type="text" id="forum-askbox-input" class="forum-widget-text-input" placeholder="留个问题...">
-            <button id="forum-askbox-submit-btn" class="forum-widget-btn">提问</button>
+          <div class="forum-askbox-card">
+            <img id="forum-askbox-avatar" class="forum-askbox-card-avatar" src="">
+            <div class="forum-askbox-input-wrap">
+              <textarea id="forum-askbox-input" class="forum-askbox-textarea" placeholder="请向TA匿名提问..." rows="2"></textarea>
+              <button id="forum-askbox-submit-btn" class="forum-askbox-submit-btn">提问</button>
+            </div>
           </div>
           <div id="forum-askbox-list"></div>
         </div>
