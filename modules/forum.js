@@ -135,6 +135,33 @@
   }
 
   // 统一解析作者信息：目前只有 user / char 两种authorType（网友NPC等到第2步接进来）
+  // ============================================================
+  // 个人主页/私信/提问箱：需要一套"身份key"来判断"这条帖子是不是同一个人发的"
+  // (user小号只按altId识别，char按chatId或altId，npc按名字识别——因为历史上NPC的authorId写法不统一，名字是唯一可靠的字段)
+  // ============================================================
+  function getForumProfileKey(post) {
+    if (post.authorAltId) return { kind: 'alt', altId: post.authorAltId };
+    if (post.authorType === 'char') return { kind: 'char', chatId: post.authorId };
+    if (post.authorType === 'npc') return { kind: 'npc', name: post.authorDisplayName || '' };
+    if (post.authorType === 'user') return { kind: 'user' };
+    return { kind: 'unknown' };
+  }
+  function profileKeyMatches(post, key) {
+    const pk = getForumProfileKey(post);
+    if (pk.kind !== key.kind) return false;
+    if (key.kind === 'alt') return pk.altId === key.altId;
+    if (key.kind === 'char') return pk.chatId === key.chatId;
+    if (key.kind === 'npc') return pk.name === key.name;
+    return key.kind === 'user';
+  }
+  // profileKey序列化成字符串，方便存进DM表的participantId字段(数据库不好存复杂对象做索引)
+  function serializeProfileKey(key) {
+    return JSON.stringify(key);
+  }
+  function deserializeProfileKey(str) {
+    try { return JSON.parse(str); } catch (e) { return { kind: 'unknown' }; }
+  }
+
   function resolveForumAuthor(post) {
     if (post.authorType === 'user') {
       if (post.authorAltId) {
@@ -214,6 +241,8 @@
     el.querySelector('.forum-post-content').addEventListener('click', () => openForumPostDetail(post.id));
     el.querySelector('.forum-share-btn').addEventListener('click', () => openForumForwardModal(post.id));
     el.querySelector('.forum-quote-btn').addEventListener('click', () => openForumCreatePostModal(post.id));
+    el.querySelector('.forum-post-avatar')?.addEventListener('click', () => openForumProfile(post));
+    el.querySelector('.forum-post-name')?.addEventListener('click', () => openForumProfile(post));
     el.querySelector('.forum-quoted-card')?.addEventListener('click', (e) => {
       e.stopPropagation(); // 别触发到外层content的点击（那个会跳到本帖详情，这里要跳去被引用的那条）
       if (post.quotedPostId != null) openForumPostDetail(post.quotedPostId);
@@ -663,6 +692,15 @@
     commentsWrap.className = 'forum-comments-wrap';
     commentsWrap.innerHTML = `<div class="forum-comments-title">评论 ${comments.length || ''}</div>${commentsHtml}`;
     bodyEl.appendChild(commentsWrap);
+
+    commentsWrap.querySelectorAll('.forum-comment-avatar-clickable').forEach(el => {
+      el.addEventListener('click', () => {
+        try {
+          const authorData = JSON.parse(decodeURIComponent(el.dataset.authorKey));
+          openForumProfile(authorData);
+        } catch (e) { /* 数据坏了就不跳转 */ }
+      });
+    });
   }
 
   function renderForumCommentHtml(comment) {
@@ -672,11 +710,19 @@
       ? parseMarkdown(comment.content || '').replace(/\n/g, '<br>')
       : (comment.content || '').replace(/\n/g, '<br>');
     const replyToHtml = comment.replyToName ? `<span class="forum-comment-reply-to">回复 @${comment.replyToName}：</span>` : '';
+    // 把身份信息编码进data属性，方便事件委托时反查profileKey(评论列表是批量innerHTML插入的，不好逐条绑监听)
+    const authorKeyJson = encodeURIComponent(JSON.stringify({
+      authorType: comment.authorType,
+      authorId: comment.authorId,
+      authorAltId: comment.authorAltId,
+      authorDisplayName: comment.authorDisplayName,
+      authorAvatar: comment.authorAvatar,
+    }));
     return `
       <div class="forum-comment-item">
-        <img class="forum-comment-avatar" src="${author.avatar}" alt="${author.name}">
+        <img class="forum-comment-avatar forum-comment-avatar-clickable" src="${author.avatar}" alt="${author.name}" data-author-key="${authorKeyJson}">
         <div class="forum-comment-main">
-          <span class="forum-comment-name">${author.name}</span>
+          <span class="forum-comment-name forum-comment-avatar-clickable" data-author-key="${authorKeyJson}">${author.name}</span>
           <div class="forum-comment-text">${replyToHtml}${contentHtml}</div>
           <span class="forum-comment-time">${timeText}</span>
         </div>
@@ -1532,6 +1578,275 @@ ${postsText}
     pendingForwardPostId = null;
   }
   window.openForumForwardModal = openForumForwardModal;
+
+  // ============================================================
+  // 个人主页
+  // ============================================================
+  let activeProfileKey = null;
+  let activeProfileInfo = null; // {name, avatar}
+
+  async function openForumProfile(post) {
+    activeProfileKey = getForumProfileKey(post);
+    if (activeProfileKey.kind === 'unknown') return;
+    activeProfileInfo = resolveForumAuthor(post);
+
+    showScreen('forum-profile-screen');
+    document.getElementById('forum-profile-avatar').src = activeProfileInfo.avatar || FORUM_DEFAULT_AVATAR;
+    document.getElementById('forum-profile-name').textContent = activeProfileInfo.name;
+
+    // user自己的主页不需要私信按钮(不能私信自己)
+    const dmBtn = document.getElementById('forum-profile-dm-btn');
+    dmBtn.style.display = activeProfileKey.kind === 'user' ? 'none' : 'inline-block';
+
+    // 切回"帖子"tab
+    document.querySelectorAll('.forum-profile-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'posts'));
+    document.getElementById('forum-profile-posts-list').style.display = 'block';
+    document.getElementById('forum-profile-askbox-area').style.display = 'none';
+
+    await renderForumProfilePosts();
+    await renderForumAskBoxList();
+  }
+  window.openForumProfile = openForumProfile;
+
+  async function renderForumProfilePosts() {
+    const listEl = document.getElementById('forum-profile-posts-list');
+    if (!listEl || !activeProfileKey) return;
+    const allPosts = await db.forumPosts.orderBy('timestamp').reverse().toArray();
+    const myPosts = allPosts.filter(p => profileKeyMatches(p, activeProfileKey));
+
+    listEl.innerHTML = '';
+    if (myPosts.length === 0) {
+      listEl.innerHTML = '<p class="forum-empty-tip">还没有发过帖子</p>';
+      return;
+    }
+    for (const post of myPosts) {
+      const boardName = getBoardNameById(post.boardId);
+      const postEl = await createForumPostElement(post, boardName);
+      listEl.appendChild(postEl);
+    }
+  }
+
+  // ---------- 提问箱 ----------
+  async function renderForumAskBoxList() {
+    const listEl = document.getElementById('forum-askbox-list');
+    if (!listEl || !activeProfileKey) return;
+    const all = await db.forumAskBoxQuestions.toArray();
+    const mine = all
+      .filter(q => q.targetKind === activeProfileKey.kind && q.targetKey === serializeProfileKey(activeProfileKey))
+      .sort((a, b) => b.timestamp - a.timestamp);
+
+    listEl.innerHTML = mine.map(q => `
+      <div class="forum-askbox-item">
+        <div class="forum-askbox-q">❓ ${q.question}</div>
+        ${q.answer ? `<div class="forum-askbox-a">💬 ${q.answer}</div>` : '<div class="forum-widget-meta">还没回答</div>'}
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有人提问，来第一个</p>';
+  }
+
+  async function submitAskBoxQuestion() {
+    const input = document.getElementById('forum-askbox-input');
+    const question = input.value.trim();
+    if (!question || !activeProfileKey) return;
+    input.value = '';
+
+    const targetKey = serializeProfileKey(activeProfileKey);
+    const qId = await db.forumAskBoxQuestions.add({
+      targetKind: activeProfileKey.kind,
+      targetKey,
+      question,
+      answer: '',
+      timestamp: Date.now(),
+    });
+    await renderForumAskBoxList();
+
+    // 让对方(char/npc)当场回答，user自己的提问箱不用自动回答
+    if (activeProfileKey.kind === 'user') return;
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return;
+
+    let persona = '';
+    let name = activeProfileInfo?.name || '';
+    if (activeProfileKey.kind === 'char') {
+      persona = state.chats[activeProfileKey.chatId]?.settings?.aiPersona || '';
+    } else if (activeProfileKey.kind === 'npc') {
+      persona = (await db.forumNpcs.where('name').equals(activeProfileKey.name).first())?.persona || '';
+    } else if (activeProfileKey.kind === 'alt') {
+      const alt = await db.forumAlts.get(activeProfileKey.altId);
+      if (alt?.ownerType === 'char') persona = state.chats[alt.ownerId]?.settings?.aiPersona || '';
+    }
+
+    const prompt = `
+# 你的任务
+你是"${name}"，人设：${persona || '(没有详细人设，自由发挥)'}
+有人在你的提问箱里留了个问题："${question}"
+请回答这个问题。
+
+# 要求
+像真人随手回复，简短自然，不用写成一大段。只输出JSON对象：{"answer": "回答内容"}`;
+
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请回答' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'system', content: prompt }, ...messagesForApi], temperature: 1 }),
+          });
+      if (!response.ok) return;
+      const data = await response.json();
+      const raw = (isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) return;
+      const result = JSON.parse(jsonMatch[0]);
+      if (!result.answer) return;
+      await db.forumAskBoxQuestions.update(qId, { answer: result.answer });
+      await renderForumAskBoxList();
+    } catch (e) {
+      console.warn('[论坛] 提问箱回答生成失败', e);
+    }
+  }
+
+  // ============================================================
+  // 私信
+  // ============================================================
+  async function findOrCreateDmThread(profileKey, participantInfo) {
+    const participantId = serializeProfileKey(profileKey);
+    let thread = await db.forumDMThreads.where({ participantId }).first();
+    if (!thread) {
+      const threadId = await db.forumDMThreads.add({
+        participantType: profileKey.kind,
+        participantId,
+        participantName: participantInfo.name,
+        participantAvatar: participantInfo.avatar || '',
+        lastMessageTimestamp: Date.now(),
+        lastMessagePreview: '',
+      });
+      thread = await db.forumDMThreads.get(threadId);
+    }
+    return thread;
+  }
+
+  async function openForumDmThread(profileKey, participantInfo) {
+    const thread = await findOrCreateDmThread(profileKey, participantInfo);
+    window.activeForumDmThreadId = thread.id;
+    showScreen('forum-dm-thread-screen');
+    document.getElementById('forum-dm-thread-title').textContent = thread.participantName;
+    await renderForumDmThread();
+  }
+
+  async function renderForumDmThread() {
+    const threadId = window.activeForumDmThreadId;
+    const bodyEl = document.getElementById('forum-dm-thread-body');
+    if (!bodyEl || threadId == null) return;
+    const msgs = await db.forumDMs.where('threadId').equals(threadId).sortBy('timestamp');
+    bodyEl.innerHTML = msgs.map(m => `
+      <div class="forum-dm-msg ${m.senderType === 'user' ? 'forum-dm-msg-me' : 'forum-dm-msg-other'}">
+        <div class="forum-dm-bubble">${m.content}</div>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">开始聊天吧</p>';
+    bodyEl.scrollTop = bodyEl.scrollHeight;
+  }
+
+  async function submitForumDm() {
+    const threadId = window.activeForumDmThreadId;
+    const input = document.getElementById('forum-dm-input');
+    const content = input.value.trim();
+    if (!content || threadId == null) return;
+    input.value = '';
+
+    await db.forumDMs.add({ threadId, senderType: 'user', content, timestamp: Date.now() });
+    const thread = await db.forumDMThreads.get(threadId);
+    await db.forumDMThreads.update(threadId, { lastMessageTimestamp: Date.now(), lastMessagePreview: content });
+    await renderForumDmThread();
+
+    triggerDmReply(threadId, thread, content).catch(e => console.warn('[论坛] 私信回复失败', e));
+  }
+  window.submitForumDm = submitForumDm;
+
+  async function triggerDmReply(threadId, thread, userMessage) {
+    const apiConfig = state.apiConfig || {};
+    if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return;
+    const key = deserializeProfileKey(thread.participantId);
+
+    let persona = '';
+    if (key.kind === 'char') persona = state.chats[key.chatId]?.settings?.aiPersona || '';
+    else if (key.kind === 'npc') persona = (await db.forumNpcs.where('name').equals(key.name).first())?.persona || '';
+    else if (key.kind === 'alt') {
+      const alt = await db.forumAlts.get(key.altId);
+      if (alt?.ownerType === 'char') persona = state.chats[alt.ownerId]?.settings?.aiPersona || '';
+    }
+
+    const recentMsgs = await db.forumDMs.where('threadId').equals(threadId).sortBy('timestamp');
+    const historyText = recentMsgs.slice(-10).map(m => `${m.senderType === 'user' ? '对方' : '你'}：${m.content}`).join('\n');
+
+    const prompt = `
+# 你的任务
+你是"${thread.participantName}"，人设：${persona || '(没有详细人设，自由发挥)'}
+这是你和对方在论坛私信里的对话记录：
+${historyText}
+
+请回复对方最新这条消息。
+
+# 要求
+像真人私聊打字，简短自然，不用完整通顺，可以分段的感觉但只输出一条回复。只输出JSON对象：{"reply": "回复内容"}`;
+
+    try {
+      const isGemini = apiConfig.proxyUrl.includes('generativelanguage');
+      const messagesForApi = [{ role: 'user', content: '请回复' }];
+      const geminiConfig = typeof toGeminiRequestData === 'function'
+        ? toGeminiRequestData(apiConfig.model, apiConfig.apiKey, prompt, messagesForApi)
+        : null;
+      const response = isGemini && geminiConfig
+        ? await fetch(geminiConfig.url, geminiConfig.data)
+        : await fetch(`${apiConfig.proxyUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiConfig.apiKey}` },
+            body: JSON.stringify({ model: apiConfig.model, messages: [{ role: 'system', content: prompt }, ...messagesForApi], temperature: 1 }),
+          });
+      if (!response.ok) return;
+      const data = await response.json();
+      const raw = (isGemini ? data.candidates[0].content.parts[0].text : data.choices[0].message.content).replace(/```json\s*|```\s*$/g, '').trim();
+      const jsonMatch = raw.match(/(\{[\s\S]*\})/);
+      if (!jsonMatch) return;
+      const result = JSON.parse(jsonMatch[0]);
+      if (!result.reply) return;
+
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1500));
+      await db.forumDMs.add({ threadId, senderType: 'other', content: result.reply, timestamp: Date.now() });
+      await db.forumDMThreads.update(threadId, { lastMessageTimestamp: Date.now(), lastMessagePreview: result.reply });
+      if (window.activeForumDmThreadId === threadId) await renderForumDmThread();
+    } catch (e) {
+      console.warn('[论坛] 私信AI回复生成失败', e);
+    }
+  }
+
+  async function openForumDmInbox() {
+    showScreen('forum-dm-inbox-screen');
+    const listEl = document.getElementById('forum-dm-inbox-list');
+    const threads = (await db.forumDMThreads.toArray()).sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
+    listEl.innerHTML = threads.map(t => `
+      <div class="forum-identity-row" data-thread-id="${t.id}">
+        <img class="forum-identity-avatar" src="${t.participantAvatar || FORUM_DEFAULT_AVATAR}">
+        <span style="flex:1;">${t.participantName}<span style="color:#999; font-weight:400; display:block; font-size:11.5px;">${t.lastMessagePreview || ''}</span></span>
+      </div>
+    `).join('') || '<p class="forum-empty-tip">还没有私信</p>';
+
+    listEl.querySelectorAll('.forum-identity-row').forEach(row => {
+      row.addEventListener('click', async () => {
+        const threadId = Number(row.dataset.threadId);
+        const thread = await db.forumDMThreads.get(threadId);
+        window.activeForumDmThreadId = threadId;
+        showScreen('forum-dm-thread-screen');
+        document.getElementById('forum-dm-thread-title').textContent = thread.participantName;
+        await renderForumDmThread();
+      });
+    });
+  }
 
   // ---------- 一键批量生成初始内容 ----------
   async function openForumSeedModal() {
@@ -2415,6 +2730,34 @@ ${typeof FORUM_WIDGET_PROMPT_HINT === 'string' ? FORUM_WIDGET_PROMPT_HINT : ''}`
     document.getElementById('forum-forward-close-btn')?.addEventListener('click', () => {
       const m = document.getElementById('forum-forward-modal');
       if (m) m.style.display = 'none';
+    });
+
+    // 个人主页
+    document.querySelectorAll('.forum-profile-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.forum-profile-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const isPosts = tab.dataset.tab === 'posts';
+        document.getElementById('forum-profile-posts-list').style.display = isPosts ? 'block' : 'none';
+        document.getElementById('forum-profile-askbox-area').style.display = isPosts ? 'none' : 'block';
+      });
+    });
+    document.getElementById('forum-profile-dm-btn')?.addEventListener('click', () => {
+      if (activeProfileKey && activeProfileInfo) openForumDmThread(activeProfileKey, activeProfileInfo);
+    });
+    document.getElementById('forum-askbox-submit-btn')?.addEventListener('click', submitAskBoxQuestion);
+    document.getElementById('forum-askbox-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submitAskBoxQuestion();
+    });
+
+    // 私信
+    document.getElementById('forum-dm-inbox-btn')?.addEventListener('click', openForumDmInbox);
+    document.getElementById('forum-dm-send-btn')?.addEventListener('click', submitForumDm);
+    document.getElementById('forum-dm-input')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        submitForumDm();
+      }
     });
 
     // 网友管理：AI批量生成

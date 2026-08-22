@@ -135,4 +135,9 @@ db.version(60).stores({
   forumAvatarPool: '++id, url',
 });
 
+// 论坛：提问箱(留言问问题，对方AI来回答，答案公开显示在对方主页上)
+db.version(61).stores({
+  forumAskBoxQuestions: '++id, targetKind, targetKey, timestamp',
+});
+
 window.db = db;
