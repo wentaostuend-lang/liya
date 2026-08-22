@@ -1592,11 +1592,13 @@ ${postsText}
 
     showScreen('forum-profile-screen');
     document.getElementById('forum-profile-avatar').src = activeProfileInfo.avatar || FORUM_DEFAULT_AVATAR;
+    document.getElementById('forum-askbox-avatar').src = activeProfileInfo.avatar || FORUM_DEFAULT_AVATAR;
     document.getElementById('forum-profile-name').textContent = activeProfileInfo.name;
+    document.getElementById('forum-askbox-input').placeholder = `请向${activeProfileInfo.name}匿名提问...`;
 
     // user自己的主页不需要私信按钮(不能私信自己)
     const dmBtn = document.getElementById('forum-profile-dm-btn');
-    dmBtn.style.display = activeProfileKey.kind === 'user' ? 'none' : 'inline-block';
+    dmBtn.style.display = activeProfileKey.kind === 'user' ? 'none' : 'inline-flex';
 
     // 切回"帖子"tab
     document.querySelectorAll('.forum-profile-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === 'posts'));
@@ -1613,6 +1615,9 @@ ${postsText}
     if (!listEl || !activeProfileKey) return;
     const allPosts = await db.forumPosts.orderBy('timestamp').reverse().toArray();
     const myPosts = allPosts.filter(p => profileKeyMatches(p, activeProfileKey));
+
+    const countEl = document.getElementById('forum-profile-post-count');
+    if (countEl) countEl.textContent = myPosts.length;
 
     listEl.innerHTML = '';
     if (myPosts.length === 0) {
@@ -1640,7 +1645,7 @@ ${postsText}
         <div class="forum-askbox-q">❓ ${q.question}</div>
         ${q.answer ? `<div class="forum-askbox-a">💬 ${q.answer}</div>` : '<div class="forum-widget-meta">还没回答</div>'}
       </div>
-    `).join('') || '<p class="forum-empty-tip">还没有人提问，来第一个</p>';
+    `).join('') || '<p class="forum-empty-tip forum-askbox-empty">暂无提问</p>';
   }
 
   async function submitAskBoxQuestion() {
@@ -2747,7 +2752,10 @@ ${typeof FORUM_WIDGET_PROMPT_HINT === 'string' ? FORUM_WIDGET_PROMPT_HINT : ''}`
     });
     document.getElementById('forum-askbox-submit-btn')?.addEventListener('click', submitAskBoxQuestion);
     document.getElementById('forum-askbox-input')?.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') submitAskBoxQuestion();
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        submitAskBoxQuestion();
+      }
     });
 
     // 私信
