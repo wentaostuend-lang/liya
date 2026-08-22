@@ -608,7 +608,13 @@
 /* ============================================================
    夜间模式：跟随全局 #phone-screen.dark-mode
    ============================================================ */
-#phone-screen.dark-mode #forum-screen {
+#phone-screen.dark-mode #forum-screen,
+#phone-screen.dark-mode #forum-post-detail-screen,
+#phone-screen.dark-mode #forum-hottopics-screen,
+#phone-screen.dark-mode #forum-hottopic-detail-screen,
+#phone-screen.dark-mode #forum-profile-screen,
+#phone-screen.dark-mode #forum-dm-inbox-screen,
+#phone-screen.dark-mode #forum-dm-thread-screen {
   background-color: #000;
   color: #eee;
 }
