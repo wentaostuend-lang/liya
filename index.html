@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="css/features-3.css?v=0.0.36">
   <link rel="stylesheet" href="css/features-4.css?v=0.0.36">
   <link rel="stylesheet" href="css/douban.css?v=0.0.36">
-  <link rel="stylesheet" href="css/forum.css?v=0.10.0">
+  <link rel="stylesheet" href="css/forum.css?v=0.11.0">
   <link rel="stylesheet" href="css/douban-menu.css?v=0.0.36">
   <link rel="stylesheet" href="update-notification.css?v=0.0.36">
   <link rel="stylesheet" href="structured-memory.css?v=0.0.36">
@@ -108,7 +108,7 @@
   <script src="modules/werewolf.js?v=0.0.36" defer></script>
   <script src="modules/reading-room.js?v=0.0.36" defer></script>
   <script src="modules/douban.js?v=0.0.36" defer></script>
-  <script src="modules/forum.js?v=0.11.0" defer></script>
+  <script src="modules/forum.js?v=0.12.0" defer></script>
   <!-- 第七层：其余功能 -->
   <script src="modules/tts-audio.js?v=0.0.36" defer></script>
   <script src="modules/appearance-theme.js?v=0.0.36" defer></script>
@@ -125,7 +125,7 @@
   <!-- 第八层：初始化（必须在所有模块之后） -->
   <!-- 数据定义（无依赖） -->
   <script src="modules/init-avatar-frames.js?v=0.0.36" defer></script>
-  <script src="modules/init-db-schema.js?v=0.0.38" defer></script>
+  <script src="modules/init-db-schema.js?v=0.0.39" defer></script>
   <!-- 数据保护（依赖 db） -->
   <script src="modules/init-data-protection.js?v=0.0.36" defer></script>
   <!-- 崩溃恢复（依赖 data-protection） -->
@@ -5216,6 +5216,9 @@
           <span class="action-btn" id="forum-hottopics-btn" title="热搜">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
           </span>
+          <span class="action-btn" id="forum-dm-inbox-btn" title="私信">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </span>
           <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
           </span>
@@ -5252,6 +5255,66 @@
         <div class="header-actions"></div>
       </div>
       <div id="forum-hottopic-detail-body" class="forum-post-detail-body"></div>
+    </div>
+
+    <!-- 个人主页 -->
+    <div id="forum-profile-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>主页</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-profile-body" class="forum-post-detail-body">
+        <div class="forum-profile-header">
+          <img id="forum-profile-avatar" class="forum-profile-avatar" src="">
+          <div class="forum-profile-name" id="forum-profile-name"></div>
+          <div class="forum-profile-actions">
+            <button id="forum-profile-dm-btn" class="forum-widget-btn">私信</button>
+          </div>
+        </div>
+        <div class="forum-profile-tabs">
+          <span class="forum-profile-tab active" data-tab="posts">帖子</span>
+          <span class="forum-profile-tab" data-tab="askbox">提问箱</span>
+        </div>
+        <div id="forum-profile-posts-list"></div>
+        <div id="forum-profile-askbox-area" style="display:none;">
+          <div class="forum-widget-input-row">
+            <input type="text" id="forum-askbox-input" class="forum-widget-text-input" placeholder="留个问题...">
+            <button id="forum-askbox-submit-btn" class="forum-widget-btn">提问</button>
+          </div>
+          <div id="forum-askbox-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 私信收件箱 -->
+    <div id="forum-dm-inbox-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>私信</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-dm-inbox-list" class="forum-post-detail-body"></div>
+    </div>
+
+    <!-- 私信对话 -->
+    <div id="forum-dm-thread-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-dm-inbox-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span id="forum-dm-thread-title">私信</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-dm-thread-body" class="forum-post-detail-body"></div>
+      <div class="forum-comment-input-bar">
+        <input type="text" id="forum-dm-input" class="forum-comment-input" placeholder="发消息...">
+        <button id="forum-dm-send-btn" class="forum-comment-send-btn">发送</button>
+      </div>
     </div>
 
     <!-- 转发帖子到聊天：选择聊天弹窗 -->
