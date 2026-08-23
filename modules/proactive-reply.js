@@ -9,6 +9,63 @@
 // 防止同一次"离开期间"被重复触发：记录已经检查过的最后一条消息时间戳
 const proactiveReplyCheckedAnchors = {};
 
+// 主动回复消息 -> 系统通知文案，跟正常AI回复触发通知时的type映射保持一致(照抄ai-response.js里那套switch)
+function buildProactiveNotificationText(msg, chat) {
+  let notificationText;
+  switch (msg.type) {
+    case 'transfer':
+      notificationText = `[收到一笔转账]`;
+      break;
+    case 'waimai_request':
+      notificationText = `[收到一个外卖代付请求]`;
+      break;
+    case 'waimai_order':
+      notificationText = `[对方给你点了外卖]`;
+      break;
+    case 'gift':
+      notificationText = `[收到一份礼物]`;
+      break;
+    case 'sticker':
+      notificationText = msg.meaning ? `[表情: ${msg.meaning}]` : '[表情]';
+      break;
+    case 'voice_message':
+      notificationText = `[语音]`;
+      break;
+    case 'location_share':
+      notificationText = `[位置分享]`;
+      break;
+    case 'share_link':
+      notificationText = `[分享了一个链接]`;
+      break;
+    case 'forum_post_share':
+      notificationText = `[转发了一条论坛帖子]`;
+      break;
+    case 'pat_message':
+      notificationText = String(msg.content || '[拍了拍]');
+      break;
+    case 'recalled_message':
+      notificationText = `[撤回了一条消息]`;
+      break;
+    default:
+      notificationText = String(msg.content || '');
+  }
+  const finalText = chat.isGroup && msg.senderName ? `${msg.senderName}: ${notificationText}` : notificationText;
+  return finalText.substring(0, 40) + (finalText.length > 40 ? '...' : '');
+}
+
+// 每条主动回复消息都触发一次通知：正在看这个聊天就走"聊天页内通知"，没在看就走系统通知
+function notifyProactiveMessage(chat, msg) {
+  const text = buildProactiveNotificationText(msg, chat);
+  const isViewing = state.activeChatId === chat.id;
+  if (isViewing) {
+    if (typeof triggerSystemNotificationInChatPage === 'function') {
+      triggerSystemNotificationInChatPage(chat.id, text);
+    }
+  } else {
+    if (typeof showNotification === 'function') showNotification(chat.id, text);
+  }
+}
+
 // ============================================================
 // 中途暂停 & 重roll：
 // - proactiveGenerationState[chat.id] 记录这个聊天当前这次生成的状态
@@ -769,6 +826,7 @@ ${thoughtsAndStatusBlock}
       if (typeof appendMessage === 'function') appendMessage(msg, chat);
       chat.history.push(msg);
       committedCount++;
+      notifyProactiveMessage(chat, msg);
       await db.chats.put(chat);
 
       await new Promise(resolve => setTimeout(resolve, 250)); // 消息之间留个小间隔，别一冒出来就接着下一条
@@ -777,12 +835,18 @@ ${thoughtsAndStatusBlock}
   } else {
     // 没在看这个聊天：直接批量存进去，不用做逐条动画
     restoreTypingIndicator();
-    builtMessages.forEach(msg => chat.history.push(msg));
+    builtMessages.forEach(msg => {
+      chat.history.push(msg);
+      notifyProactiveMessage(chat, msg);
+    });
     committedCount = builtMessages.length;
+    chat.unreadCount = (chat.unreadCount || 0) + builtMessages.length; // 之前这里漏了，导致聊天列表都不会显示未读角标
     await db.chats.put(chat);
   }
 
-  chat.unreadCount = 0; // 用户当前正在看这个聊天，不算未读
+  if (isViewingThisChat) {
+    chat.unreadCount = 0; // 用户当前正在看这个聊天，不算未读
+  }
   await db.chats.put(chat);
 
   if (isViewingThisChat && typeof renderChatInterface === 'function') {
@@ -1136,6 +1200,7 @@ ${extraBlocks}
       chat.history.push(msg);
       if (member) speakerIds.add(member.id);
       committedCount++;
+      notifyProactiveMessage(chat, msg);
       await db.chats.put(chat);
 
       await new Promise(resolve => setTimeout(resolve, 250));
@@ -1147,8 +1212,10 @@ ${extraBlocks}
       chat.history.push(msg);
       const member = builtSpeakers[i];
       if (member) speakerIds.add(member.id);
+      notifyProactiveMessage(chat, msg);
     });
     committedCount = builtMessages.length;
+    chat.unreadCount = (chat.unreadCount || 0) + builtMessages.length; // 之前这里漏了，导致聊天列表都不会显示未读角标
     await db.chats.put(chat);
   }
 
@@ -1156,7 +1223,9 @@ ${extraBlocks}
     if (typeof awardGroupActivity === 'function') await awardGroupActivity(chat, memberId);
   }
 
-  chat.unreadCount = 0;
+  if (isViewingThisChat) {
+    chat.unreadCount = 0;
+  }
   await db.chats.put(chat);
 
   if (isViewingThisChat && typeof renderChatInterface === 'function') {
