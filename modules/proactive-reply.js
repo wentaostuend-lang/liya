@@ -789,6 +789,14 @@ ${thoughtsAndStatusBlock}
         delete post._pendingCreateAltName;
       }
       await db.forumPosts.add(post);
+
+      // 隐藏系统消息：让char"记得"自己发过这条帖子，之后user提起时能自然接上(用小号发的不主动暴露)
+      chat.history.push({
+        role: 'system',
+        content: `[系统提示：你刚才${post.authorAltId ? `用小号"${post.authorDisplayName}"` : ''}在论坛发了一条帖子，内容是："${post.content}"。如果用户后面聊起论坛/这条帖子相关的事，你可以自然地回应，不用刻意隐瞒(除非是用小号发的，那就不要主动暴露是你发的)。]`,
+        timestamp: post.timestamp,
+        isHidden: true,
+      });
     } catch (e) {
       console.warn('[主动回复] 发布论坛帖子失败', e);
     }

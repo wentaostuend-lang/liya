@@ -279,13 +279,31 @@
       : state.apiConfig;
     if (!proxyUrl || !apiKey || !model) return;
 
+    // 读记忆+最近聊天记录，让发帖内容有代入感，不是纯编
+    const memoryBlock = typeof getMemoryContextForPrompt === 'function'
+      ? `# 长期记忆(参考这些，发帖内容要跟角色实际经历的事贴合)\n${getMemoryContextForPrompt(chat)}\n`
+      : '';
+    const recentChatMsgs = (chat.history || [])
+      .filter(m => !m.isHidden && typeof m.content === 'string' && m.content)
+      .slice(-15)
+      .map(m => `${m.role === 'user' ? (state.qzoneSettings?.nickname || '用户') : chat.name}: ${m.content}`)
+      .join('\n');
+    const recentChatBlock = recentChatMsgs ? `# 最近和用户的聊天记录(帖子内容可以从这里取材，比如吐槽最近聊到的事、延续某个话题)\n${recentChatMsgs}\n` : '';
+    const myRecentPosts = (await db.forumPosts.where('authorId').equals(chatId).toArray())
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(0, 5)
+      .map(p => `- ${(p.content || '').substring(0, 50)}`)
+      .join('\n');
+    const recentPostsBlock = myRecentPosts ? `# 你最近发过的帖子(别写得跟这些重复)\n${myRecentPosts}\n` : '';
+
     const boardNames = boards.map(b => b.name).join('/');
     const systemPrompt = `
 # 你的任务
 你是角色"${chat.name}"，人设如下：
 ${chat.settings.aiPersona}
 
-现在你想去论坛发一条帖子，可能是日常分享、突然想到的问题、想吐槽的小事，也可能因为跟用户的相处有感而发——完全基于人设自由发挥，不要总是负面情绪。
+${memoryBlock}${recentChatBlock}${recentPostsBlock}
+现在你想去论坛发一条帖子，可能是日常分享、突然想到的问题、想吐槽的小事，也可能因为跟用户的相处有感而发——结合上面的记忆和聊天记录，写点真的跟你(角色)当下处境相关的内容，不要凭空乱编跟角色毫无关系的东西。
 
 # 要求
 1. 板块从这些里选一个：${boardNames}
@@ -349,6 +367,17 @@ ${typeof window.FORUM_WIDGET_PROMPT_HINT === 'string' ? window.FORUM_WIDGET_PROM
         ...(charWidget ? { widget: charWidget } : {}),
       });
       console.log(`[论坛] 角色 "${chat.name}" 后台发布了一条帖子${useAlt ? '(小号)' : ''}`);
+
+      // 塞一条隐藏系统消息进聊天记录，让char"记得"自己发过这条帖子——
+      // 不在聊天界面显示气泡，但会被当作上下文喂给AI，之后user提起这件事时角色能自然接上
+      chat.history.push({
+        role: 'system',
+        content: `[系统提示：你刚才${useAlt ? `用小号"${finalAltName}"` : ''}在论坛"${matchedBoard.name}"发了一条帖子，内容是："${result.content}"。如果用户后面聊起论坛/这条帖子相关的事，你可以自然地回应，不用刻意隐瞒(除非是用小号发的，那就不要主动暴露是你发的)。]`,
+        timestamp: Date.now(),
+        isHidden: true,
+      });
+      await db.chats.put(chat);
+
       if (document.getElementById('forum-screen')?.classList.contains('active') && typeof renderForumFeed === 'function') {
         await renderForumFeed();
       }
@@ -369,7 +398,7 @@ ${typeof window.FORUM_WIDGET_PROMPT_HINT === 'string' ? window.FORUM_WIDGET_PROM
         const hoursSinceRefresh = latestTopic ? (Date.now() - latestTopic.generatedAt) / 3600000 : Infinity;
         const totalPosts = await db.forumPosts.count();
         if (hoursSinceRefresh >= 6 && totalPosts >= 3 && typeof generateForumHotTopics === 'function') {
-          await generateForumHotTopics();
+          await generateForumHotTopics(false); // false=自动触发，优先走后台活动API
         }
       } catch (e) {
         console.warn('[论坛] 自动刷新热搜失败', e);

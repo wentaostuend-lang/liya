@@ -3106,6 +3106,22 @@ ${getActiveThoughtsPrompt()}
 -   **点赞动态**: \`{"type": "qzone_like", "postId": 456}\`
 ` : '';
 
+          // 新增：正常聊天时也有极小概率去论坛发帖(不是每次都要考虑，绝大多数回复完全不提这个)
+          let forumActionsPrompt = '';
+          try {
+            const forumBoardsForChat = await db.forumBoards.orderBy('order').toArray();
+            if (!chat.isGroup && forumBoardsForChat.length > 0) {
+              const forumAltsForChat = await db.forumAlts.where({ ownerType: 'char', ownerId: chat.id }).toArray();
+              forumActionsPrompt = `
+### D. 论坛(极小概率触发！！不是每次回复都要考虑，正常聊天该怎么聊还怎么聊，绝大多数时候完全不要提及这个)
+-   **去论坛发帖**: \`{"type": "forum_post", "boardName": "板块名，从这些里选一个：${forumBoardsForChat.map(b => b.name).join('/')}", "content": "帖子内容"${forumAltsForChat.length > 0 ? `, "asAlt": "小号名字(可选，从这些里选：${forumAltsForChat.map(a => a.altName).join('/')})"` : ''}}\`
+    只有聊到一半突然有感而发/手痒想发个牢骚/想分享点什么的时候才偶尔用一次，概率大概几十分之一，不要频繁触发，也不要为了用而用。
+`;
+            }
+          } catch (e) {
+            console.warn('[论坛] 正常聊天读取板块列表失败，跳过论坛发帖指令', e);
+          }
+
           // 新增：判断是否启用查看User手机功能
           const enableViewMyPhone = chat.settings.enableViewMyPhone !== null
             ? chat.settings.enableViewMyPhone
@@ -3417,6 +3433,8 @@ ${getActiveThoughtsPrompt()}
           };
 
           systemPrompt = replaceTemplateVars(systemPromptTemplate, contextMapSingle);
+          // 直接拼接到末尾而不是走模板变量替换，这样不依赖用户自定义模板里有没有预留占位符，保证一定生效
+          if (forumActionsPrompt) systemPrompt += forumActionsPrompt;
 
           systemPrompt = processPromptWithSettings(systemPrompt, 'single');
 
@@ -3570,6 +3588,13 @@ ${getActiveThoughtsPrompt()}
                   content: `${prefix}[分享了一个Reddit帖子]\n标题: ${rData.title}\n来自: ${rData.subreddit}\n内容摘要: ${rData.selftext || '[链接/图片]'}`
                 };
               }
+              if (msg.type === 'forum_post_share') {
+                const d = msg.forumPostSnapshot || {};
+                return {
+                  role: 'user',
+                  content: `${prefix}[转发了一条论坛帖子${d.boardName ? `(板块：${d.boardName})` : ''}]\n作者: ${d.authorName || '未知'}\n内容: ${d.content || ''}`
+                };
+              }
               if (msg.type === 'transfer') return {
                 role: 'user',
                 content: `${prefix}[系统提示：你于时间戳 ${msg.timestamp} 向对方发起了转账: ${msg.amount}元, 备注: ${msg.note}。等待对方处理。]`
@@ -3618,6 +3643,9 @@ ${getActiveThoughtsPrompt()}
               } else if (msg.type === 'waimai_request') {
                 assistantMsgObject.productInfo = msg.productInfo;
                 assistantMsgObject.amount = msg.amount;
+              } else if (msg.type === 'forum_post_share') {
+                const d = msg.forumPostSnapshot || {};
+                assistantMsgObject.content = `[你转发了一条论坛帖子${d.boardName ? `(板块：${d.boardName})` : ''}，作者:${d.authorName || '未知'}，内容:${d.content || ''}]${msg.comment ? ` 你还说了句:"${msg.comment}"` : ''}`;
               } else {
                 if (msg.quote) {
                   assistantMsgObject.quote_reply = {
@@ -5403,6 +5431,48 @@ ${getActiveThoughtsPrompt()}
               await renderQzonePosts();
             }
             continue;
+
+          case 'forum_post': {
+            try {
+              const forumBoards = await db.forumBoards.orderBy('order').toArray();
+              const matchedBoard = forumBoards.find(b => b.name === msgData.boardName) || forumBoards[0];
+              if (matchedBoard && msgData.content) {
+                let altFields = {};
+                if (msgData.asAlt) {
+                  const matchedAlt = await db.forumAlts.where({ ownerType: 'char', ownerId: chatId }).and(a => a.altName === msgData.asAlt).first();
+                  if (matchedAlt) {
+                    altFields = { authorAltId: matchedAlt.id, authorDisplayName: matchedAlt.altName, authorAvatar: matchedAlt.altAvatar || '' };
+                  }
+                }
+                await db.forumPosts.add({
+                  boardId: matchedBoard.id,
+                  authorType: 'char',
+                  authorId: chatId,
+                  content: msgData.content,
+                  timestamp: Date.now(),
+                  likes: [],
+                  commentCount: 0,
+                  ...altFields,
+                });
+                console.log(`[论坛] "${chat.name}" 在正常聊天中顺手发了条论坛帖子`);
+
+                // 隐藏系统消息：让char"记得"自己发过这条帖子，之后user提起时能自然接上(用小号发的不主动暴露)
+                chat.history.push({
+                  role: 'system',
+                  content: `[系统提示：你刚才${altFields.authorAltId ? `用小号"${altFields.authorDisplayName}"` : ''}在论坛发了一条帖子，内容是："${msgData.content}"。如果用户后面聊起论坛/这条帖子相关的事，你可以自然地回应，不用刻意隐瞒(除非是用小号发的，那就不要主动暴露是你发的)。]`,
+                  timestamp: Date.now(),
+                  isHidden: true,
+                });
+
+                if (typeof renderForumFeed === 'function' && document.getElementById('forum-screen')?.classList.contains('active')) {
+                  await renderForumFeed();
+                }
+              }
+            } catch (e) {
+              console.warn('[论坛] 正常聊天触发的发帖失败', e);
+            }
+            continue;
+          }
 
           case 'qzone_comment': {
             const postToComment = await db.qzonePosts.get(parseInt(msgData.postId));

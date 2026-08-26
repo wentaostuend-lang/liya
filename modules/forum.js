@@ -762,7 +762,11 @@
     if (!post) return;
     if (post.authorType !== 'char' && post.authorType !== 'npc') return; // user自己的帖子不用自动回复
 
-    const apiConfig = state.apiConfig || {};
+    // 这是自动触发的回复(不是user手动点按钮生成)，优先走后台活动API，没配就退回主API
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const apiConfig = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : (state.apiConfig || {});
     if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return; // 没配API就悄悄跳过，不打扰
 
     let authorPersona = '';
@@ -1318,11 +1322,16 @@ ${npcList}
   }
 
   // 自动/手动都走这个函数：根据最近的论坛帖子内容，用AI提炼出热搜词条
-  async function generateForumHotTopics() {
-    const btn = document.getElementById('forum-hottopics-refresh-btn');
-    const apiConfig = state.apiConfig || {};
+  // 自动/手动都走这个函数：isManual=true(默认)是用户点按钮触发，用主API；
+  // isManual=false是后台tick自动刷新触发的，优先用后台活动API(没配就静默跳过，不打扰用户)
+  async function generateForumHotTopics(isManual = true) {
+    const btn = isManual ? document.getElementById('forum-hottopics-refresh-btn') : null;
+    const useBackgroundApi = !isManual && state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const apiConfig = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : (state.apiConfig || {});
     if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) {
-      if (btn) alert('还没配置API，去设置里先配一个');
+      if (btn) alert('还没配置API，去设置里先配一个'); // 自动触发时没配置就静默跳过，不打扰用户
       return;
     }
 
@@ -1666,7 +1675,11 @@ ${postsText}
 
     // 让对方(char/npc)当场回答，user自己的提问箱不用自动回答
     if (activeProfileKey.kind === 'user') return;
-    const apiConfig = state.apiConfig || {};
+    // 自动触发的回答，优先走后台活动API
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const apiConfig = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : (state.apiConfig || {});
     if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return;
 
     let persona = '';
@@ -1774,7 +1787,11 @@ ${postsText}
   window.submitForumDm = submitForumDm;
 
   async function triggerDmReply(threadId, thread, userMessage) {
-    const apiConfig = state.apiConfig || {};
+    // 自动触发的回复，优先走后台活动API
+    const useBackgroundApi = state.apiConfig.backgroundProxyUrl && state.apiConfig.backgroundApiKey && state.apiConfig.backgroundModel;
+    const apiConfig = useBackgroundApi
+      ? { proxyUrl: state.apiConfig.backgroundProxyUrl, apiKey: state.apiConfig.backgroundApiKey, model: state.apiConfig.backgroundModel }
+      : (state.apiConfig || {});
     if (!apiConfig.proxyUrl || !apiConfig.apiKey || !apiConfig.model) return;
     const key = deserializeProfileKey(thread.participantId);
 
@@ -2730,7 +2747,7 @@ ${typeof FORUM_WIDGET_PROMPT_HINT === 'string' ? FORUM_WIDGET_PROMPT_HINT : ''}`
     document.getElementById('forum-board-ai-generate-btn')?.addEventListener('click', generateForumBoardSuggestions);
 
     document.getElementById('forum-hottopics-btn')?.addEventListener('click', openForumHotTopicsScreen);
-    document.getElementById('forum-hottopics-refresh-btn')?.addEventListener('click', generateForumHotTopics);
+    document.getElementById('forum-hottopics-refresh-btn')?.addEventListener('click', () => generateForumHotTopics(true));
 
     document.getElementById('forum-forward-close-btn')?.addEventListener('click', () => {
       const m = document.getElementById('forum-forward-modal');
