@@ -2668,7 +2668,9 @@ window.initEventBindingsB = function(state, db) {
     makeDraggable(document.getElementById('voice-call-restore-btn'), document.getElementById('voice-call-restore-btn'));
     // 通话里"说话"按钮：改成跟聊天输入框一样的"打字+点发送"，
     // 不再用一次性prompt弹窗(那种一确认就直接触发AI，没法反悔/修改)
-    function setupCallSpeakBar({ speakBtnId, barId, inputId, sendBtnId, cancelBtnId, avatarSelector, isActiveFn, triggerFn }) {
+    // 发送只是把这句话加进通话画面/记录，不会触发AI回复——
+    // 可以连续发好几条短消息，最后用"触发AI回复"按钮统一让AI回应。
+    function setupCallSpeakBar({ speakBtnId, barId, inputId, sendBtnId, cancelBtnId, avatarSelector, isActiveFn, queueFn }) {
       const speakBtn = document.getElementById(speakBtnId);
       const bar = document.getElementById(barId);
       const input = document.getElementById(inputId);
@@ -2689,8 +2691,11 @@ window.initEventBindingsB = function(state, db) {
       };
       const send = () => {
         const text = input.value.trim();
-        closeBar();
-        if (text) triggerFn(text);
+        if (!text) return;
+        queueFn(text);
+        // 不关闭输入条：清空并保持聚焦，方便接着发下一条短消息
+        input.value = '';
+        input.focus();
       };
 
       speakBtn.addEventListener('click', openBar);
@@ -2712,7 +2717,13 @@ window.initEventBindingsB = function(state, db) {
       cancelBtnId: 'video-call-speak-cancel-btn',
       avatarSelector: '.participant-avatar-wrapper[data-participant-id="user"] .participant-avatar',
       isActiveFn: () => videoCallState.isActive,
-      triggerFn: (text) => triggerAiInCallAction(text),
+      queueFn: (text) => queueUserCallMessage(text),
+    });
+
+    // "触发AI回复"按钮：把目前已经发出去、还没让AI看到的消息一次性丢给AI生成回复
+    document.getElementById('video-call-trigger-ai-btn')?.addEventListener('click', () => {
+      if (!videoCallState.isActive) return;
+      triggerAiInCallAction();
     });
 
     document.getElementById('voice-join-call-btn').addEventListener('click', handleUserJoinVoiceCall);
@@ -2724,7 +2735,12 @@ window.initEventBindingsB = function(state, db) {
       cancelBtnId: 'voice-call-speak-cancel-btn',
       avatarSelector: '#voice-participant-avatars-grid .participant-avatar-wrapper[data-participant-id="user"] .participant-avatar',
       isActiveFn: () => voiceCallState.isActive,
-      triggerFn: (text) => triggerAiInVoiceCallAction(text),
+      queueFn: (text) => queueUserVoiceCallMessage(text),
+    });
+
+    document.getElementById('voice-call-trigger-ai-btn')?.addEventListener('click', () => {
+      if (!voiceCallState.isActive) return;
+      triggerAiInVoiceCallAction();
     });
     document.getElementById('voice-regenerate-call-btn').addEventListener('click', () => {
       if (!voiceCallState.isActive) return;

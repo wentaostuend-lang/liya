@@ -17,7 +17,8 @@
     participants: [],
     isUserParticipating: true,
     callHistory: [],
-    preCallContext: ""
+    preCallContext: "",
+    isGeneratingReply: false // 正在等AI生成回复时为true，防止连续点"触发AI回复"发出重复请求
   };
 
   let voiceCallState = {
@@ -30,7 +31,8 @@
     participants: [],
     isUserParticipating: true,
     callHistory: [],
-    preCallContext: ""
+    preCallContext: "",
+    isGeneratingReply: false
   };
 
   let callTimerInterval = null;
@@ -81,6 +83,7 @@
 
     videoCallState.isActive = true;
     videoCallState.isAwaitingResponse = false;
+    videoCallState.isGeneratingReply = false;
     videoCallState.startTime = Date.now();
     videoCallState.callHistory = [];
 
@@ -355,8 +358,44 @@
   }
 
 
+  // 只把用户这句话加进通话画面和记录里，不触发AI回复。
+  // 用来支持"连续发好几条短消息，最后再手动点触发AI回复"这种用法。
+  function queueUserCallMessage(text) {
+    if (!videoCallState.isActive || !videoCallState.isUserParticipating || !text) return;
+    const chat = state.chats[videoCallState.activeChatId];
+    const callFeed = document.getElementById('video-call-main');
+    const userTimestamp = Date.now();
+    const userBubble = document.createElement('div');
+    userBubble.className = 'call-message-bubble user-speech';
+    userBubble.textContent = text;
+    userBubble.dataset.timestamp = userTimestamp;
+    addLongPressListener(userBubble, () => showCallMessageActions(userTimestamp));
+    callFeed.appendChild(userBubble);
+    callFeed.scrollTop = callFeed.scrollHeight;
+
+    let userContent = text;
+    if (chat.videoOptimization && chat.videoOptimization.enableRealCamera) {
+      const capturedImage = window.getLastCameraCapture ? window.getLastCameraCapture() : null;
+      if (capturedImage) {
+        userContent = [
+          { type: 'text', text: text },
+          { type: 'image_url', image_url: { url: capturedImage } }
+        ];
+      }
+    }
+
+    videoCallState.callHistory.push({
+      role: 'user',
+      content: userContent,
+      timestamp: userTimestamp
+    });
+  }
+
   async function triggerAiInCallAction(userInput = null) {
     if (!videoCallState.isActive) return;
+    if (videoCallState.isGeneratingReply) return; // 上一次还没回来，别重复触发
+    videoCallState.isGeneratingReply = true;
+    updateCallTriggerBtnState();
 
     const chat = state.chats[videoCallState.activeChatId];
     const {
@@ -405,33 +444,7 @@ ${linkedContents}
     const longTermMemoryContext = longTermMemoryContent ? `\n# 长期记忆 (必须参考)\n${longTermMemoryContent}` : '';
 
     if (userInput && videoCallState.isUserParticipating) {
-      const userTimestamp = Date.now();
-      const userBubble = document.createElement('div');
-      userBubble.className = 'call-message-bubble user-speech';
-      userBubble.textContent = userInput;
-      userBubble.dataset.timestamp = userTimestamp;
-      addLongPressListener(userBubble, () => showCallMessageActions(userTimestamp));
-      callFeed.appendChild(userBubble);
-      callFeed.scrollTop = callFeed.scrollHeight;
-
-      // 检查是否启用真实摄像头并获取截图
-      let userContent = userInput;
-      if (chat.videoOptimization && chat.videoOptimization.enableRealCamera) {
-        const capturedImage = window.getLastCameraCapture ? window.getLastCameraCapture() : null;
-        if (capturedImage) {
-          // 为支持视觉的模型构建多模态消息
-          userContent = [
-            { type: 'text', text: userInput },
-            { type: 'image_url', image_url: { url: capturedImage } }
-          ];
-        }
-      }
-
-      videoCallState.callHistory.push({
-        role: 'user',
-        content: userContent,
-        timestamp: userTimestamp
-      });
+      queueUserCallMessage(userInput);
     }
 
 
@@ -699,11 +712,21 @@ ${linkedContents}
     }
     // ★ 每次发送后修剪历史
     trimCallHistory(videoCallState);
+    videoCallState.isGeneratingReply = false;
+    updateCallTriggerBtnState();
   }
   function trimCallHistory(callState) {
     if (callState.callHistory.length > 100) {
       callState.callHistory = callState.callHistory.slice(-100);
     }
+  }
+
+  // 根据当前是否正在等AI生成回复，控制"触发AI回复"按钮的可点击状态，防止手抖连点发出重复请求
+  function updateCallTriggerBtnState() {
+    const videoBtn = document.getElementById('video-call-trigger-ai-btn');
+    if (videoBtn) videoBtn.disabled = videoCallState.isGeneratingReply;
+    const voiceBtn = document.getElementById('voice-call-trigger-ai-btn');
+    if (voiceBtn) voiceBtn.disabled = voiceCallState.isGeneratingReply;
   }
 
 
@@ -758,6 +781,7 @@ ${linkedContents}
 
     voiceCallState.isActive = true;
     voiceCallState.isAwaitingResponse = false;
+    voiceCallState.isGeneratingReply = false;
     voiceCallState.startTime = Date.now();
     voiceCallState.callHistory = [];
 
@@ -948,8 +972,31 @@ ${linkedContents}
     document.getElementById('voice-call-timer').textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   }
 
+  // 只把用户这句话加进语音通话画面和记录里，不触发AI回复。
+  function queueUserVoiceCallMessage(text) {
+    if (!voiceCallState.isActive || !voiceCallState.isUserParticipating || !text) return;
+    const callFeed = document.getElementById('voice-call-main');
+    const userTimestamp = Date.now();
+    const userBubble = document.createElement('div');
+    userBubble.className = 'call-message-bubble user-speech';
+    userBubble.textContent = text;
+    userBubble.dataset.timestamp = userTimestamp;
+    addLongPressListener(userBubble, () => showCallMessageActions(userTimestamp));
+    callFeed.appendChild(userBubble);
+    callFeed.scrollTop = callFeed.scrollHeight;
+
+    voiceCallState.callHistory.push({
+      role: 'user',
+      content: text,
+      timestamp: userTimestamp
+    });
+  }
+
   async function triggerAiInVoiceCallAction(userInput = null) {
     if (!voiceCallState.isActive) return;
+    if (voiceCallState.isGeneratingReply) return;
+    voiceCallState.isGeneratingReply = true;
+    updateCallTriggerBtnState();
 
     const chat = state.chats[voiceCallState.activeChatId];
     const { proxyUrl, apiKey, model } = state.apiConfig;
@@ -992,20 +1039,7 @@ ${linkedContents}
     const longTermMemoryContext = longTermMemoryContent ? `\n# 长期记忆 (必须参考)\n${longTermMemoryContent}` : '';
 
     if (userInput && voiceCallState.isUserParticipating) {
-      const userTimestamp = Date.now();
-      const userBubble = document.createElement('div');
-      userBubble.className = 'call-message-bubble user-speech';
-      userBubble.textContent = userInput;
-      userBubble.dataset.timestamp = userTimestamp;
-      addLongPressListener(userBubble, () => showCallMessageActions(userTimestamp));
-      callFeed.appendChild(userBubble);
-      callFeed.scrollTop = callFeed.scrollHeight;
-
-      voiceCallState.callHistory.push({
-        role: 'user',
-        content: userInput,
-        timestamp: userTimestamp
-      });
+      queueUserVoiceCallMessage(userInput);
     }
 
     let inCallPrompt;
@@ -1203,6 +1237,8 @@ ${worldBookContent}
     }
     // ★ 每次发送后修剪历史
     trimCallHistory(voiceCallState);
+    voiceCallState.isGeneratingReply = false;
+    updateCallTriggerBtnState();
   }
 
   // ==================== 语音通话功能结束 ====================
@@ -1461,6 +1497,7 @@ ${worldBookContent}
   window.showIncomingCallModal = showIncomingCallModal;
   window.hideIncomingCallModal = hideIncomingCallModal;
   window.triggerAiInCallAction = triggerAiInCallAction;
+  window.queueUserCallMessage = queueUserCallMessage;
   window.toggleCallButtons = toggleCallButtons;
   window.handleInitiateVoiceCall = handleInitiateVoiceCall;
   window.startVoiceCall = startVoiceCall;
@@ -1471,6 +1508,7 @@ ${worldBookContent}
   window.handleUserJoinVoiceCall = handleUserJoinVoiceCall;
   window.updateVoiceCallTimer = updateVoiceCallTimer;
   window.triggerAiInVoiceCallAction = triggerAiInVoiceCallAction;
+  window.queueUserVoiceCallMessage = queueUserVoiceCallMessage;
   window.handleUserPat = handleUserPat;
   window.handleUserPatSelf = handleUserPatSelf;
   window.showCallMessageActions = showCallMessageActions;

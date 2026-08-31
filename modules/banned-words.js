@@ -12,6 +12,27 @@ function ensureBannedWordsDefaults() {
   if (!Array.isArray(state.globalSettings.bannedWords)) {
     state.globalSettings.bannedWords = [];
   }
+  if (typeof state.globalSettings.bannedWordsEnabled !== 'boolean') {
+    state.globalSettings.bannedWordsEnabled = true; // 默认开启，兼容老数据
+  }
+}
+
+// 屏蔽词功能总开关：关闭时，system prompt 不注入规则，安全网也直接放行
+function isBannedWordsFeatureEnabled() {
+  ensureBannedWordsDefaults();
+  return state.globalSettings.bannedWordsEnabled;
+}
+
+async function setBannedWordsFeatureEnabled(enabled) {
+  ensureBannedWordsDefaults();
+  state.globalSettings.bannedWordsEnabled = !!enabled;
+  await db.globalSettings.put(state.globalSettings);
+  renderBannedWordsEnabledToggle();
+}
+
+function renderBannedWordsEnabledToggle() {
+  const toggleEl = document.getElementById('banned-words-enabled-toggle');
+  if (toggleEl) toggleEl.checked = isBannedWordsFeatureEnabled();
 }
 
 function getScopeList(scope) {
@@ -45,6 +66,7 @@ function getEffectiveBannedWords(chat) {
 
 // 生成注入到system prompt里的那段说明，让AI主动避开这些词
 function buildBannedWordsPromptBlock(chat) {
+  if (!isBannedWordsFeatureEnabled()) return '';
   const list = getEffectiveBannedWords(chat);
   if (!list.length) return '';
   const lines = list.map(item => {
@@ -65,6 +87,7 @@ ${lines}
 // 安全网：AI回复生成后再扫一遍，命中就替换/删除，防止AI没听话
 async function applyBannedWordsFilter(text, chat) {
   if (typeof text !== 'string' || !text) return text;
+  if (!isBannedWordsFeatureEnabled()) return text;
   const list = getEffectiveBannedWords(chat);
   if (!list.length) return text;
 
@@ -196,14 +219,19 @@ function openBannedWordsScreen(scope) {
   bannedWordsEditScope = scope;
   const titleEl = document.getElementById('banned-words-title');
   const hintEl = document.getElementById('banned-words-scope-hint');
+  // 总开关是全局设置，只在"全局屏蔽词"页面展示，避免在单个聊天页面里让人误以为是这个聊天独有的开关
+  const toggleRow = document.getElementById('banned-words-enabled-toggle')?.closest('.settings-item');
   if (scope === 'global') {
     titleEl.textContent = '全局屏蔽词';
     hintEl.textContent = '这里的屏蔽词对所有聊天都生效。';
+    if (toggleRow) toggleRow.style.display = '';
   } else {
     const chat = state.chats[scope];
     titleEl.textContent = `屏蔽词 · ${chat ? chat.name : ''}`;
     hintEl.textContent = '这里加的词只对当前这个聊天生效。';
+    if (toggleRow) toggleRow.style.display = 'none';
   }
+  renderBannedWordsEnabledToggle();
   renderBannedWordsList();
   showScreen('banned-words-screen');
 }
@@ -211,6 +239,8 @@ function openBannedWordsScreen(scope) {
 function renderBannedWordsList() {
   const listEl = document.getElementById('banned-words-list');
   if (!listEl) return;
+  const selectAllEl = document.getElementById('banned-words-select-all');
+  if (selectAllEl) selectAllEl.checked = false; // 每次重新渲染列表(增删/生成后)重置全选框状态
   const list = getScopeList(bannedWordsEditScope);
   listEl.innerHTML = '';
   if (!list.length) {
@@ -221,12 +251,15 @@ function renderBannedWordsList() {
     const row = document.createElement('div');
     row.className = 'list-item';
     row.style.cssText = 'display:flex; align-items:center; justify-content:space-between; padding:12px 15px; border-bottom:1px solid var(--border-color,#eee);';
-    const replaceHint = item.replacement ? `→ "${item.replacement}"` : '→ 直接删除';
+    const replaceHint = item.replacement ? `→ "${item.replacement}"` : '→ 未设置近义词(命中时现场调AI改写，失败则直接删除)';
     row.innerHTML = `
-      <div style="flex-grow:1; min-width:0;">
-        <div style="font-weight:500; word-break:break-all;">${item.word}${item.isRegex ? ' <span style="font-size:10px;color:#999;">[正则]</span>' : ''}</div>
-        <div style="font-size:12px; color:#999; margin-top:2px;">${replaceHint}</div>
-      </div>
+      <label style="display:flex; align-items:flex-start; gap:10px; flex-grow:1; min-width:0; cursor:pointer;">
+        <input type="checkbox" class="banned-word-checkbox" data-id="${item.id}" style="margin-top:4px; flex-shrink:0;">
+        <div style="min-width:0;">
+          <div style="font-weight:500; word-break:break-all;">${item.word}${item.isRegex ? ' <span style="font-size:10px;color:#999;">[正则]</span>' : ''}</div>
+          <div style="font-size:12px; color:#999; margin-top:2px;">${replaceHint}</div>
+        </div>
+      </label>
       <div style="display:flex; gap:8px; flex-shrink:0; margin-left:10px;">
         <button class="action-btn" data-edit-id="${item.id}">改替换词</button>
         <button class="action-btn" data-id="${item.id}" style="color:#ff3b30;">删除</button>
@@ -234,6 +267,91 @@ function renderBannedWordsList() {
     `;
     listEl.appendChild(row);
   });
+}
+
+function getSelectedBannedWordIds() {
+  return Array.from(document.querySelectorAll('.banned-word-checkbox:checked')).map(el => el.dataset.id);
+}
+
+// 批量生成近义词：把选中的、还没设置替换词的屏蔽词一次性丢给AI，让它给每个词想一个近义表达，
+// 直接写回 replacement 字段，之后命中就能秒替换，不用每次现场调AI改写整句话。
+async function generateSynonymsForSelected() {
+  const selectedIds = getSelectedBannedWordIds();
+  if (!selectedIds.length) {
+    await showCustomAlert('提示', '请先勾选要生成近义词的屏蔽词');
+    return;
+  }
+
+  const { proxyUrl, apiKey, model } = state.apiConfig || {};
+  if (!proxyUrl || !apiKey || !model) {
+    await showCustomAlert('未配置API', '请先在API设置里配置好接口，才能使用AI批量生成近义词。');
+    return;
+  }
+
+  const list = getScopeList(bannedWordsEditScope);
+  const targets = list.filter(item => selectedIds.includes(item.id) && !item.isRegex);
+  if (!targets.length) {
+    await showCustomAlert('提示', '勾选的都是正则规则，没法生成近义词(正则本身就没有固定替换词这个概念)');
+    return;
+  }
+
+  showGenerationOverlay('AI正在批量生成近义词...');
+  try {
+    const wordsList = targets.map(t => t.word).join('、');
+    const prompt = `下面是一些不允许在AI回复中出现的词语：${wordsList}
+请你给每一个词想一个合适的近义词或说法，用来在句子里自然替换掉原词(词性、语气、露骨程度尽量接近原词，长度也尽量接近，方便直接替换进句子里不显得突兀)。
+
+只输出一个JSON数组，不要有任何其他文字、不要markdown代码块标记，也不要省略任何一个词。格式如下：
+[{"word": "原词1", "replacement": "近义词1"}, {"word": "原词2", "replacement": "近义词2"}]`;
+
+    const messagesForApi = [{ role: 'user', content: prompt }];
+    const isGemini = proxyUrl === GEMINI_API_URL;
+    const geminiConfig = toGeminiRequestData(model, apiKey, prompt, messagesForApi, isGemini);
+
+    const response = isGemini
+      ? await fetch(geminiConfig.url, geminiConfig.data)
+      : await fetch(`${proxyUrl}/v1/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model,
+            messages: messagesForApi,
+            temperature: 0.5,
+          }),
+        });
+
+    if (!response.ok) throw new Error(await response.text());
+    const data = await response.json();
+    const rawContent = (isGemini
+      ? data.candidates[0].content.parts[0].text
+      : data.choices[0].message.content
+    ).replace(/^```json\s*|```\s*$/g, '').trim();
+
+    const results = JSON.parse(rawContent);
+    if (!Array.isArray(results)) throw new Error('AI返回的格式不对');
+
+    let updatedCount = 0;
+    results.forEach(r => {
+      if (!r || !r.word || !r.replacement) return;
+      const item = targets.find(t => t.word === r.word);
+      if (item) {
+        item.replacement = String(r.replacement).trim();
+        updatedCount++;
+      }
+    });
+
+    await saveScopeList(bannedWordsEditScope);
+    renderBannedWordsList();
+    document.getElementById('generation-overlay').classList.remove('visible');
+    await showCustomAlert('生成完成', `成功为 ${updatedCount} / ${targets.length} 个屏蔽词生成了近义词替换。`);
+  } catch (e) {
+    document.getElementById('generation-overlay').classList.remove('visible');
+    console.error('批量生成近义词失败:', e);
+    await showCustomAlert('生成失败', `出错了，请重试或检查API配置：${e.message}`);
+  }
 }
 
 async function addBannedWordEntries(entries) {
@@ -408,6 +526,13 @@ document.getElementById('banned-words-back-btn')?.addEventListener('click', () =
 
 document.getElementById('add-banned-word-btn')?.addEventListener('click', addBannedWord);
 document.getElementById('extract-banned-words-ai-btn')?.addEventListener('click', extractBannedWordsWithAI);
+document.getElementById('banned-words-enabled-toggle')?.addEventListener('change', (e) => {
+  setBannedWordsFeatureEnabled(e.target.checked);
+});
+document.getElementById('banned-words-select-all')?.addEventListener('change', (e) => {
+  document.querySelectorAll('.banned-word-checkbox').forEach(cb => { cb.checked = e.target.checked; });
+});
+document.getElementById('batch-generate-synonyms-btn')?.addEventListener('click', generateSynonymsForSelected);
 
 document.getElementById('banned-words-list')?.addEventListener('click', (e) => {
   const editBtn = e.target.closest('button[data-edit-id]');
@@ -427,3 +552,4 @@ window.getEffectiveBannedWords = getEffectiveBannedWords;
 window.buildBannedWordsPromptBlock = buildBannedWordsPromptBlock;
 window.applyBannedWordsFilter = applyBannedWordsFilter;
 window.openBannedWordsScreen = openBannedWordsScreen;
+window.isBannedWordsFeatureEnabled = isBannedWordsFeatureEnabled;
