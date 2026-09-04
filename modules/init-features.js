@@ -1528,6 +1528,29 @@ window.initFeatures = function(state, db) {
       });
     });
 
+    // 清空相册图片
+    document.getElementById('clear-album-photos-btn').addEventListener('click', openClearAlbumPhotosModal);
+    document.getElementById('cancel-clear-album-photos-btn').addEventListener('click', () => {
+      document.getElementById('clear-album-photos-modal').classList.remove('visible');
+    });
+    document.getElementById('confirm-clear-album-photos-btn').addEventListener('click', handleConfirmClearAlbumPhotos);
+    document.getElementById('clear-album-photos-modal').addEventListener('click', (e) => {
+      const item = e.target.closest('.clear-posts-item');
+      if (item) {
+        e.stopPropagation();
+        item.classList.toggle('selected');
+      }
+    });
+    document.getElementById('select-all-albums-for-photo-clear').addEventListener('change', (e) => {
+      const isChecked = e.target.checked;
+      document.querySelectorAll('#clear-album-photos-list .clear-posts-item').forEach(item => {
+        item.classList.toggle('selected', isChecked);
+      });
+    });
+
+    // 清空本地上传的头像
+    document.getElementById('clear-avatars-btn').addEventListener('click', openClearAvatarsConfirm);
+
     document.getElementById('copy-message-btn').addEventListener('click', copyMessageContent);
 
 

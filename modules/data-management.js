@@ -1839,6 +1839,307 @@ async function cleanupRedundantData() {
     }
   }
 
+  // ========== 清空相册图片（QQ空间相册，相册本身保留）==========
+
+  let selectedAlbumsForPhotoClear = [];
+
+  function openClearAlbumPhotosModal() {
+    const modal = document.getElementById('clear-album-photos-modal');
+    selectedAlbumsForPhotoClear = [];
+
+    renderClearAlbumPhotosList();
+    modal.classList.add('visible');
+  }
+
+  async function renderClearAlbumPhotosList() {
+    const listEl = document.getElementById('clear-album-photos-list');
+    listEl.innerHTML = '';
+
+    const albums = await db.qzoneAlbums.toArray();
+    const albumsWithPhotos = [];
+
+    for (const album of albums) {
+      const photos = await db.qzonePhotos.where('albumId').equals(album.id).toArray();
+      let photoCount = 0;
+      let totalSize = 0;
+
+      photos.forEach(p => {
+        if (typeof p.url === 'string' && p.url.startsWith('data:image')) {
+          photoCount++;
+          totalSize += p.url.length;
+        }
+      });
+
+      if (photoCount > 0) {
+        albumsWithPhotos.push({
+          id: album.id,
+          name: album.name || '未命名相册',
+          photoCount,
+          totalSize
+        });
+      }
+    }
+
+    if (albumsWithPhotos.length === 0) {
+      listEl.innerHTML = '<p style="text-align: center; padding: 40px; color: var(--text-secondary);">没有找到包含本地图片的相册</p>';
+      return;
+    }
+
+    // 按占用空间降序排列，最占地方的相册排在最前面
+    albumsWithPhotos.sort((a, b) => b.totalSize - a.totalSize);
+
+    albumsWithPhotos.forEach(album => {
+      const sizeMB = (album.totalSize / 1024 / 1024).toFixed(2);
+      const item = document.createElement('div');
+      item.className = 'clear-posts-item';
+      item.dataset.albumId = album.id;
+      item.innerHTML = `
+        <div class="checkbox"></div>
+        <div>
+          <span class="name">${album.name}</span>
+          <p style="font-size: 12px; color: #888; margin: 4px 0 0;">${album.photoCount} 张照片，占用 ${sizeMB} MB</p>
+        </div>
+      `;
+      listEl.appendChild(item);
+    });
+  }
+
+  async function handleConfirmClearAlbumPhotos() {
+    const selectedItems = document.querySelectorAll('#clear-album-photos-list .clear-posts-item.selected');
+
+    if (selectedItems.length === 0) {
+      alert("请至少选择一个相册。");
+      return;
+    }
+
+    selectedAlbumsForPhotoClear = Array.from(selectedItems).map(item => Number(item.dataset.albumId));
+
+    const confirmed = await showCustomConfirm(
+      '确认清空相册照片？',
+      `即将清空 <strong>${selectedAlbumsForPhotoClear.length}</strong> 个相册中的本地照片（相册本身会保留，仅删除照片）。<br><br>此操作不可撤销，建议先导出数据备份。`,
+      {
+        confirmButtonClass: 'btn-danger',
+        confirmText: '确认清空'
+      }
+    );
+
+    if (!confirmed) return;
+
+    await showCustomAlert("请稍候...", "正在清空相册照片，请不要关闭页面...");
+
+    try {
+      let stats = {
+        albumsProcessed: 0,
+        photosCleared: 0,
+        sizeFreed: 0
+      };
+
+      await db.transaction('rw', db.qzonePhotos, db.qzoneAlbums, async () => {
+        for (const albumId of selectedAlbumsForPhotoClear) {
+          const photos = await db.qzonePhotos.where('albumId').equals(albumId).toArray();
+          const idsToDelete = [];
+
+          photos.forEach(p => {
+            if (typeof p.url === 'string' && p.url.startsWith('data:image')) {
+              stats.photosCleared++;
+              stats.sizeFreed += p.url.length;
+              idsToDelete.push(p.id);
+            }
+          });
+
+          if (idsToDelete.length > 0) {
+            await db.qzonePhotos.bulkDelete(idsToDelete);
+          }
+
+          const remainingCount = await db.qzonePhotos.where('albumId').equals(albumId).count();
+          await db.qzoneAlbums.update(albumId, {
+            photoCount: remainingCount
+          });
+
+          stats.albumsProcessed++;
+        }
+      });
+
+      document.getElementById('clear-album-photos-modal').classList.remove('visible');
+
+      const freedMB = (stats.sizeFreed / 1024 / 1024).toFixed(2);
+      await showCustomAlert(
+        '清空完成',
+        `已清空 ${stats.albumsProcessed} 个相册中的照片。<br>
+        清空了 ${stats.photosCleared} 张照片<br>
+        释放了 <strong>${freedMB} MB</strong> 空间。<br><br>
+        建议刷新页面以使更改生效。`
+      );
+
+      // 刷新存储大小显示
+      displayTotalImageSize();
+    } catch (error) {
+      console.error("清空相册照片时出错:", error);
+      await showCustomAlert('清空失败', `操作失败: ${error.message}`);
+    }
+  }
+
+  // ========== 清空本地上传的头像（角色/我的/群聊/头像库/QQ空间/豆瓣）==========
+
+  function isLocalAvatarUrl(url) {
+    return typeof url === 'string' && url.startsWith('data:image');
+  }
+
+  async function scanLocalAvatarStats() {
+    let found = 0;
+    let size = 0;
+
+    const chats = await db.chats.toArray();
+    for (const chat of chats) {
+      const s = chat.settings || {};
+
+      ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
+        if (isLocalAvatarUrl(s[key])) {
+          found++;
+          size += s[key].length;
+        }
+      });
+
+      ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
+        (s[key] || []).forEach(item => {
+          if (item && isLocalAvatarUrl(item.url)) {
+            found++;
+            size += item.url.length;
+          }
+        });
+      });
+    }
+
+    const qzoneSettingsArr = await db.qzoneSettings.toArray();
+    qzoneSettingsArr.forEach(q => {
+      if (isLocalAvatarUrl(q.avatar)) {
+        found++;
+        size += q.avatar.length;
+      }
+    });
+
+    const globalSettingsArr = await db.globalSettings.toArray();
+    globalSettingsArr.forEach(g => {
+      if (isLocalAvatarUrl(g.doubanUserAvatar)) {
+        found++;
+        size += g.doubanUserAvatar.length;
+      }
+    });
+
+    return { found, size };
+  }
+
+  async function openClearAvatarsConfirm() {
+    await showCustomAlert("正在扫描...", "正在统计本地上传的头像，请稍候...");
+
+    const { found, size } = await scanLocalAvatarStats();
+
+    if (found === 0) {
+      await showCustomAlert('没有找到', '没有找到本地上传的头像，无需清空。（图床链接头像不受影响）');
+      return;
+    }
+
+    const sizeMB = (size / 1024 / 1024).toFixed(2);
+    const confirmed = await showCustomConfirm(
+      '确认清空所有本地头像？',
+      `找到 <strong>${found}</strong> 个本地上传的头像，共占用约 <strong>${sizeMB} MB</strong>。<br><br>
+      清空范围：角色头像、我的头像（含每个角色的自定义"我的头像"）、群聊头像、三个头像库中的备用头像、QQ空间个人头像、豆瓣头像。<br><br>
+      <strong>只清空本地上传（base64）的头像，使用图床/网络链接的头像不受影响。</strong>清空后会恢复为默认头像。<br><br>
+      此操作不可撤销，建议先导出数据备份。`,
+      {
+        confirmButtonClass: 'btn-danger',
+        confirmText: '确认清空'
+      }
+    );
+
+    if (!confirmed) return;
+
+    await handleConfirmClearAvatars();
+  }
+
+  async function handleConfirmClearAvatars() {
+    await showCustomAlert("请稍候...", "正在清空本地头像，请不要关闭页面...");
+
+    let stats = {
+      avatarsCleared: 0,
+      sizeFreed: 0
+    };
+
+    try {
+      await db.transaction('rw', db.chats, db.qzoneSettings, db.globalSettings, async () => {
+        const chats = await db.chats.toArray();
+        for (const chat of chats) {
+          if (!chat.settings) continue;
+          let changed = false;
+
+          ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
+            if (isLocalAvatarUrl(chat.settings[key])) {
+              stats.avatarsCleared++;
+              stats.sizeFreed += chat.settings[key].length;
+              chat.settings[key] = '';
+              changed = true;
+            }
+          });
+
+          ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
+            if (Array.isArray(chat.settings[key])) {
+              const before = chat.settings[key].length;
+              chat.settings[key] = chat.settings[key].filter(item => {
+                if (item && isLocalAvatarUrl(item.url)) {
+                  stats.avatarsCleared++;
+                  stats.sizeFreed += item.url.length;
+                  return false;
+                }
+                return true;
+              });
+              if (chat.settings[key].length !== before) changed = true;
+            }
+          });
+
+          if (changed) {
+            await db.chats.put(chat);
+            if (state.chats && state.chats[chat.id]) {
+              state.chats[chat.id].settings = chat.settings;
+            }
+          }
+        }
+
+        const qzoneSettingsArr = await db.qzoneSettings.toArray();
+        for (const q of qzoneSettingsArr) {
+          if (isLocalAvatarUrl(q.avatar)) {
+            stats.avatarsCleared++;
+            stats.sizeFreed += q.avatar.length;
+            q.avatar = '';
+            await db.qzoneSettings.put(q);
+          }
+        }
+
+        const globalSettingsArr = await db.globalSettings.toArray();
+        for (const g of globalSettingsArr) {
+          if (isLocalAvatarUrl(g.doubanUserAvatar)) {
+            stats.avatarsCleared++;
+            stats.sizeFreed += g.doubanUserAvatar.length;
+            g.doubanUserAvatar = '';
+            await db.globalSettings.put(g);
+          }
+        }
+      });
+
+      const freedMB = (stats.sizeFreed / 1024 / 1024).toFixed(2);
+      await showCustomAlert(
+        '清空完成',
+        `已清空 ${stats.avatarsCleared} 个本地头像。<br>
+        释放了 <strong>${freedMB} MB</strong> 空间。<br><br>
+        建议刷新页面以使更改生效。`
+      );
+
+      displayTotalImageSize();
+    } catch (error) {
+      console.error("清空头像时出错:", error);
+      await showCustomAlert('清空失败', `操作失败: ${error.message}`);
+    }
+  }
+
 
   // ========== 清空聊天HTML ==========
 
