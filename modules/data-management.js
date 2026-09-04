@@ -2140,6 +2140,354 @@ async function cleanupRedundantData() {
     }
   }
 
+  // ========== 一键清空所有本地图片（全量，慎用）==========
+  // 覆盖范围比"本地图片占用"统计（displayTotalImageSize）还要全一些，
+  // 额外包含了 qzonePhotos 相册照片（那个统计里没算这部分）。
+  // 有意排除：widgetData / appIcons / cphoneAppIcons / myphoneAppIcons，
+  // 这几个是小组件/App图标的映射表，体积通常很小，但清空容易导致图标丢失引用，
+  // 和图片压缩功能保持一致，不在"一键清空"范围内。
+
+  async function scanEverythingLocalImageStats() {
+    const stats = {
+      chatMessageImages: { count: 0, size: 0 },
+      stickerMessages: { count: 0, size: 0 },
+      avatars: { count: 0, size: 0 },
+      wallpapers: { count: 0, size: 0 },
+      stickerLibrary: { count: 0, size: 0 },
+      avatarFrames: { count: 0, size: 0 },
+      albumPhotos: { count: 0, size: 0 }
+    };
+
+    const chats = await db.chats.toArray();
+    for (const chat of chats) {
+      if (Array.isArray(chat.history)) {
+        chat.history.forEach(msg => {
+          const isSticker = msg.meaning || msg.type === 'sticker';
+          if (isSticker && typeof msg.content === 'string' && isLocalAvatarUrl(msg.content)) {
+            stats.stickerMessages.count++;
+            stats.stickerMessages.size += msg.content.length;
+            return; // 表情消息不再重复计入普通图片
+          }
+          if (Array.isArray(msg.images)) {
+            msg.images.forEach(img => {
+              if (isLocalAvatarUrl(img)) {
+                stats.chatMessageImages.count++;
+                stats.chatMessageImages.size += img.length;
+              }
+            });
+          }
+          if (Array.isArray(msg.content)) {
+            msg.content.forEach(item => {
+              if (item && item.type === 'image_url' && item.image_url && isLocalAvatarUrl(item.image_url.url)) {
+                stats.chatMessageImages.count++;
+                stats.chatMessageImages.size += item.image_url.url.length;
+              }
+            });
+          }
+        });
+      }
+
+      const s = chat.settings || {};
+      ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
+        if (isLocalAvatarUrl(s[key])) {
+          stats.avatars.count++;
+          stats.avatars.size += s[key].length;
+        }
+      });
+      ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
+        (s[key] || []).forEach(item => {
+          if (item && isLocalAvatarUrl(item.url)) {
+            stats.avatars.count++;
+            stats.avatars.size += item.url.length;
+          }
+        });
+      });
+      if (isLocalAvatarUrl(s.background)) {
+        stats.wallpapers.count++;
+        stats.wallpapers.size += s.background.length;
+      }
+    }
+
+    const globalSettingsArr = await db.globalSettings.toArray();
+    globalSettingsArr.forEach(g => {
+      ['wallpaper', 'cphoneWallpaper', 'globalChatBackground'].forEach(key => {
+        if (isLocalAvatarUrl(g[key])) {
+          stats.wallpapers.count++;
+          stats.wallpapers.size += g[key].length;
+        }
+      });
+      if (isLocalAvatarUrl(g.doubanUserAvatar)) {
+        stats.avatars.count++;
+        stats.avatars.size += g.doubanUserAvatar.length;
+      }
+    });
+
+    const qzoneSettingsArr = await db.qzoneSettings.toArray();
+    qzoneSettingsArr.forEach(q => {
+      if (isLocalAvatarUrl(q.avatar)) {
+        stats.avatars.count++;
+        stats.avatars.size += q.avatar.length;
+      }
+    });
+
+    const stickers = await db.userStickers.toArray();
+    stickers.forEach(sticker => {
+      if (isLocalAvatarUrl(sticker.url)) {
+        stats.stickerLibrary.count++;
+        stats.stickerLibrary.size += sticker.url.length;
+      }
+    });
+
+    const frames = await db.customAvatarFrames.toArray();
+    frames.forEach(frame => {
+      if (isLocalAvatarUrl(frame.url)) {
+        stats.avatarFrames.count++;
+        stats.avatarFrames.size += frame.url.length;
+      }
+    });
+
+    const photos = await db.qzonePhotos.toArray();
+    photos.forEach(photo => {
+      if (isLocalAvatarUrl(photo.url)) {
+        stats.albumPhotos.count++;
+        stats.albumPhotos.size += photo.url.length;
+      }
+    });
+
+    return stats;
+  }
+
+  function formatAllImageStatsSummary(stats) {
+    const rows = [
+      ['聊天图片消息', stats.chatMessageImages],
+      ['表情包消息', stats.stickerMessages],
+      ['头像（含头像库/QQ空间/豆瓣）', stats.avatars],
+      ['壁纸/背景', stats.wallpapers],
+      ['表情包库', stats.stickerLibrary],
+      ['头像框', stats.avatarFrames],
+      ['相册照片', stats.albumPhotos]
+    ];
+    let totalSize = 0;
+    let lines = '';
+    rows.forEach(([label, s]) => {
+      if (s.count > 0) {
+        totalSize += s.size;
+        lines += `- ${label}：${s.count} 张，约 ${(s.size / 1024 / 1024).toFixed(2)} MB<br>`;
+      }
+    });
+    return { lines, totalSize, totalMB: (totalSize / 1024 / 1024).toFixed(2) };
+  }
+
+  async function openClearAllLocalImagesConfirm() {
+    await showCustomAlert("正在扫描...", "正在统计所有本地图片，数据量大时可能需要几秒，请稍候...");
+
+    const stats = await scanEverythingLocalImageStats();
+    const { lines, totalSize, totalMB } = formatAllImageStatsSummary(stats);
+
+    if (totalSize === 0) {
+      await showCustomAlert('没有找到', '没有找到本地图片，无需清空。');
+      return;
+    }
+
+    const confirmed = await showCustomConfirm(
+      '⚠️ 确认清空全部本地图片？',
+      `将清空以下分类，共约 <strong>${totalMB} MB</strong>：<br><br>
+      ${lines}<br>
+      不受影响：App图标/小组件图片（体积通常很小，未纳入本次清空），以及所有使用图床/网络链接的图片。<br><br>
+      <strong style="color:#dc3545">此操作不可撤销，强烈建议先导出数据备份再继续！</strong>`,
+      {
+        confirmButtonClass: 'btn-danger',
+        confirmText: '我已备份，确认全部清空'
+      }
+    );
+
+    if (!confirmed) return;
+
+    await executeClearAllLocalImages();
+  }
+
+  async function executeClearAllLocalImages() {
+    await showCustomAlert("请稍候...", "正在清空所有本地图片，数据量大时可能需要一段时间，请不要关闭页面...");
+
+    let totalFreed = 0;
+
+    try {
+      await db.transaction('rw', db.chats, db.globalSettings, db.qzoneSettings, db.userStickers, db.customAvatarFrames, db.qzonePhotos, db.qzoneAlbums, async () => {
+
+        // 1. 聊天记录：表情包消息 + 图片消息（只清本地base64，网络URL不动）
+        const chats = await db.chats.toArray();
+        for (const chat of chats) {
+          let changed = false;
+
+          if (Array.isArray(chat.history)) {
+            const beforeLen = chat.history.length;
+            chat.history = chat.history.filter(msg => {
+              const isSticker = msg.meaning || msg.type === 'sticker';
+              if (isSticker && typeof msg.content === 'string' && isLocalAvatarUrl(msg.content)) {
+                totalFreed += msg.content.length;
+                return false;
+              }
+              return true;
+            });
+            if (chat.history.length !== beforeLen) changed = true;
+
+            chat.history.forEach(msg => {
+              if (Array.isArray(msg.images)) {
+                const beforeImgLen = msg.images.length;
+                msg.images = msg.images.filter(img => {
+                  if (isLocalAvatarUrl(img)) {
+                    totalFreed += img.length;
+                    return false;
+                  }
+                  return true;
+                });
+                if (msg.images.length !== beforeImgLen) changed = true;
+              }
+              if (Array.isArray(msg.content)) {
+                const beforeContentLen = msg.content.length;
+                msg.content = msg.content.filter(item => {
+                  if (item && item.type === 'image_url' && item.image_url && isLocalAvatarUrl(item.image_url.url)) {
+                    totalFreed += item.image_url.url.length;
+                    return false;
+                  }
+                  return true;
+                });
+                if (msg.content.length !== beforeContentLen) changed = true;
+              }
+            });
+          }
+
+          // 2. 头像
+          const s = chat.settings || {};
+          ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
+            if (isLocalAvatarUrl(s[key])) {
+              totalFreed += s[key].length;
+              s[key] = '';
+              changed = true;
+            }
+          });
+          ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
+            if (Array.isArray(s[key])) {
+              const before = s[key].length;
+              s[key] = s[key].filter(item => {
+                if (item && isLocalAvatarUrl(item.url)) {
+                  totalFreed += item.url.length;
+                  return false;
+                }
+                return true;
+              });
+              if (s[key].length !== before) changed = true;
+            }
+          });
+
+          // 3. 每角色自定义背景
+          if (isLocalAvatarUrl(s.background)) {
+            totalFreed += s.background.length;
+            s.background = '';
+            changed = true;
+          }
+
+          if (changed) {
+            await db.chats.put(chat);
+            if (state.chats && state.chats[chat.id]) {
+              state.chats[chat.id] = chat;
+            }
+          }
+        }
+
+        // 4. 全局壁纸 + 豆瓣头像
+        const globalSettingsArr = await db.globalSettings.toArray();
+        for (const g of globalSettingsArr) {
+          let changed = false;
+          ['wallpaper', 'cphoneWallpaper', 'globalChatBackground', 'doubanUserAvatar'].forEach(key => {
+            if (isLocalAvatarUrl(g[key])) {
+              totalFreed += g[key].length;
+              g[key] = '';
+              changed = true;
+            }
+          });
+          if (changed) await db.globalSettings.put(g);
+        }
+
+        // 5. QQ空间头像
+        const qzoneSettingsArr = await db.qzoneSettings.toArray();
+        for (const q of qzoneSettingsArr) {
+          if (isLocalAvatarUrl(q.avatar)) {
+            totalFreed += q.avatar.length;
+            q.avatar = '';
+            await db.qzoneSettings.put(q);
+          }
+        }
+
+        // 6. 表情包库
+        const stickers = await db.userStickers.toArray();
+        const stickerIdsToDelete = [];
+        stickers.forEach(sticker => {
+          if (isLocalAvatarUrl(sticker.url)) {
+            totalFreed += sticker.url.length;
+            stickerIdsToDelete.push(sticker.id);
+          }
+        });
+        if (stickerIdsToDelete.length > 0) {
+          await db.userStickers.bulkDelete(stickerIdsToDelete);
+        }
+
+        // 7. 头像框
+        const frames = await db.customAvatarFrames.toArray();
+        const frameIdsToDelete = [];
+        frames.forEach(frame => {
+          if (isLocalAvatarUrl(frame.url)) {
+            totalFreed += frame.url.length;
+            frameIdsToDelete.push(frame.id);
+          }
+        });
+        if (frameIdsToDelete.length > 0) {
+          await db.customAvatarFrames.bulkDelete(frameIdsToDelete);
+        }
+
+        // 8. 相册照片（保留相册本身，只删照片）
+        const photos = await db.qzonePhotos.toArray();
+        const photoIdsToDelete = [];
+        const affectedAlbumIds = new Set();
+        photos.forEach(photo => {
+          if (isLocalAvatarUrl(photo.url)) {
+            totalFreed += photo.url.length;
+            photoIdsToDelete.push(photo.id);
+            affectedAlbumIds.add(photo.albumId);
+          }
+        });
+        if (photoIdsToDelete.length > 0) {
+          await db.qzonePhotos.bulkDelete(photoIdsToDelete);
+          for (const albumId of affectedAlbumIds) {
+            const remaining = await db.qzonePhotos.where('albumId').equals(albumId).count();
+            await db.qzoneAlbums.update(albumId, { photoCount: remaining });
+          }
+        }
+      });
+
+      const freedMB = (totalFreed / 1024 / 1024).toFixed(2);
+
+      const shouldRefresh = await showCustomConfirm(
+        '清空完成',
+        `已清空所有分类的本地图片，释放约 <strong>${freedMB} MB</strong> 空间。<br><br>
+        是否立即刷新页面以使更改生效？`,
+        {
+          confirmText: '立即刷新',
+          cancelText: '稍后刷新'
+        }
+      );
+
+      if (shouldRefresh) {
+        location.reload();
+      } else {
+        displayTotalImageSize();
+      }
+    } catch (error) {
+      console.error("一键清空所有本地图片时出错:", error);
+      await showCustomAlert('清空失败', `操作失败: ${error.message}`);
+    }
+  }
+
 
   // ========== 清空聊天HTML ==========
 

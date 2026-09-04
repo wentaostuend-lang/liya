@@ -1551,6 +1551,9 @@ window.initFeatures = function(state, db) {
     // 清空本地上传的头像
     document.getElementById('clear-avatars-btn').addEventListener('click', openClearAvatarsConfirm);
 
+    // 一键清空所有本地图片
+    document.getElementById('clear-all-images-btn').addEventListener('click', openClearAllLocalImagesConfirm);
+
     document.getElementById('copy-message-btn').addEventListener('click', copyMessageContent);
 
 
