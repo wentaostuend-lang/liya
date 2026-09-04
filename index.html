@@ -3185,6 +3185,8 @@
             <button class="settings-full-btn" id="clear-chat-html-btn">清空聊天的HTML内容</button>
             <button class="settings-full-btn" id="clear-api-history-btn">清空所有API历史记录</button>
             <button class="settings-full-btn" id="clear-stickers-btn">一键清空表情包</button>
+            <button class="settings-full-btn" id="clear-album-photos-btn">清空相册图片（保留相册）</button>
+            <button class="settings-full-btn" id="clear-avatars-btn">清空本地上传的头像</button>
             <button class="settings-full-btn" id="view-data-distribution-btn" data-lang-key="apiViewDataDistributionBtn">查看数据分布</button>
             <button class="settings-full-btn" id="export-data-btn" data-lang-key="apiExportDataBtn">导出所有数据</button>
             <button class="settings-full-btn" id="advanced-export-btn">高级导出导入</button>
@@ -3324,6 +3326,22 @@
         <div class="modal-footer">
           <button class="cancel" id="cancel-clear-images-btn">取消</button>
           <button class="save btn-danger" id="confirm-clear-images-btn">确认清空</button>
+        </div>
+      </div>
+    </div>
+    <div id="clear-album-photos-modal" class="modal">
+      <div class="modal-content" style="height: 70%;">
+        <div class="modal-header">
+          <span>选择要清空照片的相册</span>
+          <label>
+            <input type="checkbox" id="select-all-albums-for-photo-clear"> 全选
+          </label>
+        </div>
+        <div class="modal-body" id="clear-album-photos-list" style="padding: 0;">
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-clear-album-photos-btn">取消</button>
+          <button class="save btn-danger" id="confirm-clear-album-photos-btn">确认清空</button>
         </div>
       </div>
     </div>
