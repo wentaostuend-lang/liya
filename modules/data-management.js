@@ -2141,159 +2141,107 @@ async function cleanupRedundantData() {
   }
 
   // ========== 一键清空所有本地图片（全量，慎用）==========
-  // 覆盖范围比"本地图片占用"统计（displayTotalImageSize）还要全一些，
-  // 额外包含了 qzonePhotos 相册照片（那个统计里没算这部分）。
+  // 用和"压缩图片""本地图片占用"完全一样的通用递归扫描方式（不认字段名，只认 data:image 前缀），
+  // 保证这里统计到的数量和那两个功能一致，不会再出现字段名猜漏导致漏掉图片的问题
+  // （比如 NAI/Google Imagen 生成图存在 msg.imageUrl 字段，是最初版本漏掉的一个例子）。
+  // 覆盖范围：chats / globalSettings / qzoneSettings / userStickers / customAvatarFrames 这五张表
+  // （和"本地图片占用"统计的表完全一样），额外加上 qzonePhotos 相册照片（那个统计里没算这部分）。
   // 有意排除：widgetData / appIcons / cphoneAppIcons / myphoneAppIcons，
   // 这几个是小组件/App图标的映射表，体积通常很小，但清空容易导致图标丢失引用，
   // 和图片压缩功能保持一致，不在"一键清空"范围内。
+  // 注意：清空后，原本嵌在消息里的图片项（比如 content 数组里的 image_url 项、表情消息的 content）
+  // 会变成空字符串而不是整条消息被删掉，聊天记录里可能会看到空白的图片/表情气泡，这是预期行为。
 
-  async function scanEverythingLocalImageStats() {
-    const stats = {
-      chatMessageImages: { count: 0, size: 0 },
-      stickerMessages: { count: 0, size: 0 },
-      avatars: { count: 0, size: 0 },
-      wallpapers: { count: 0, size: 0 },
-      stickerLibrary: { count: 0, size: 0 },
-      avatarFrames: { count: 0, size: 0 },
-      albumPhotos: { count: 0, size: 0 }
-    };
+  async function scanTablesGeneric() {
+    function count(obj, stats, parentKey = '') {
+      if (!obj || typeof obj !== 'object') return;
+      const isExcludedParent =
+        parentKey === 'widgetData' ||
+        parentKey === 'appIcons' ||
+        parentKey === 'cphoneAppIcons' ||
+        parentKey === 'myphoneAppIcons';
 
-    const chats = await db.chats.toArray();
-    for (const chat of chats) {
-      if (Array.isArray(chat.history)) {
-        chat.history.forEach(msg => {
-          const isSticker = msg.meaning || msg.type === 'sticker';
-          if (isSticker && typeof msg.content === 'string' && isLocalAvatarUrl(msg.content)) {
-            stats.stickerMessages.count++;
-            stats.stickerMessages.size += msg.content.length;
-            return; // 表情消息不再重复计入普通图片
+      for (const key in obj) {
+        if (!obj.hasOwnProperty(key)) continue;
+        const value = obj[key];
+        if (typeof value === 'string' && value.startsWith('data:image')) {
+          if (!isExcludedParent) {
+            stats.count++;
+            stats.size += value.length;
           }
-          if (Array.isArray(msg.images)) {
-            msg.images.forEach(img => {
-              if (isLocalAvatarUrl(img)) {
-                stats.chatMessageImages.count++;
-                stats.chatMessageImages.size += img.length;
+        } else if (Array.isArray(value)) {
+          value.forEach(item => {
+            if (typeof item === 'string' && item.startsWith('data:image')) {
+              if (!isExcludedParent) {
+                stats.count++;
+                stats.size += item.length;
               }
-            });
-          }
-          if (Array.isArray(msg.content)) {
-            msg.content.forEach(item => {
-              if (item && item.type === 'image_url' && item.image_url && isLocalAvatarUrl(item.image_url.url)) {
-                stats.chatMessageImages.count++;
-                stats.chatMessageImages.size += item.image_url.url.length;
-              }
-            });
-          }
-        });
-      }
-
-      const s = chat.settings || {};
-      ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
-        if (isLocalAvatarUrl(s[key])) {
-          stats.avatars.count++;
-          stats.avatars.size += s[key].length;
+            } else if (item && typeof item === 'object') {
+              count(item, stats, key);
+            }
+          });
+        } else if (value && typeof value === 'object') {
+          count(value, stats, key);
         }
-      });
-      ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
-        (s[key] || []).forEach(item => {
-          if (item && isLocalAvatarUrl(item.url)) {
-            stats.avatars.count++;
-            stats.avatars.size += item.url.length;
-          }
-        });
-      });
-      if (isLocalAvatarUrl(s.background)) {
-        stats.wallpapers.count++;
-        stats.wallpapers.size += s.background.length;
       }
     }
 
+    const mainStats = { count: 0, size: 0 };
+    const albumStats = { count: 0, size: 0 };
+
+    const chats = await db.chats.toArray();
+    chats.forEach(record => count(record, mainStats));
+
     const globalSettingsArr = await db.globalSettings.toArray();
-    globalSettingsArr.forEach(g => {
-      ['wallpaper', 'cphoneWallpaper', 'globalChatBackground'].forEach(key => {
-        if (isLocalAvatarUrl(g[key])) {
-          stats.wallpapers.count++;
-          stats.wallpapers.size += g[key].length;
-        }
-      });
-      if (isLocalAvatarUrl(g.doubanUserAvatar)) {
-        stats.avatars.count++;
-        stats.avatars.size += g.doubanUserAvatar.length;
-      }
-    });
+    globalSettingsArr.forEach(record => count(record, mainStats));
 
     const qzoneSettingsArr = await db.qzoneSettings.toArray();
-    qzoneSettingsArr.forEach(q => {
-      if (isLocalAvatarUrl(q.avatar)) {
-        stats.avatars.count++;
-        stats.avatars.size += q.avatar.length;
-      }
-    });
+    qzoneSettingsArr.forEach(record => count(record, mainStats));
 
     const stickers = await db.userStickers.toArray();
-    stickers.forEach(sticker => {
-      if (isLocalAvatarUrl(sticker.url)) {
-        stats.stickerLibrary.count++;
-        stats.stickerLibrary.size += sticker.url.length;
-      }
-    });
+    stickers.forEach(record => count(record, mainStats));
 
     const frames = await db.customAvatarFrames.toArray();
-    frames.forEach(frame => {
-      if (isLocalAvatarUrl(frame.url)) {
-        stats.avatarFrames.count++;
-        stats.avatarFrames.size += frame.url.length;
-      }
-    });
+    frames.forEach(record => count(record, mainStats));
 
     const photos = await db.qzonePhotos.toArray();
     photos.forEach(photo => {
-      if (isLocalAvatarUrl(photo.url)) {
-        stats.albumPhotos.count++;
-        stats.albumPhotos.size += photo.url.length;
+      if (typeof photo.url === 'string' && photo.url.startsWith('data:image')) {
+        albumStats.count++;
+        albumStats.size += photo.url.length;
       }
     });
 
-    return stats;
-  }
-
-  function formatAllImageStatsSummary(stats) {
-    const rows = [
-      ['聊天图片消息', stats.chatMessageImages],
-      ['表情包消息', stats.stickerMessages],
-      ['头像（含头像库/QQ空间/豆瓣）', stats.avatars],
-      ['壁纸/背景', stats.wallpapers],
-      ['表情包库', stats.stickerLibrary],
-      ['头像框', stats.avatarFrames],
-      ['相册照片', stats.albumPhotos]
-    ];
-    let totalSize = 0;
-    let lines = '';
-    rows.forEach(([label, s]) => {
-      if (s.count > 0) {
-        totalSize += s.size;
-        lines += `- ${label}：${s.count} 张，约 ${(s.size / 1024 / 1024).toFixed(2)} MB<br>`;
-      }
-    });
-    return { lines, totalSize, totalMB: (totalSize / 1024 / 1024).toFixed(2) };
+    return { mainStats, albumStats };
   }
 
   async function openClearAllLocalImagesConfirm() {
     await showCustomAlert("正在扫描...", "正在统计所有本地图片，数据量大时可能需要几秒，请稍候...");
 
-    const stats = await scanEverythingLocalImageStats();
-    const { lines, totalSize, totalMB } = formatAllImageStatsSummary(stats);
+    const { mainStats, albumStats } = await scanTablesGeneric();
+    const totalCount = mainStats.count + albumStats.count;
+    const totalSize = mainStats.size + albumStats.size;
 
-    if (totalSize === 0) {
+    if (totalCount === 0) {
       await showCustomAlert('没有找到', '没有找到本地图片，无需清空。');
       return;
     }
 
+    const totalMB = (totalSize / 1024 / 1024).toFixed(2);
+    let lines = '';
+    if (mainStats.count > 0) {
+      lines += `- 聊天记录/头像/表情包/头像框/壁纸等：${mainStats.count} 张，约 ${(mainStats.size / 1024 / 1024).toFixed(2)} MB<br>`;
+    }
+    if (albumStats.count > 0) {
+      lines += `- 相册照片：${albumStats.count} 张，约 ${(albumStats.size / 1024 / 1024).toFixed(2)} MB<br>`;
+    }
+
     const confirmed = await showCustomConfirm(
       '⚠️ 确认清空全部本地图片？',
-      `将清空以下分类，共约 <strong>${totalMB} MB</strong>：<br><br>
+      `将清空共 <strong>${totalCount}</strong> 张本地图片，约 <strong>${totalMB} MB</strong>：<br><br>
       ${lines}<br>
       不受影响：App图标/小组件图片（体积通常很小，未纳入本次清空），以及所有使用图床/网络链接的图片。<br><br>
+      清空后聊天记录里对应的图片/表情位置可能会显示为空白（消息本身不会被删除），相册会保留、只删照片。<br><br>
       <strong style="color:#dc3545">此操作不可撤销，强烈建议先导出数据备份再继续！</strong>`,
       {
         confirmButtonClass: 'btn-danger',
@@ -2309,85 +2257,58 @@ async function cleanupRedundantData() {
   async function executeClearAllLocalImages() {
     await showCustomAlert("请稍候...", "正在清空所有本地图片，数据量大时可能需要一段时间，请不要关闭页面...");
 
+    function clearInPlace(obj, stats, parentKey = '') {
+      if (!obj || typeof obj !== 'object') return false;
+      const isExcludedParent =
+        parentKey === 'widgetData' ||
+        parentKey === 'appIcons' ||
+        parentKey === 'cphoneAppIcons' ||
+        parentKey === 'myphoneAppIcons';
+
+      let changed = false;
+
+      for (const key in obj) {
+        if (!obj.hasOwnProperty(key)) continue;
+        const value = obj[key];
+
+        if (typeof value === 'string' && value.startsWith('data:image')) {
+          if (!isExcludedParent) {
+            stats.count++;
+            stats.size += value.length;
+            obj[key] = '';
+            changed = true;
+          }
+        } else if (Array.isArray(value)) {
+          for (let i = value.length - 1; i >= 0; i--) {
+            const item = value[i];
+            if (typeof item === 'string' && item.startsWith('data:image')) {
+              if (!isExcludedParent) {
+                stats.count++;
+                stats.size += item.length;
+                value.splice(i, 1);
+                changed = true;
+              }
+            } else if (item && typeof item === 'object') {
+              if (clearInPlace(item, stats, key)) changed = true;
+            }
+          }
+        } else if (value && typeof value === 'object') {
+          if (clearInPlace(value, stats, key)) changed = true;
+        }
+      }
+
+      return changed;
+    }
+
     let totalFreed = 0;
+    const stats = { count: 0, size: 0 };
 
     try {
       await db.transaction('rw', db.chats, db.globalSettings, db.qzoneSettings, db.userStickers, db.customAvatarFrames, db.qzonePhotos, db.qzoneAlbums, async () => {
 
-        // 1. 聊天记录：表情包消息 + 图片消息（只清本地base64，网络URL不动）
         const chats = await db.chats.toArray();
         for (const chat of chats) {
-          let changed = false;
-
-          if (Array.isArray(chat.history)) {
-            const beforeLen = chat.history.length;
-            chat.history = chat.history.filter(msg => {
-              const isSticker = msg.meaning || msg.type === 'sticker';
-              if (isSticker && typeof msg.content === 'string' && isLocalAvatarUrl(msg.content)) {
-                totalFreed += msg.content.length;
-                return false;
-              }
-              return true;
-            });
-            if (chat.history.length !== beforeLen) changed = true;
-
-            chat.history.forEach(msg => {
-              if (Array.isArray(msg.images)) {
-                const beforeImgLen = msg.images.length;
-                msg.images = msg.images.filter(img => {
-                  if (isLocalAvatarUrl(img)) {
-                    totalFreed += img.length;
-                    return false;
-                  }
-                  return true;
-                });
-                if (msg.images.length !== beforeImgLen) changed = true;
-              }
-              if (Array.isArray(msg.content)) {
-                const beforeContentLen = msg.content.length;
-                msg.content = msg.content.filter(item => {
-                  if (item && item.type === 'image_url' && item.image_url && isLocalAvatarUrl(item.image_url.url)) {
-                    totalFreed += item.image_url.url.length;
-                    return false;
-                  }
-                  return true;
-                });
-                if (msg.content.length !== beforeContentLen) changed = true;
-              }
-            });
-          }
-
-          // 2. 头像
-          const s = chat.settings || {};
-          ['aiAvatar', 'myAvatar', 'groupAvatar'].forEach(key => {
-            if (isLocalAvatarUrl(s[key])) {
-              totalFreed += s[key].length;
-              s[key] = '';
-              changed = true;
-            }
-          });
-          ['aiAvatarLibrary', 'myAvatarLibrary', 'groupAvatarLibrary'].forEach(key => {
-            if (Array.isArray(s[key])) {
-              const before = s[key].length;
-              s[key] = s[key].filter(item => {
-                if (item && isLocalAvatarUrl(item.url)) {
-                  totalFreed += item.url.length;
-                  return false;
-                }
-                return true;
-              });
-              if (s[key].length !== before) changed = true;
-            }
-          });
-
-          // 3. 每角色自定义背景
-          if (isLocalAvatarUrl(s.background)) {
-            totalFreed += s.background.length;
-            s.background = '';
-            changed = true;
-          }
-
-          if (changed) {
+          if (clearInPlace(chat, stats)) {
             await db.chats.put(chat);
             if (state.chats && state.chats[chat.id]) {
               state.chats[chat.id] = chat;
@@ -2395,63 +2316,42 @@ async function cleanupRedundantData() {
           }
         }
 
-        // 4. 全局壁纸 + 豆瓣头像
         const globalSettingsArr = await db.globalSettings.toArray();
         for (const g of globalSettingsArr) {
-          let changed = false;
-          ['wallpaper', 'cphoneWallpaper', 'globalChatBackground', 'doubanUserAvatar'].forEach(key => {
-            if (isLocalAvatarUrl(g[key])) {
-              totalFreed += g[key].length;
-              g[key] = '';
-              changed = true;
-            }
-          });
-          if (changed) await db.globalSettings.put(g);
+          if (clearInPlace(g, stats)) {
+            await db.globalSettings.put(g);
+          }
         }
 
-        // 5. QQ空间头像
         const qzoneSettingsArr = await db.qzoneSettings.toArray();
         for (const q of qzoneSettingsArr) {
-          if (isLocalAvatarUrl(q.avatar)) {
-            totalFreed += q.avatar.length;
-            q.avatar = '';
+          if (clearInPlace(q, stats)) {
             await db.qzoneSettings.put(q);
           }
         }
 
-        // 6. 表情包库
         const stickers = await db.userStickers.toArray();
-        const stickerIdsToDelete = [];
-        stickers.forEach(sticker => {
-          if (isLocalAvatarUrl(sticker.url)) {
-            totalFreed += sticker.url.length;
-            stickerIdsToDelete.push(sticker.id);
+        for (const sticker of stickers) {
+          if (clearInPlace(sticker, stats)) {
+            await db.userStickers.put(sticker);
           }
-        });
-        if (stickerIdsToDelete.length > 0) {
-          await db.userStickers.bulkDelete(stickerIdsToDelete);
         }
 
-        // 7. 头像框
         const frames = await db.customAvatarFrames.toArray();
-        const frameIdsToDelete = [];
-        frames.forEach(frame => {
-          if (isLocalAvatarUrl(frame.url)) {
-            totalFreed += frame.url.length;
-            frameIdsToDelete.push(frame.id);
+        for (const frame of frames) {
+          if (clearInPlace(frame, stats)) {
+            await db.customAvatarFrames.put(frame);
           }
-        });
-        if (frameIdsToDelete.length > 0) {
-          await db.customAvatarFrames.bulkDelete(frameIdsToDelete);
         }
 
-        // 8. 相册照片（保留相册本身，只删照片）
+        // 相册照片（保留相册本身，只删照片）
         const photos = await db.qzonePhotos.toArray();
         const photoIdsToDelete = [];
         const affectedAlbumIds = new Set();
         photos.forEach(photo => {
-          if (isLocalAvatarUrl(photo.url)) {
-            totalFreed += photo.url.length;
+          if (typeof photo.url === 'string' && photo.url.startsWith('data:image')) {
+            stats.count++;
+            stats.size += photo.url.length;
             photoIdsToDelete.push(photo.id);
             affectedAlbumIds.add(photo.albumId);
           }
@@ -2465,11 +2365,12 @@ async function cleanupRedundantData() {
         }
       });
 
+      totalFreed = stats.size;
       const freedMB = (totalFreed / 1024 / 1024).toFixed(2);
 
       const shouldRefresh = await showCustomConfirm(
         '清空完成',
-        `已清空所有分类的本地图片，释放约 <strong>${freedMB} MB</strong> 空间。<br><br>
+        `已清空 ${stats.count} 张本地图片，释放约 <strong>${freedMB} MB</strong> 空间。<br><br>
         是否立即刷新页面以使更改生效？`,
         {
           confirmText: '立即刷新',
