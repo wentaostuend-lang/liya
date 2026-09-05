@@ -249,7 +249,7 @@
       });
 
       const blob = new Blob(
-        [JSON.stringify(backupData, null, 2)], {
+        [JSON.stringify(backupData)], {
         type: 'application/json'
       }
       );
@@ -1113,7 +1113,7 @@
               version: 4,
               type: 'slice',
               data: currentSliceData
-            }));
+            }), { compression: 'DEFLATE', compressionOptions: { level: 6 } });
             currentSliceData = {};
             currentSliceSizeBytes = 0;
           }
@@ -1124,7 +1124,7 @@
             version: 4,
             type: 'slice',
             data: currentSliceData
-          }));
+          }), { compression: 'DEFLATE', compressionOptions: { level: 6 } });
           currentSliceData = {};
           currentSliceSizeBytes = 0;
 
@@ -1140,7 +1140,7 @@
             version: 4,
             type: 'slice',
             data: currentSliceData
-          }));
+          }), { compression: 'DEFLATE', compressionOptions: { level: 6 } });
 
 
           currentSliceData = {};
@@ -1159,7 +1159,7 @@
           version: 4,
           type: 'slice',
           data: currentSliceData
-        }));
+        }), { compression: 'DEFLATE', compressionOptions: { level: 6 } });
       }
       
       // 导出情侣空间 localStorage 数据到单独的文件
@@ -1170,7 +1170,7 @@
           version: 4,
           type: 'localStorage',
           data: coupleSpaceLocalStorage
-        }));
+        }), { compression: 'DEFLATE', compressionOptions: { level: 6 } });
       }
 
       console.log("所有切片已打包，开始流式下载ZIP...");
@@ -1178,7 +1178,9 @@
 
       const zipStream = zip.generateInternalStream({
         type: "blob",
-        streamFiles: true
+        streamFiles: true,
+        compression: "DEFLATE",
+        compressionOptions: { level: 6 }
       });
 
 
@@ -1316,7 +1318,7 @@
       backupData.data.localStorage = coupleSpaceLocalStorage;
 
       const blob = new Blob(
-        [JSON.stringify(backupData, null, 2)], {
+        [JSON.stringify(backupData)], {
         type: 'application/json'
       }
       );
@@ -1888,7 +1890,7 @@
       }
 
       const blob = new Blob(
-        [JSON.stringify(backupData, null, 2)], {
+        [JSON.stringify(backupData)], {
         type: 'application/json'
       }
       );

@@ -1075,6 +1075,19 @@ window.initEventBindingsA = async function(state, db) {
       showToast('数据已刷新', 'success');
     });
 
+    // 深入分析聊天记录构成
+    document.getElementById('view-chats-breakdown-btn').addEventListener('click', viewChatsBreakdown);
+
+    document.getElementById('chats-breakdown-back-btn').addEventListener('click', () => {
+      showScreen('api-settings-screen');
+    });
+
+    document.getElementById('refresh-chats-breakdown-btn').addEventListener('click', async () => {
+      const container = document.getElementById('chats-breakdown-container');
+      await renderChatsBreakdown(container);
+      showToast('数据已刷新', 'success');
+    });
+
     document.getElementById('export-data-btn').addEventListener('click', async () => {
 
       const choice = await showChoiceModal('选择导出方式', [{

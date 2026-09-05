@@ -423,6 +423,189 @@ async function cleanupRedundantData() {
   }
 
 
+  // ========== 深入分析聊天记录构成（195MB这种量级用得上）==========
+  // "数据分布"只能看到"聊天记录"这一整张表多大，看不出里面到底是消息文本、
+  // 图片、记忆向量的哪个占大头。这里对chats表按角色逐条拆解，帮助定位真正的大头。
+
+  function estimateJsonBytes(value) {
+    if (value === undefined || value === null) return 0;
+    try {
+      return new Blob([JSON.stringify(value)]).size;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function countImageBytesInObject(obj) {
+    let total = 0;
+    function walk(o) {
+      if (!o || typeof o !== 'object') return;
+      for (const key in o) {
+        if (!o.hasOwnProperty(key)) continue;
+        const v = o[key];
+        if (typeof v === 'string' && v.startsWith('data:image')) {
+          total += v.length;
+        } else if (Array.isArray(v)) {
+          v.forEach(item => {
+            if (typeof item === 'string' && item.startsWith('data:image')) {
+              total += item.length;
+            } else if (item && typeof item === 'object') {
+              walk(item);
+            }
+          });
+        } else if (v && typeof v === 'object') {
+          walk(v);
+        }
+      }
+    }
+    walk(obj);
+    return total;
+  }
+
+  async function analyzeChatsFieldBreakdown() {
+    const chats = await db.chats.toArray();
+
+    const categoryTotals = {
+      images: 0,
+      variableMemory: 0,
+      apiHistory: 0,
+      historyText: 0,
+      other: 0
+    };
+
+    const perChat = [];
+
+    for (const chat of chats) {
+      const totalBytes = estimateJsonBytes(chat);
+      const imageBytes = countImageBytesInObject(chat);
+      const apiHistoryBytes = chat.apiHistory ? estimateJsonBytes(chat.apiHistory) : 0;
+      const variableMemoryBytes = chat.variableMemory ? estimateJsonBytes(chat.variableMemory) : 0;
+      const historyBytes = chat.history ? estimateJsonBytes(chat.history) : 0;
+      // history 里可能包含图片，这里粗略把图片部分从"消息文本"里减掉，避免重复计入
+      const historyTextBytes = Math.max(historyBytes - imageBytes, 0);
+      const otherBytes = Math.max(totalBytes - historyBytes - apiHistoryBytes - variableMemoryBytes, 0);
+
+      categoryTotals.images += imageBytes;
+      categoryTotals.apiHistory += apiHistoryBytes;
+      categoryTotals.variableMemory += variableMemoryBytes;
+      categoryTotals.historyText += historyTextBytes;
+      categoryTotals.other += otherBytes;
+
+      perChat.push({
+        id: chat.id,
+        name: chat.name || '未命名',
+        isGroup: chat.isGroup || false,
+        totalBytes,
+        historyTextBytes,
+        imageBytes,
+        variableMemoryBytes,
+        apiHistoryBytes,
+        otherBytes
+      });
+    }
+
+    perChat.sort((a, b) => b.totalBytes - a.totalBytes);
+
+    return { categoryTotals, perChat };
+  }
+
+  function mb(bytes) {
+    return (bytes / 1024 / 1024).toFixed(2);
+  }
+
+  async function viewChatsBreakdown() {
+    showScreen('chats-breakdown-screen');
+    const container = document.getElementById('chats-breakdown-container');
+    await renderChatsBreakdown(container);
+  }
+
+  async function renderChatsBreakdown(container) {
+    container.innerHTML = '<p style="text-align: center; padding: 40px 0;">正在分析聊天记录构成，数据量大时需要几秒...</p>';
+
+    try {
+      const { categoryTotals, perChat } = await analyzeChatsFieldBreakdown();
+      const grandTotal = Object.values(categoryTotals).reduce((a, b) => a + b, 0);
+
+      const categoryRows = [
+        ['消息文本（不含图片）', categoryTotals.historyText, '#007bff'],
+        ['图片（消息图/表情/头像/壁纸等）', categoryTotals.images, '#28a745'],
+        ['记忆/向量数据 variableMemory', categoryTotals.variableMemory, '#ff9500'],
+        ['API历史记录 apiHistory', categoryTotals.apiHistory, '#af52de'],
+        ['其他（设置/预设/世界书覆盖等）', categoryTotals.other, '#8e8e93']
+      ];
+
+      let html = `
+        <div style="background: var(--bg-secondary, #f5f5f5); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+          <h3 style="margin: 0 0 10px 0;">📊 聊天记录内部构成（共 ${mb(grandTotal)} MB，${perChat.length} 个角色/群聊）</h3>
+      `;
+
+      categoryRows.forEach(([label, bytes, color]) => {
+        const pct = grandTotal > 0 ? ((bytes / grandTotal) * 100).toFixed(1) : '0.0';
+        html += `
+          <div style="margin: 8px 0;">
+            <div style="display:flex; justify-content: space-between; font-size: 13px;">
+              <span>${label}</span>
+              <span style="color:${color}; font-weight: 600;">${mb(bytes)} MB (${pct}%)</span>
+            </div>
+            <div style="width:100%; height:6px; background:#e0e0e0; border-radius:3px; overflow:hidden; margin-top:3px;">
+              <div style="width:${pct}%; height:100%; background:${color};"></div>
+            </div>
+          </div>
+        `;
+      });
+
+      html += `</div>`;
+
+      html += `
+        <div style="background: var(--bg-primary, #fff); border-radius: 10px; overflow: hidden;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <thead style="background: var(--bg-secondary, #f5f5f5);">
+              <tr>
+                <th style="padding: 8px; text-align: left; border-bottom: 1px solid var(--border-color, #ddd);">角色/群聊</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #ddd);">总计MB</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #ddd);">文本</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #ddd);">图片</th>
+                <th style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #ddd);">记忆</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      perChat.slice(0, 20).forEach((c, i) => {
+        const bg = i % 2 === 0 ? 'transparent' : 'var(--bg-secondary, #f9f9f9)';
+        html += `
+          <tr style="background:${bg};">
+            <td style="padding: 8px; border-bottom: 1px solid var(--border-color, #eee);">${c.name}${c.isGroup ? '（群）' : ''}</td>
+            <td style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #eee); font-weight:600;">${mb(c.totalBytes)}</td>
+            <td style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #eee);">${mb(c.historyTextBytes)}</td>
+            <td style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #eee);">${mb(c.imageBytes)}</td>
+            <td style="padding: 8px; text-align: right; border-bottom: 1px solid var(--border-color, #eee);">${mb(c.variableMemoryBytes)}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size: 12px; color: var(--text-secondary, #999); margin-top: 10px;">
+          只列出体积最大的前20个角色/群聊。"其他"类目（设置/预设/世界书覆盖等）没有单列在表格里，属于总计减去左边三项。
+        </p>
+      `;
+
+      container.innerHTML = html;
+    } catch (error) {
+      console.error("分析聊天记录构成时出错:", error);
+      container.innerHTML = `
+        <div style="text-align: center; padding: 40px 20px;">
+          <p style="color: #ff3b30; font-size: 16px; margin-bottom: 10px;">⚠️ 分析失败</p>
+          <p style="color: #666; font-size: 14px;">${error.message}</p>
+        </div>
+      `;
+    }
+  }
+
+
   // ========== 自定义字体管理 ==========
 
   // 字体范围 → CSS 选择器映射
