@@ -82,7 +82,7 @@
   <script src="modules/video-voice-call.js?v=0.0.38" defer></script>
   <script src="modules/message-actions.js?v=0.0.36" defer></script>
   <script src="modules/nai-imagen.js?v=0.0.36" defer></script>
-  <script src="modules/backup-import-export.js?v=0.0.36" defer></script>
+  <script src="modules/backup-import-export.js?v=0.0.37" defer></script>
   <script src="modules/settings-presets.js?v=0.0.37" defer></script>
   <script src="modules/chat-settings-presets.js?v=0.0.36" defer></script>
   <script src="modules/desktop-pet.js?v=0.0.1" defer></script>
@@ -116,7 +116,7 @@
   <script src="modules/background-activity.js?v=0.0.44" defer></script>
   <script src="modules/card-import.js?v=0.0.36" defer></script>
   <script src="modules/character-export.js?v=0.0.36" defer></script>
-  <script src="modules/data-management.js?v=0.0.48" defer></script>
+  <script src="modules/data-management.js?v=0.0.49" defer></script>
   <script src="modules/misc-features.js?v=0.0.36" defer></script>
   <script src="modules/group-titles.js?v=0.0.7" defer></script>
   <script src="modules/banned-words.js?v=0.0.6" defer></script>
@@ -133,7 +133,7 @@
   <!-- PIN/城市（依赖 DOM） -->
   <script src="modules/init-pin-city.js?v=0.0.36" defer></script>
   <!-- 事件绑定和功能（依赖 state, db） -->
-  <script src="modules/init-event-bindingsA.js?v=0.0.45" defer></script>
+  <script src="modules/init-event-bindingsA.js?v=0.0.46" defer></script>
   <script src="modules/init-event-bindingsB.js?v=0.0.39" defer></script>
   <script src="modules/init-features.js?v=0.0.36" defer></script>
   <!-- 主入口（最后加载，调用 init） -->
@@ -3189,6 +3189,7 @@
             <button class="settings-full-btn" id="clear-avatars-btn">清空本地上传的头像</button>
             <button class="settings-full-btn" id="clear-all-images-btn" style="color:#dc3545;">一键清空所有本地图片（慎用）</button>
             <button class="settings-full-btn" id="view-data-distribution-btn" data-lang-key="apiViewDataDistributionBtn">查看数据分布</button>
+            <button class="settings-full-btn" id="view-chats-breakdown-btn">深入分析聊天记录构成</button>
             <button class="settings-full-btn" id="export-data-btn" data-lang-key="apiExportDataBtn">导出所有数据</button>
             <button class="settings-full-btn" id="advanced-export-btn">高级导出导入</button>
             <button class="settings-full-btn" id="import-btn" data-lang-key="apiImportDataBtn">导入备份文件</button>
@@ -3521,6 +3522,17 @@
         <span class="action-btn" id="refresh-distribution-btn" title="刷新数据">🔄</span>
       </div>
       <div class="list-container" id="data-distribution-container" style="padding: 15px;">
+        <p style="text-align: center; padding: 40px 0; color: var(--text-secondary);">正在加载数据...</p>
+      </div>
+    </div>
+
+    <div id="chats-breakdown-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="chats-breakdown-back-btn">‹</span>
+        <span>🔍 聊天记录构成分析</span>
+        <span class="action-btn" id="refresh-chats-breakdown-btn" title="刷新数据">🔄</span>
+      </div>
+      <div class="list-container" id="chats-breakdown-container" style="padding: 15px;">
         <p style="text-align: center; padding: 40px 0; color: var(--text-secondary);">正在加载数据...</p>
       </div>
     </div>
