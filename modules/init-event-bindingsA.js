@@ -1544,6 +1544,13 @@ window.initEventBindingsA = async function(state, db) {
     });
     document.getElementById('close-playlist-btn').addEventListener('click', () => document.getElementById('music-playlist-panel').classList.remove('visible'));
     document.getElementById('manage-playlist-btn').addEventListener('click', togglePlaylistManagementMode);
+    // 音乐账号（网易云登录/歌单导入，从 xinyuan 移植）
+    document.getElementById('music-account-btn')?.addEventListener('click', () => {
+      if (typeof openMusicAccountCenter === 'function') openMusicAccountCenter();
+    });
+    document.getElementById('close-music-account-btn')?.addEventListener('click', () => {
+      if (typeof closeMusicAccountCenter === 'function') closeMusicAccountCenter();
+    });
     document.getElementById('select-all-playlist-checkbox').addEventListener('change', handleSelectAllPlaylistItems);
     document.getElementById('delete-selected-songs-btn').addEventListener('click', executeDeleteSelectedSongs);
     document.getElementById('upload-selected-to-catbox-btn').addEventListener('click', executeBatchUploadToCatbox);
