@@ -1,0 +1,148 @@
+/* 思维链高级设置/工具弹窗样式，从 xinyuan 移植 */
+           .thought-chain-settings-card {
+               margin: 15px;
+               border-radius: 12px;
+               overflow: hidden;
+               flex-shrink: 0;
+           }
+
+           .thought-chain-preset-actions,
+           .thought-chain-test-actions {
+               display: flex;
+               align-items: center;
+               gap: 8px;
+               flex-wrap: wrap;
+               justify-content: flex-end;
+               width: 100%;
+           }
+
+           .thought-chain-unsaved-indicator {
+               width: 100%;
+               color: #b45309;
+               font-size: 12px;
+               text-align: right;
+           }
+
+           .thought-chain-inline-desc {
+               margin: 3px 0 0;
+               font-size: 12px;
+           }
+
+           .thought-chain-compatibility-heading {
+               background: #f8f8fa;
+           }
+
+           .thought-chain-advanced-settings {
+               display: flex;
+               flex-direction: column;
+               gap: 12px;
+               padding: 14px 16px;
+               border-bottom: 0.5px solid #c6c6c8;
+               background: #fff;
+           }
+
+           .thought-chain-advanced-settings label,
+           .thought-chain-field-grid label {
+               display: flex;
+               flex-direction: column;
+               gap: 6px;
+               min-width: 0;
+               font-size: 13px;
+               color: #555;
+           }
+
+           .thought-chain-advanced-settings input[type="text"],
+           .thought-chain-advanced-settings select,
+           .thought-chain-field-grid input {
+               width: 100%;
+               box-sizing: border-box;
+               padding: 8px;
+               border: 1px solid #d1d1d6;
+               border-radius: 7px;
+               background: #fff;
+               color: #111;
+           }
+
+           .thought-chain-field-grid,
+           .thought-chain-check-grid {
+               display: grid;
+               grid-template-columns: repeat(2, minmax(0, 1fr));
+               gap: 10px;
+           }
+
+           .thought-chain-check-grid label {
+               display: flex;
+               flex-direction: row;
+               align-items: center;
+               gap: 6px;
+               font-size: 13px;
+               color: #555;
+           }
+
+           .thought-chain-tools-modal-content {
+               height: min(78%, 680px);
+               max-width: 620px;
+           }
+
+           .thought-chain-tools-body {
+               display: grid;
+               grid-template-rows: minmax(100px, 0.8fr) minmax(160px, 1.2fr);
+               gap: 12px;
+           }
+
+           .thought-chain-tools-input,
+           .thought-chain-tools-output {
+               width: 100%;
+               min-height: 0;
+               box-sizing: border-box;
+               margin: 0;
+               padding: 12px;
+               border: 1px solid #d1d1d6;
+               border-radius: 8px;
+               overflow: auto;
+               white-space: pre-wrap;
+               overflow-wrap: anywhere;
+               background: #f8f8fa;
+               color: #111;
+               font: 13px/1.5 monospace;
+           }
+
+           #phone-screen.dark-mode .thought-chain-compatibility-heading,
+           #phone-screen.dark-mode .thought-chain-advanced-settings,
+           #phone-screen.dark-mode .thought-chain-settings-card {
+               background: #1c1c1e;
+               border-color: #38383a;
+           }
+
+           #phone-screen.dark-mode .thought-chain-advanced-settings label,
+           #phone-screen.dark-mode .thought-chain-check-grid label,
+           #phone-screen.dark-mode .thought-chain-field-grid label {
+               color: #ddd;
+           }
+
+           #phone-screen.dark-mode .thought-chain-advanced-settings input[type="text"],
+           #phone-screen.dark-mode .thought-chain-advanced-settings select,
+           #phone-screen.dark-mode .thought-chain-field-grid input,
+           #phone-screen.dark-mode .thought-chain-tools-input,
+           #phone-screen.dark-mode .thought-chain-tools-output {
+               background: #2c2c2e;
+               border-color: #48484a;
+               color: #fff;
+           }
+
+           @media (max-width: 560px) {
+               .thought-chain-field-grid,
+               .thought-chain-check-grid {
+                   grid-template-columns: 1fr;
+               }
+
+               .thought-chain-preset-actions,
+               .thought-chain-test-actions {
+                   justify-content: flex-start;
+               }
+
+               #thought-chain-list {
+                   padding-left: 10px !important;
+                   padding-right: 10px !important;
+               }
+           }

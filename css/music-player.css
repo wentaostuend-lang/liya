@@ -1966,3 +1966,165 @@
                box-shadow: 0 0 20px rgba(76, 217, 100, 0.6);
                transform: scale(1.05);
            }
+
+/* 音乐账号（网易云登录/歌单导入）弹窗样式，从 xinyuan 移植 */
+
+           .music-account-content {
+               width: min(92vw, 520px);
+               height: min(82vh, 720px);
+               overflow: hidden;
+           }
+
+           #music-account-modal [hidden] {
+               display: none !important;
+           }
+
+           .music-account-close {
+               border: 0;
+               background: transparent;
+               color: inherit;
+               font-size: 28px;
+               line-height: 1;
+               cursor: pointer;
+               padding: 4px 8px;
+           }
+
+           .music-account-body {
+               display: flex;
+               flex-direction: column;
+               gap: 12px;
+               overflow-y: auto;
+               padding: 14px;
+           }
+
+           .music-account-card {
+               border: 1px solid var(--border-color, rgba(127, 127, 127, 0.22));
+               border-radius: 14px;
+               padding: 14px;
+               background: var(--primary-bg, #fff);
+           }
+
+           .music-account-platform-row,
+           .music-account-profile,
+           .music-account-playlist-item {
+               display: flex;
+               align-items: center;
+               gap: 10px;
+           }
+
+           .music-account-platform-row > div:first-child,
+           .music-account-playlist-info {
+               flex: 1;
+               min-width: 0;
+           }
+
+           .music-account-platform-name,
+           .music-account-section-title {
+               font-weight: 650;
+               color: var(--text-color, #222);
+           }
+
+           .music-account-status,
+           .music-account-safety,
+           .music-account-availability p,
+           .music-account-playlist-count {
+               color: var(--text-secondary, #777);
+               font-size: 12px;
+               line-height: 1.55;
+           }
+
+           .music-account-primary-btn,
+           .music-account-secondary-btn,
+           .music-account-import-btn {
+               border: 0;
+               border-radius: 9px;
+               padding: 8px 12px;
+               cursor: pointer;
+               white-space: nowrap;
+           }
+
+           .music-account-primary-btn,
+           .music-account-import-btn {
+               background: var(--accent-color, #007aff);
+               color: #fff;
+           }
+
+           .music-account-secondary-btn {
+               background: rgba(127, 127, 127, 0.14);
+               color: var(--text-color, #333);
+           }
+
+           .music-account-profile {
+               margin-top: 12px;
+           }
+
+           .music-account-profile img {
+               width: 38px;
+               height: 38px;
+               border-radius: 50%;
+               object-fit: cover;
+           }
+
+           .music-account-qr-area {
+               margin-top: 14px;
+               text-align: center;
+           }
+
+           .music-account-qr-area img {
+               display: block;
+               width: 180px;
+               height: 180px;
+               margin: 0 auto 8px;
+               border-radius: 10px;
+               background: #fff;
+           }
+
+           .music-account-qr-area a {
+               display: inline-block;
+               margin-top: 8px;
+               color: var(--accent-color, #007aff);
+           }
+
+           .music-account-safety {
+               margin: 12px 0 0;
+           }
+
+           .music-account-playlists {
+               display: flex;
+               flex-direction: column;
+               gap: 8px;
+               margin-top: 10px;
+           }
+
+           .music-account-playlist-item {
+               padding: 9px 0;
+               border-top: 1px solid var(--border-color, rgba(127, 127, 127, 0.18));
+           }
+
+           .music-account-playlist-name {
+               overflow: hidden;
+               text-overflow: ellipsis;
+               white-space: nowrap;
+           }
+
+           .music-account-import-btn:disabled,
+           .music-account-primary-btn:disabled {
+               opacity: 0.55;
+               cursor: wait;
+           }
+
+           @media (max-width: 520px) {
+               .music-account-content {
+                   width: 94vw;
+                   height: 86vh;
+               }
+
+               .music-account-platform-row {
+                   flex-wrap: wrap;
+               }
+
+               .music-account-playlist-item {
+                   align-items: flex-start;
+               }
+           }
+
