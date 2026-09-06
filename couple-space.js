@@ -1,10 +1,11 @@
 // ========== 情侣空间 ==========
 const COUPLE_SPACE_STORAGE_KEY = 'coupleSpaces';
+const COUPLE_SPACE_IFRAME_PATH = 'archive/330--main/index.html';
+const coupleSpaceRunsInFlight = new Set();
 
 // 获取情侣空间API配置（优先使用情侣空间专用API，否则回退到主API）
 function getCoupleSpaceApiConfig() {
-  const useCoupleSpaceApi = state.apiConfig.couplespaceProxyUrl && 
-                            state.apiConfig.couplespaceApiKey && 
+  const useCoupleSpaceApi = state.apiConfig.couplespaceProxyUrl &&
                             state.apiConfig.couplespaceModel;
   
   if (useCoupleSpaceApi) {
@@ -22,17 +23,123 @@ function getCoupleSpaceApiConfig() {
   }
 }
 
+function getCoupleSpaceLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getCoupleSpaceRequestHeaders(apiKey) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  return headers;
+}
+
+async function fetchCoupleSpaceWithTimeout(url, options, timeoutMs = 45000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error && error.name === 'AbortError') throw new Error('情侣空间 API 请求超时');
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+function parseCoupleSpaceJson(rawText) {
+  const text = String(rawText || '')
+    .trim()
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+  try {
+    return JSON.parse(text);
+  } catch (originalError) {
+    const objectStart = text.indexOf('{');
+    const arrayStart = text.indexOf('[');
+    const starts = [objectStart, arrayStart].filter(index => index >= 0);
+    if (starts.length === 0) throw originalError;
+    const start = Math.min(...starts);
+    const endToken = text[start] === '[' ? ']' : '}';
+    const end = text.lastIndexOf(endToken);
+    if (end <= start) throw originalError;
+    return JSON.parse(text.slice(start, end + 1));
+  }
+}
+
+function saveCoupleSpaceSettingsWithSchedule(data, settingsPrefix, lastKeys, scheduleFields) {
+  const storageKey = settingsPrefix + data.charId;
+  let previous = {};
+  try { previous = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e) {}
+  const next = data.settings || {};
+  const scheduleChanged = scheduleFields.some(field => previous[field] !== next[field]);
+  localStorage.setItem(storageKey, JSON.stringify(next));
+  if (scheduleChanged) {
+    lastKeys.forEach(key => {
+      localStorage.removeItem(key + data.charId);
+      localStorage.removeItem(key + data.charId + '_status');
+    });
+  }
+  return scheduleChanged;
+}
+
+function runCoupleSpaceOncePerDay(lastKey, callback) {
+  const todayStr = getCoupleSpaceLocalDateKey();
+  if (localStorage.getItem(lastKey) === todayStr || coupleSpaceRunsInFlight.has(lastKey)) {
+    return Promise.resolve(false);
+  }
+
+  let previousStatus = {};
+  try { previousStatus = JSON.parse(localStorage.getItem(lastKey + '_status') || '{}'); } catch(e) {}
+  if (previousStatus.state === 'failed' && previousStatus.attemptedAt) {
+    const retryCount = Math.max(1, Number(previousStatus.retryCount) || 1);
+    const retryDelay = Math.min(60 * 60 * 1000, 5 * 60 * 1000 * Math.pow(2, retryCount - 1));
+    if (Date.now() - previousStatus.attemptedAt < retryDelay) return Promise.resolve(false);
+  }
+
+  coupleSpaceRunsInFlight.add(lastKey);
+  const retryCount = previousStatus.state === 'failed' ? (Number(previousStatus.retryCount) || 1) + 1 : 0;
+  localStorage.setItem(lastKey + '_status', JSON.stringify({ state: 'running', attemptedAt: Date.now(), retryCount }));
+
+  return Promise.resolve()
+    .then(callback)
+    .then(success => {
+      if (success === false) {
+        localStorage.setItem(lastKey + '_status', JSON.stringify({ state: 'failed', attemptedAt: Date.now(), retryCount: Math.max(1, retryCount) }));
+        return false;
+      }
+      localStorage.setItem(lastKey, todayStr);
+      localStorage.setItem(lastKey + '_status', JSON.stringify({ state: 'success', completedAt: Date.now() }));
+      return true;
+    })
+    .catch(error => {
+      console.error(`[情侣空间] 自动任务执行失败 (${lastKey})`, error);
+      localStorage.setItem(lastKey + '_status', JSON.stringify({
+        state: 'failed',
+        attemptedAt: Date.now(),
+        retryCount: Math.max(1, retryCount),
+        message: error && error.message ? error.message : String(error)
+      }));
+      return false;
+    })
+    .finally(() => coupleSpaceRunsInFlight.delete(lastKey));
+}
+
 // 通用定时补执行工具：检查今天是否已过设定时间但还没执行过，如果是则立即补执行
 // 通用情侣空间离线保存/推送工具
 function sendOrSaveCoupleSpaceData(charId, msgObj, storageKey, itemToSave) {
   const iframe = document.getElementById('couple-space-iframe');
-  const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+  const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes(COUPLE_SPACE_IFRAME_PATH) && localStorage.getItem('coupleSpaceLastId') === charId;
   
   if (isIframeOpenForThisChar && iframe.contentWindow) {
     try {
       iframe.contentWindow.postMessage(msgObj, '*');
       console.log(`[情侣空间] 📥 已将数据 (${msgObj.type}) 推送到打开的页面`);
-    } catch(e) { console.error('Failed to notify iframe:', e); }
+      return true;
+    } catch(e) { console.error('Failed to notify iframe:', e); return false; }
   } else if (storageKey && itemToSave) {
     try {
       const items = JSON.parse(localStorage.getItem(storageKey + charId) || '[]');
@@ -70,8 +177,10 @@ function sendOrSaveCoupleSpaceData(charId, msgObj, storageKey, itemToSave) {
           console.log(`[情侣空间提醒] ${notificationText}`);
         }
       }
-    } catch(e) { console.error('Failed to save offline or notify:', e); }
+      return true;
+    } catch(e) { console.error('Failed to save offline or notify:', e); return false; }
   }
+  return false;
 }
 
 // 通用定时补执行工具：检查今天是否已过设定时间但还没执行过，如果是则立即补执行
@@ -79,15 +188,16 @@ function checkAndRunMissed(timeStr, lastKey, callback) {
   try {
     const now = new Date();
     const [h, m] = timeStr.split(':').map(Number);
-    const todayStr = now.toISOString().split('T')[0];
+    if (!Number.isInteger(h) || !Number.isInteger(m)) return Promise.resolve(false);
+    const todayStr = getCoupleSpaceLocalDateKey(now);
     const lastDate = localStorage.getItem(lastKey);
-    if (lastDate === todayStr) return; // 今天已经执行过
+    if (lastDate === todayStr) return Promise.resolve(false); // 今天已经执行过
     // 当前时间已经过了设定时间，说明错过了，立即补执行
     if (now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m)) {
-      localStorage.setItem(lastKey, todayStr);
-      callback();
+      return runCoupleSpaceOncePerDay(lastKey, callback);
     }
   } catch(e) { console.error('checkAndRunMissed error:', e); }
+  return Promise.resolve(false);
 }
 
 // ========== AI 自主决定模式 - 事件驱动触发 ==========
@@ -110,7 +220,7 @@ function triggerCoupleSpaceAiDecide(charId, source) {
     { settingsKey: 'coupleFinanceSettings_', lastKey: 'coupleFinanceAutoLast_', chatProb: 'aiDecideChatProb', bgProb: 'aiDecideBgProb', trigger: triggerAutoFinancePost },
   ];
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getCoupleSpaceLocalDateKey();
 
   featureConfigs.forEach(cfg => {
     try {
@@ -128,9 +238,8 @@ function triggerCoupleSpaceAiDecide(charId, source) {
         : (settings[cfg.bgProb] ?? 5) / 100;
 
       if (Math.random() < prob) {
-        localStorage.setItem(randomLastKey, todayStr);
         console.log(`[情侣空间] 🎲 随机模式：AI决定触发 ${cfg.settingsKey} (${source}, 概率${(prob*100).toFixed(0)}%)`);
-        cfg.trigger(charId);
+        runCoupleSpaceOncePerDay(randomLastKey, () => cfg.trigger(charId));
       }
     } catch(e) { console.error('aiDecide trigger error:', e); }
   });
@@ -148,9 +257,8 @@ function triggerCoupleSpaceAiDecide(charId, source) {
         const lastDate = localStorage.getItem(lastKey);
         if (lastDate === todayStr) return;
         if (Math.random() < prob) {
-          localStorage.setItem(lastKey, todayStr);
           console.log(`[情侣空间] 🎲 随机模式：AI决定触发 sleep-${phase} (${source})`);
-          triggerAutoSleepPost(charId, phase);
+          runCoupleSpaceOncePerDay(lastKey, () => triggerAutoSleepPost(charId, phase));
         }
       });
     }
@@ -288,6 +396,20 @@ function confirmCoupleSpace(charId) {
     createdAt: Date.now()
   });
   saveCoupleSpaces(spaces);
+  setupAllCoupleSpaceAutoTimers();
+}
+
+function setupAllCoupleSpaceAutoTimers() {
+  [
+    'setupCoupleSpaceDiaryAutoTimer', 'setupCoupleSpaceAlbumAutoTimer',
+    'setupCoupleSpaceChecklistAutoTimer', 'setupCoupleSpaceMessageAutoTimer',
+    'setupCoupleSpaceMoodAutoTimer', 'setupCoupleSpaceTimelineAutoTimer',
+    'setupCoupleSpaceLetterAutoTimer', 'setupCoupleSpaceGardenAutoTimer',
+    'setupCoupleSpaceLocationAutoTimer', 'setupCoupleSpaceSleepAutoTimer',
+    'setupCoupleSpaceFinanceAutoTimer'
+  ].forEach(name => {
+    if (typeof window[name] === 'function') window[name]();
+  });
 }
 
 async function unbindCoupleSpace(charId) {
@@ -312,6 +434,21 @@ async function unbindCoupleSpace(charId) {
       'coupleFinance_' + charId, 'coupleFinanceSettings_' + charId, 'coupleFinanceAutoLast_' + charId, 'coupleCustomFinCats_' + charId
     ];
     keysToRemove.forEach(k => localStorage.removeItem(k));
+    const relatedKeys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('couple') && (key.endsWith(charId) || key.endsWith(charId + '_status'))) {
+        relatedKeys.push(key);
+      }
+    }
+    relatedKeys.forEach(key => localStorage.removeItem(key));
+    try {
+      const ledger = JSON.parse(localStorage.getItem('coupleGardenRewardLedger') || '{}');
+      Object.keys(ledger).forEach(transactionId => {
+        if (ledger[transactionId] && ledger[transactionId].charId === charId) delete ledger[transactionId];
+      });
+      localStorage.setItem('coupleGardenRewardLedger', JSON.stringify(ledger));
+    } catch(e) {}
   }
   
   const spaces = getCoupleSpaces();
@@ -350,8 +487,10 @@ function enterCoupleSpace(charId) {
   const charAvatar = chat ? (chat.settings.aiAvatar || defaultAvatar) : '';
   const userNickname = chat ? (chat.settings.myNickname || '我') : '我';
   const userAvatar = chat ? (chat.settings.myAvatar || state.qzoneSettings.avatar || defaultAvatar) : defaultAvatar;
-  const iframe = document.getElementById('couple-space-iframe');
-  iframe.src = '330-main/index.html';
+  const previousIframe = document.getElementById('couple-space-iframe');
+  const iframe = previousIframe.cloneNode(false);
+  previousIframe.replaceWith(iframe);
+  iframe.src = COUPLE_SPACE_IFRAME_PATH;
   iframe.onload = function() {
     const spaces = getCoupleSpaces();
     const space = spaces.find(s => s.charId === charId);
@@ -384,6 +523,11 @@ function closeCoupleSpace() {
 }
 
 window.addEventListener('message', function(e) {
+  const coupleIframe = document.getElementById('couple-space-iframe');
+  const isCoupleFrame = coupleIframe && e.source === coupleIframe.contentWindow;
+  const isCoupleMessage = e.data === 'closeCoupleSpace' || e.data === 'coupleSpaceSwitchPartner' ||
+    (e.data && typeof e.data.type === 'string' && e.data.type.startsWith('coupleSpace'));
+  if (isCoupleMessage && !isCoupleFrame) return;
   if (e.data === 'closeCoupleSpace') closeCoupleSpace();
   if (e.data === 'coupleSpaceSwitchPartner') showCoupleSpaceSelect('list');
 
@@ -668,9 +812,8 @@ async function handleCoupleSpaceDiaryCommentRequest(data) {
 
 function handleCoupleSpaceDiarySettingsChanged(data) {
   // Store settings in parent for auto-trigger scheduling
-  localStorage.setItem('coupleDiarySettings_' + data.charId, JSON.stringify(data.settings));
-  localStorage.removeItem('coupleDiaryAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 日记 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleDiarySettings_', ['coupleDiaryAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 日记 设置并重新初始化定时器`);
   setupCoupleSpaceDiaryAutoTimer();
 }
 
@@ -679,7 +822,7 @@ async function handleCoupleSpaceDiarySummaryRequest(data) {
   if (!iframe || !iframe.contentWindow) return;
   try {
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+    if (!proxyUrl || !model) throw new Error('API未配置');
 
     const authorName = data.diaryAuthor === 'char' ? data.charName : data.userName;
     let commentsText = '';
@@ -704,11 +847,11 @@ ${commentsText}`;
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, messages);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, ...messages], temperature: 0.5 })
       });
     }
@@ -1059,7 +1202,7 @@ function buildDiaryAiContext(chat) {
 
 async function generateCoupleSpaceDiaryAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1144,11 +1287,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -1163,12 +1306,12 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceDiaryComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1209,11 +1352,11 @@ ${ctx.memoryContext ? '# 你的记忆\n' + ctx.memoryContext : ''}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -1247,7 +1390,7 @@ function setupCoupleSpaceDiaryAutoTimer() {
         // Check if missed today's execution on startup
         checkAndRunMissed(settings.autoTime, 'coupleDiaryAutoLast_' + sp.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 日记 的自动生成`);
-          triggerAutoDiaryWrite(sp.charId, true);
+          return triggerAutoDiaryWrite(sp.charId, true);
         });
         scheduleDiaryAutoWrite(sp.charId, settings.autoTime);
       }
@@ -1259,14 +1402,14 @@ function scheduleDiaryAutoWrite(charId, timeStr) {
   coupleSpaceDiaryTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleDiaryAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 日记 的自动生成`);
-      triggerAutoDiaryWrite(charId, true);
+      return triggerAutoDiaryWrite(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoDiaryWrite(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
 
   const settings = JSON.parse(localStorage.getItem('coupleDiarySettings_' + charId) || '{}');
 
@@ -1276,7 +1419,7 @@ async function triggerAutoDiaryWrite(charId, isTimer = false) {
       const shouldWrite = await askAiIfShouldWriteDiary(chat);
       if (!shouldWrite) {
         console.log('AI decided not to write diary today for', chat.name);
-        return;
+        return true;
       }
     } catch(e) {
       console.error('AI decide failed, will write anyway:', e);
@@ -1318,19 +1461,21 @@ async function triggerAutoDiaryWrite(charId, isTimer = false) {
 
     console.log('Auto diary written for', chat.name, ':', result.title);
 
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceDiaryAutoWritten',
       charId: charId,
       diary: newDiary
     }, 'coupleDiaries_', newDiary);
+    return saved;
   } catch(err) {
     console.error('Auto diary write failed:', err);
+    return false;
   }
 }
 
 async function askAiIfShouldWriteDiary(chat) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) return false;
+  if (!proxyUrl || !model) return false;
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1348,11 +1493,11 @@ ${ctx.summaryContext ? '对话总结:\n' + ctx.summaryContext : ''}
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '今天要写日记吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '今天要写日记吗？' }],
@@ -1372,9 +1517,7 @@ ${ctx.summaryContext ? '对话总结:\n' + ctx.summaryContext : ''}
 // Initialize auto diary timers when app loads
 if (typeof setTimeout !== 'undefined') {
   setTimeout(setupCoupleSpaceDiaryAutoTimer, 5000);
-  setTimeout(setupCoupleSpaceAlbumAutoTimer, 6000);
 }
-
 // ========== Album AI Integration ==========
 
 async function handleCoupleSpaceAlbumAiRequest(data) {
@@ -1438,9 +1581,8 @@ async function handleCoupleSpaceAlbumAiRequest(data) {
 }
 
 function handleCoupleSpaceAlbumSettingsChanged(data) {
-  localStorage.setItem('coupleAlbumSettings_' + data.charId, JSON.stringify(data.settings));
-  localStorage.removeItem('coupleAlbumAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 相册 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleAlbumSettings_', ['coupleAlbumAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 相册 设置并重新初始化定时器`);
   setupCoupleSpaceAlbumAutoTimer();
 }
 
@@ -1472,7 +1614,7 @@ async function handleCoupleSpaceAlbumCommentRequest(data) {
 
 async function generateCoupleSpaceAlbumComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1514,11 +1656,11 @@ ${ctx.memoryContext ? '# 你的记忆\n' + ctx.memoryContext : ''}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -1537,7 +1679,7 @@ ${ctx.memoryContext ? '# 你的记忆\n' + ctx.memoryContext : ''}
 
 async function generateCoupleSpaceAlbumAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1598,11 +1740,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -1617,7 +1759,7 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 // ========== Auto Album Scheduler ==========
@@ -1635,7 +1777,7 @@ function setupCoupleSpaceAlbumAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 相册 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleAlbumAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 相册 的自动生成`);
-          triggerAutoAlbumPost(space.charId, true);
+          return triggerAutoAlbumPost(space.charId, true);
         });
         scheduleAlbumAutoPost(space.charId, settings.autoTime);
       }
@@ -1647,26 +1789,27 @@ function scheduleAlbumAutoPost(charId, timeStr) {
   coupleSpaceAlbumTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleAlbumAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 相册 的自动生成`);
-      triggerAutoAlbumPost(charId, true);
+      return triggerAutoAlbumPost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoAlbumPost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
 
   const albumSettings = JSON.parse(localStorage.getItem('coupleAlbumSettings_' + charId) || '{}');
 
   if (albumSettings.aiDecide && !isTimer) {
     try {
       const shouldPost = await askAiIfShouldPostPhoto(chat);
-      if (!shouldPost) return;
+      if (!shouldPost) return true;
     } catch(e) {}
   }
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 相册照片...`);
   const postCount = Math.min(Math.max(albumSettings.autoCount || 1, 1), 10);
+  let successCount = 0;
 
   for (let i = 0; i < postCount; i++) {
     try {
@@ -1714,19 +1857,21 @@ async function triggerAutoAlbumPost(charId, isTimer = false) {
       imagePrompt: result.imagePrompt || ''
     };
 
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceAlbumAutoResult',
       photo: newPhoto
     }, 'coupleAlbum_', newPhoto);
+    if (saved) successCount++;
   } catch(err) {
     console.error('Auto album post failed:', err);
   }
   } // end for loop
+  return successCount > 0;
 }
 
 async function askAiIfShouldPostPhoto(chat) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) return false;
+  if (!proxyUrl || !model) return false;
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -1745,11 +1890,11 @@ ${ctx.summaryContext ? '对话总结:\n' + ctx.summaryContext : ''}
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '想发照片吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '想发照片吗？' }],
@@ -1766,6 +1911,10 @@ ${ctx.summaryContext ? '对话总结:\n' + ctx.summaryContext : ''}
   }
 }
 
+// Initialize auto album timers when app loads
+if (typeof setTimeout !== 'undefined') {
+  setTimeout(setupCoupleSpaceAlbumAutoTimer, 6000);
+}
 // ========== Anniversary AI Integration ==========
 
 function handleCoupleSpaceAnnivChanged(data) {
@@ -1788,7 +1937,7 @@ async function handleCoupleSpaceAnnivHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
 
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"给纪念日"${data.annivTitle}"点了爱心。
 理由: ${data.annivReason || '(无)'}
@@ -1800,11 +1949,11 @@ async function handleCoupleSpaceAnnivHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }],
@@ -1839,7 +1988,7 @@ async function handleCoupleSpaceAnnivCreateRequest(data) {
 
   try {
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) {
+    if (!proxyUrl || !model) {
       iframe.contentWindow.postMessage({ type: 'coupleSpaceAnnivCreateResult', error: true, reason: 'noApi' }, '*');
       return;
     }
@@ -1847,7 +1996,7 @@ async function handleCoupleSpaceAnnivCreateRequest(data) {
     const ctx = buildDiaryAiContext(chat);
     const existingAnnivs = data.existingAnnivs || JSON.parse(localStorage.getItem('coupleAnniv_' + data.charId) || '[]');
     const existingList = existingAnnivs.map(a => `- "${a.title}" (${a.date})`).join('\n') || '(暂无)';
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getCoupleSpaceLocalDateKey();
 
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"让你创建一个纪念日。根据你们的对话和关系，想一个有意义的纪念日。
 
@@ -1885,11 +2034,11 @@ ${existingList}
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '帮我创建一个纪念日吧' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '帮我创建一个纪念日吧' }],
@@ -1963,14 +2112,14 @@ async function triggerAnnivDiscovery(charId) {
   const chat = state.chats[charId];
   if (!chat) return;
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) return;
+  if (!proxyUrl || !model) return;
 
   // Check settings
   const settings = JSON.parse(localStorage.getItem('coupleAnnivSettings_' + charId) || '{}');
   if (!settings.autoEnabled) return;
 
   const ctx = buildDiaryAiContext(chat);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getCoupleSpaceLocalDateKey();
 
   const existingAnnivs = JSON.parse(localStorage.getItem('coupleAnniv_' + charId) || '[]');
   const existingList = existingAnnivs.map(a => `- "${a.title}" (${a.date})`).join('\n') || '(暂无)';
@@ -2018,11 +2167,11 @@ ${existingList}
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '有新的纪念日吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '有新的纪念日吗？' }],
@@ -2081,9 +2230,8 @@ function handleCoupleSpaceChecklistChanged(data) {
 }
 
 function handleCoupleSpaceChecklistSettingsChanged(data) {
-  localStorage.setItem('coupleChecklistSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleChecklistAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 清单 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleChecklistSettings_', ['coupleChecklistAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 清单 设置并重新初始化定时器`);
   setupCoupleSpaceChecklistAutoTimer();
 }
 
@@ -2140,7 +2288,7 @@ async function handleCoupleSpaceChecklistHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
 
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"给清单项"${data.itemTitle}"点了爱心。
 备注: ${data.itemNote || '(无)'}
@@ -2152,11 +2300,11 @@ async function handleCoupleSpaceChecklistHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }],
@@ -2181,7 +2329,7 @@ async function handleCoupleSpaceChecklistHeartRequest(data) {
 
 async function generateCoupleSpaceChecklistAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -2277,11 +2425,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -2296,12 +2444,12 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceChecklistComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -2341,11 +2489,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -2377,7 +2525,7 @@ function setupCoupleSpaceChecklistAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 清单 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleChecklistAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 清单 的自动生成`);
-          triggerAutoChecklistRecommend(space.charId, true);
+          return triggerAutoChecklistRecommend(space.charId, true);
         });
         scheduleChecklistAutoRecommend(space.charId, settings.autoTime);
       }
@@ -2389,14 +2537,14 @@ function scheduleChecklistAutoRecommend(charId, timeStr) {
   coupleSpaceChecklistTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleChecklistAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 清单 的自动生成`);
-      triggerAutoChecklistRecommend(charId, true);
+      return triggerAutoChecklistRecommend(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoChecklistRecommend(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
 
   const settings = JSON.parse(localStorage.getItem('coupleChecklistSettings_' + charId) || '{}');
 
@@ -2425,12 +2573,14 @@ async function triggerAutoChecklistRecommend(charId, isTimer = false) {
       comments: []
     };
 
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceChecklistAutoResult',
       item: newItem
     }, 'coupleChecklist_', newItem);
+    return saved;
   } catch(err) {
     console.error('Auto checklist recommend failed:', err);
+    return false;
   }
 }
 
@@ -2446,9 +2596,8 @@ function handleCoupleSpaceMessageChanged(data) {
 }
 
 function handleCoupleSpaceMessageSettingsChanged(data) {
-  localStorage.setItem('coupleMessageSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleMessageAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 留言板 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleMessageSettings_', ['coupleMessageAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 留言板 设置并重新初始化定时器`);
   setupCoupleSpaceMessageAutoTimer();
 }
 
@@ -2503,7 +2652,7 @@ async function handleCoupleSpaceMessageHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
 
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"给留言"${data.msgContent}"点了爱心。
 你会不会也想给这条留言点爱心？考虑你的性格和你们的关系。
@@ -2513,11 +2662,11 @@ async function handleCoupleSpaceMessageHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }],
@@ -2542,7 +2691,7 @@ async function handleCoupleSpaceMessageHeartRequest(data) {
 
 async function generateCoupleSpaceMessageAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -2648,11 +2797,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -2667,12 +2816,12 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceMessageReply(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -2711,11 +2860,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -2747,7 +2896,7 @@ function setupCoupleSpaceMessageAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 留言板 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleMessageAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 留言板 的自动生成`);
-          triggerAutoMessagePost(space.charId, true);
+          return triggerAutoMessagePost(space.charId, true);
         });
         scheduleMessageAutoPost(space.charId, settings.autoTime);
       }
@@ -2759,14 +2908,14 @@ function scheduleMessageAutoPost(charId, timeStr) {
   coupleSpaceMessageTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleMessageAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 留言板 的自动生成`);
-      triggerAutoMessagePost(charId, true);
+      return triggerAutoMessagePost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoMessagePost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
 
   const settings = JSON.parse(localStorage.getItem('coupleMessageSettings_' + charId) || '{}');
 
@@ -2789,12 +2938,14 @@ async function triggerAutoMessagePost(charId, isTimer = false) {
       comments: []
     };
 
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceMessageAutoResult',
       item: newMsg
     }, 'coupleMessages_', newMsg);
+    return saved;
   } catch(err) {
     console.error('Auto message post failed:', err);
+    return false;
   }
 }
 
@@ -2810,9 +2961,8 @@ function handleCoupleSpaceMoodChanged(data) {
 }
 
 function handleCoupleSpaceMoodSettingsChanged(data) {
-  localStorage.setItem('coupleMoodSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleMoodAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 心情 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleMoodSettings_', ['coupleMoodAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 心情 设置并重新初始化定时器`);
   setupCoupleSpaceMoodAutoTimer();
 }
 
@@ -2866,7 +3016,7 @@ async function handleCoupleSpaceMoodHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"记录了一条心情"${data.moodType}: ${data.moodContent || ''}"并点了爱心。
 你会不会也想给这条心情点爱心？考虑你的性格和你们的关系。
 请只回答 "yes" 或 "no"，不要其他内容。`;
@@ -2874,11 +3024,11 @@ async function handleCoupleSpaceMoodHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }], temperature: 0.7 })
       });
     }
@@ -2897,7 +3047,7 @@ async function handleCoupleSpaceMoodHeartRequest(data) {
 
 async function generateCoupleSpaceMoodAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const moodSettings = data.moodSettings || {};
   const maxCharVisible = moodSettings.visibleCharMoods ?? 10;
@@ -2986,23 +3136,23 @@ moodType 可选值: happy(开心) sweet(甜蜜) calm(平静) miss(想你) excite
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceMoodComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const systemPrompt = `# 你的任务
 你是"${ctx.charName}"。"${ctx.myNickname}"在情侣空间记录了一条心情，请你评论。
@@ -3034,11 +3184,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
@@ -3061,7 +3211,7 @@ function setupCoupleSpaceMoodAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 心情 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleMoodAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 心情 的自动生成`);
-          triggerAutoMoodPost(space.charId, true);
+          return triggerAutoMoodPost(space.charId, true);
         });
         scheduleMoodAutoPost(space.charId, settings.autoTime);
       }
@@ -3073,14 +3223,14 @@ function scheduleMoodAutoPost(charId, timeStr) {
   coupleSpaceMoodTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleMoodAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 心情 的自动生成`);
-      triggerAutoMoodPost(charId, true);
+      return triggerAutoMoodPost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoMoodPost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleMoodSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 心情...`);
@@ -3100,12 +3250,14 @@ async function triggerAutoMoodPost(charId, isTimer = false) {
       hearts: { char: true },
       comments: []
     };
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceMoodAutoResult',
       item: newMood
     }, 'coupleMoods_', newMood);
+    return saved;
   } catch(err) {
     console.error('Auto mood post failed:', err);
+    return false;
   }
 }
 
@@ -3121,9 +3273,8 @@ function handleCoupleSpaceTimelineChanged(data) {
 }
 
 function handleCoupleSpaceTimelineSettingsChanged(data) {
-  localStorage.setItem('coupleTimelineSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleTimelineAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 时光轴 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleTimelineSettings_', ['coupleTimelineAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 时光轴 设置并重新初始化定时器`);
   setupCoupleSpaceTimelineAutoTimer();
 }
 
@@ -3179,7 +3330,7 @@ async function handleCoupleSpaceTimelineHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
 
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"给时光轴上的记录"${data.itemContent}"点了爱心。
 你会不会也想给这条记录点爱心？考虑你的性格和你们的关系。
@@ -3189,11 +3340,11 @@ async function handleCoupleSpaceTimelineHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }],
@@ -3218,7 +3369,7 @@ async function handleCoupleSpaceTimelineHeartRequest(data) {
 
 async function generateCoupleSpaceTimelineAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -3317,11 +3468,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -3336,12 +3487,12 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceTimelineComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -3382,11 +3533,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -3418,7 +3569,7 @@ function setupCoupleSpaceTimelineAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 时光轴 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleTimelineAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 时光轴 的自动生成`);
-          triggerAutoTimelinePost(space.charId, true);
+          return triggerAutoTimelinePost(space.charId, true);
         });
         scheduleTimelineAutoPost(space.charId, settings.autoTime);
       }
@@ -3430,14 +3581,14 @@ function scheduleTimelineAutoPost(charId, timeStr) {
   coupleSpaceTimelineTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleTimelineAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 时光轴 的自动生成`);
-      triggerAutoTimelinePost(charId, true);
+      return triggerAutoTimelinePost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoTimelinePost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
 
   const settings = JSON.parse(localStorage.getItem('coupleTimelineSettings_' + charId) || '{}');
 
@@ -3461,12 +3612,14 @@ async function triggerAutoTimelinePost(charId, isTimer = false) {
       comments: []
     };
 
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceTimelineAutoResult',
       item: newItem
     }, 'coupleTimeline_', newItem);
+    return saved;
   } catch(err) {
     console.error('Auto timeline post failed:', err);
+    return false;
   }
 }
 
@@ -3482,9 +3635,8 @@ function handleCoupleSpaceLetterChanged(data) {
 }
 
 function handleCoupleSpaceLetterSettingsChanged(data) {
-  localStorage.setItem('coupleLetterSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleLetterAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 信件 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleLetterSettings_', ['coupleLetterAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 信件 设置并重新初始化定时器`);
   setupCoupleSpaceLetterAutoTimer();
 }
 
@@ -3493,20 +3645,27 @@ async function handleCoupleSpaceLetterAiRequest(data) {
   if (!iframe || !iframe.contentWindow) return;
   const chat = state.chats[data.charId];
   if (!chat) {
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterAiResult', error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterAiResult', charId: data.charId, error: true }, '*');
     return;
   }
   try {
     const result = await generateCoupleSpaceLetterAi(chat, data);
+    if (localStorage.getItem('coupleSpaceLastId') !== data.charId || !iframe.src.includes(COUPLE_SPACE_IFRAME_PATH)) {
+      const letters = JSON.parse(localStorage.getItem('coupleLetters_' + data.charId) || '[]');
+      letters.push(createCoupleSpaceLetterItem(result));
+      localStorage.setItem('coupleLetters_' + data.charId, JSON.stringify(letters));
+      return;
+    }
     iframe.contentWindow.postMessage({
       type: 'coupleSpaceLetterAiResult',
+      charId: data.charId,
       title: result.title,
       content: result.content,
       envelope: result.envelope || 'none'
     }, '*');
   } catch(err) {
     console.error('Letter AI error:', err);
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterAiResult', error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterAiResult', charId: data.charId, error: true }, '*');
   }
 }
 
@@ -3515,13 +3674,20 @@ async function handleCoupleSpaceLetterReplyRequest(data) {
   if (!iframe || !iframe.contentWindow) return;
   const chat = state.chats[data.charId];
   if (!chat) {
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterReplyResult', letterId: data.letterId, error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterReplyResult', charId: data.charId, letterId: data.letterId, error: true }, '*');
     return;
   }
   try {
     const result = await generateCoupleSpaceLetterReply(chat, data);
+    if (localStorage.getItem('coupleSpaceLastId') !== data.charId || !iframe.src.includes(COUPLE_SPACE_IFRAME_PATH)) {
+      const letters = JSON.parse(localStorage.getItem('coupleLetters_' + data.charId) || '[]');
+      letters.push(createCoupleSpaceLetterItem(result, data.letterId || null));
+      localStorage.setItem('coupleLetters_' + data.charId, JSON.stringify(letters));
+      return;
+    }
     iframe.contentWindow.postMessage({
       type: 'coupleSpaceLetterReplyResult',
+      charId: data.charId,
       letterId: data.letterId,
       title: result.title,
       content: result.content,
@@ -3529,7 +3695,7 @@ async function handleCoupleSpaceLetterReplyRequest(data) {
     }, '*');
   } catch(err) {
     console.error('Letter reply AI error:', err);
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterReplyResult', letterId: data.letterId, error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterReplyResult', charId: data.charId, letterId: data.letterId, error: true }, '*');
   }
 }
 
@@ -3538,19 +3704,20 @@ async function handleCoupleSpaceLetterCommentRequest(data) {
   if (!iframe || !iframe.contentWindow) return;
   const chat = state.chats[data.charId];
   if (!chat) {
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterCommentResult', letterId: data.letterId, error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterCommentResult', charId: data.charId, letterId: data.letterId, error: true }, '*');
     return;
   }
   try {
     const comment = await generateCoupleSpaceLetterComment(chat, data);
     iframe.contentWindow.postMessage({
       type: 'coupleSpaceLetterCommentResult',
+      charId: data.charId,
       letterId: data.letterId,
       comment: comment
     }, '*');
   } catch(err) {
     console.error('Letter comment AI error:', err);
-    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterCommentResult', letterId: data.letterId, error: true }, '*');
+    iframe.contentWindow.postMessage({ type: 'coupleSpaceLetterCommentResult', charId: data.charId, letterId: data.letterId, error: true }, '*');
   }
 }
 
@@ -3562,7 +3729,7 @@ async function handleCoupleSpaceLetterHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"写了一封信"${data.letterTitle}"并点了爱心。
 你会不会也想给这封信点爱心？考虑你的性格和你们的关系。
 请只回答 "yes" 或 "no"，不要其他内容。`;
@@ -3570,11 +3737,11 @@ async function handleCoupleSpaceLetterHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }], temperature: 0.7 })
       });
     }
@@ -3583,6 +3750,7 @@ async function handleCoupleSpaceLetterHeartRequest(data) {
     const answer = getGeminiResponseText(respData).trim().toLowerCase();
     iframe.contentWindow.postMessage({
       type: 'coupleSpaceLetterHeartResult',
+      charId: data.charId,
       letterId: data.letterId,
       liked: answer.includes('yes')
     }, '*');
@@ -3593,7 +3761,7 @@ async function handleCoupleSpaceLetterHeartRequest(data) {
 
 async function generateCoupleSpaceLetterAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const letterSettings = data.letterSettings || {};
   const maxCharVisible = letterSettings.visibleCharLetters ?? 5;
@@ -3684,23 +3852,22 @@ envelope 可选值: none(普通) love(情书) classic(经典) seasonal(时令) h
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
-  const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return validateCoupleSpaceLetterResult(parseCoupleSpaceJson(getGeminiResponseText(respData)));
 }
 
 async function generateCoupleSpaceLetterReply(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
 
   const systemPrompt = `# 你的任务
@@ -3743,23 +3910,22 @@ envelope 可选值: none(普通) love(情书) classic(经典) seasonal(时令) h
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
-  const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return validateCoupleSpaceLetterResult(parseCoupleSpaceJson(getGeminiResponseText(respData)));
 }
 
 async function generateCoupleSpaceLetterComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
 
   const systemPrompt = `# 你的任务
@@ -3795,11 +3961,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
@@ -3822,7 +3988,7 @@ function setupCoupleSpaceLetterAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 信件 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleLetterAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 信件 的自动生成`);
-          triggerAutoLetterPost(space.charId, true);
+          return triggerAutoLetterPost(space.charId, true);
         });
         scheduleLetterAutoPost(space.charId, settings.autoTime);
       }
@@ -3834,14 +4000,14 @@ function scheduleLetterAutoPost(charId, timeStr) {
   coupleSpaceLetterTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleLetterAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 信件 的自动生成`);
-      triggerAutoLetterPost(charId, true);
+      return triggerAutoLetterPost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoLetterPost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleLetterSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 信件...`);
@@ -3865,13 +4031,44 @@ async function triggerAutoLetterPost(charId, isTimer = false) {
       hearts: { char: true },
       comments: []
     };
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceLetterAutoResult',
       item: newLetter
     }, 'coupleLetters_', newLetter);
+    return saved;
   } catch(err) {
     console.error('Auto letter post failed:', err);
+    return false;
   }
+}
+
+function createCoupleSpaceLetterItem(result, replyTo = null) {
+  return {
+    id: 'letter_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+    title: result.title,
+    content: result.content,
+    envelope: result.envelope || 'none',
+    author: 'char',
+    replyTo,
+    read: false,
+    readAt: null,
+    createdAt: Date.now(),
+    hearts: { char: true },
+    comments: []
+  };
+}
+
+function validateCoupleSpaceLetterResult(result) {
+  if (!result || typeof result !== 'object') throw new Error('信件生成结果不是有效对象');
+  const title = String(result.title || '').trim();
+  const content = String(result.content || '').trim();
+  if (!title || !content) throw new Error('信件生成结果缺少标题或正文');
+  const allowedEnvelopes = ['none', 'love', 'classic', 'seasonal', 'handwrite'];
+  return {
+    title,
+    content,
+    envelope: allowedEnvelopes.includes(result.envelope) ? result.envelope : 'none'
+  };
 }
 
 // Initialize letter timers
@@ -3958,11 +4155,11 @@ ${msgList}
           if (geminiConfig.data && typeof geminiConfig.data === 'object' && !(geminiConfig.data instanceof FormData)) {
             geminiConfig.data.signal = controller.signal;
           }
-          response = await fetch(geminiConfig.url, geminiConfig.data);
+          response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
         } else {
-          response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+          response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+            headers: getCoupleSpaceRequestHeaders(apiKey),
             body: JSON.stringify({
               model,
               messages: [{ role: 'system', content: prompt }, { role: 'user', content: '选一段对话截图吧' }],
@@ -4213,7 +4410,7 @@ async function triggerAutoScreenshot(charId) {
   const chat = state.chats[charId];
   if (!chat) return;
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) return;
+  if (!proxyUrl || !model) return;
 
   const ctx = buildDiaryAiContext(chat);
 
@@ -4229,11 +4426,11 @@ ${ctx.shortTermMemory || '(无)'}
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '想截图吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({
           model,
           messages: [{ role: 'system', content: prompt }, { role: 'user', content: '想截图吗？' }],
@@ -4261,33 +4458,141 @@ function handleCoupleSpaceGardenChanged(data) {
 }
 
 function handleCoupleSpaceGardenSettingsChanged(data) {
-  localStorage.setItem('coupleGardenSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleGardenAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 浇水 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleGardenSettings_', ['coupleGardenAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 浇水 设置并重新初始化定时器`);
   setupCoupleSpaceGardenAutoTimer();
 }
 
 async function handleCoupleSpaceGardenWaterReward(data) {
-  // data: { charId, author, amount, description }
-  const chat = state.chats[data.charId];
-  if (!chat) return;
-  try {
-    if (data.author === 'user') {
-      // User wallet: processTransaction
-      if (typeof processTransaction === 'function') {
-        await processTransaction(data.amount, 'income', data.description || '情侣树浇水奖励');
-      }
-    } else if (data.author === 'char') {
-      // Character wallet: simulatedTaobaoHistory.totalBalance
-      if (!chat.simulatedTaobaoHistory) chat.simulatedTaobaoHistory = { totalBalance: 0, purchases: [] };
-      chat.simulatedTaobaoHistory.totalBalance += data.amount;
-      if (typeof db !== 'undefined' && db.chats) {
-        await db.chats.put(chat);
-      }
-    }
-  } catch(e) {
-    console.error('Garden water reward error:', e);
+  const success = await applyCoupleSpaceGardenReward(data);
+  const iframe = document.getElementById('couple-space-iframe');
+  if (iframe && iframe.contentWindow && localStorage.getItem('coupleSpaceLastId') === data.charId) {
+    iframe.contentWindow.postMessage({
+      type: 'coupleSpaceGardenWaterRewardResult',
+      charId: data.charId,
+      transactionId: data.transactionId || '',
+      success
+    }, '*');
   }
+  return success;
+}
+
+let coupleSpaceGardenRewardQueue = Promise.resolve();
+
+function getCoupleSpaceGardenRewardLedger() {
+  try { return JSON.parse(localStorage.getItem('coupleGardenRewardLedger') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveCoupleSpaceGardenRewardLedger(ledger) {
+  const entries = Object.entries(ledger);
+  if (entries.length > 500) {
+    entries.sort((a, b) => (b[1].completedAt || 0) - (a[1].completedAt || 0));
+    ledger = Object.fromEntries(entries.slice(0, 500));
+  }
+  localStorage.setItem('coupleGardenRewardLedger', JSON.stringify(ledger));
+}
+
+function applyCoupleSpaceGardenReward(data) {
+  const transactionId = data.transactionId || [
+    'garden', data.charId, data.author, Number(data.amount).toFixed(2), data.description || '', Date.now()
+  ].join('-');
+  const task = coupleSpaceGardenRewardQueue.then(async () => {
+    const amount = Number(data.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return false;
+
+    const ledger = getCoupleSpaceGardenRewardLedger();
+    if (ledger[transactionId] && ledger[transactionId].state === 'completed') return true;
+
+    try {
+      if (data.author === 'user') {
+        if (typeof db === 'undefined' || !db.userWallet || !db.userTransactions) return false;
+        await db.transaction('rw', db.userWallet, db.userTransactions, async () => {
+          const existing = await db.userTransactions.filter(item => item.transactionId === transactionId).first();
+          if (existing) return;
+          let wallet = await db.userWallet.get('main');
+          if (!wallet) wallet = { id: 'main', balance: 0, kinshipCards: [] };
+          if (typeof wallet.balance !== 'number' || Number.isNaN(wallet.balance)) wallet.balance = 0;
+          wallet.balance += amount;
+          await db.userWallet.put(wallet);
+          await db.userTransactions.add({
+            timestamp: Date.now(),
+            type: 'income',
+            amount,
+            description: data.description || '情侣树浇水奖励',
+            transactionId
+          });
+          window.userBalance = wallet.balance;
+        });
+      } else if (data.author === 'char') {
+        const chat = state.chats[data.charId];
+        if (!chat || typeof db === 'undefined' || !db.chats) return false;
+        if (!chat.simulatedTaobaoHistory) chat.simulatedTaobaoHistory = { totalBalance: 0, purchases: [] };
+        if (!Array.isArray(chat.coupleGardenRewardTransactionIds)) chat.coupleGardenRewardTransactionIds = [];
+        if (chat.coupleGardenRewardTransactionIds.includes(transactionId)) return true;
+        const previousBalance = Number(chat.simulatedTaobaoHistory.totalBalance) || 0;
+        const previousTransactionIds = chat.coupleGardenRewardTransactionIds.slice();
+        chat.simulatedTaobaoHistory.totalBalance = previousBalance + amount;
+        chat.coupleGardenRewardTransactionIds.push(transactionId);
+        if (chat.coupleGardenRewardTransactionIds.length > 500) {
+          chat.coupleGardenRewardTransactionIds = chat.coupleGardenRewardTransactionIds.slice(-500);
+        }
+        try {
+          await db.chats.put(chat);
+        } catch (error) {
+          chat.simulatedTaobaoHistory.totalBalance = previousBalance;
+          chat.coupleGardenRewardTransactionIds = previousTransactionIds;
+          throw error;
+        }
+      } else {
+        return false;
+      }
+
+      ledger[transactionId] = {
+        state: 'completed',
+        completedAt: Date.now(),
+        charId: data.charId,
+        author: data.author,
+        amount
+      };
+      saveCoupleSpaceGardenRewardLedger(ledger);
+      return true;
+    } catch(e) {
+      console.error('Garden water reward error:', e);
+      return false;
+    }
+  });
+  coupleSpaceGardenRewardQueue = task.catch(() => false);
+  return task;
+}
+
+function calculateCoupleSpaceGardenReward(gardenData, now = new Date()) {
+  const mmdd = String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+  const defaultDates = {
+    '01-01': ['元旦', 100], '02-14': ['情人节', 520], '03-08': ['妇女节', 38],
+    '03-14': ['白色情人节', 314], '05-01': ['劳动节', 51], '05-20': ['520', 520],
+    '05-21': ['521', 521], '06-01': ['儿童节', 61], '07-07': ['七夕', 77.77],
+    '10-01': ['国庆节', 101], '11-11': ['光棍节', 111.10], '12-24': ['平安夜', 124],
+    '12-25': ['圣诞节', 125], '12-31': ['跨年', 131.40]
+  };
+  let special = defaultDates[mmdd] ? { name: defaultDates[mmdd][0], coins: defaultDates[mmdd][1] } : null;
+  if (!special) {
+    const custom = (gardenData.specialDates || []).find(item => item.date === mmdd);
+    if (custom) special = { name: custom.name, coins: Number(custom.coins) || 0 };
+  }
+  if (!special) {
+    try {
+      const anniversaries = JSON.parse(localStorage.getItem('coupleAnniv_' + gardenData.charId) || '[]');
+      const anniversary = anniversaries.find(item => item.date && item.date.slice(5) === mmdd);
+      if (anniversary) special = { name: anniversary.title, coins: 1314 };
+    } catch(e) {}
+  }
+  const amount = special && special.coins > 0 ? special.coins : 5.20;
+  return {
+    amount,
+    special: special ? { name: special.name, coins: amount } : null,
+    description: special ? `情侣树浇水-${special.name}` : '情侣树自动浇水奖励'
+  };
 }
 
 async function handleCoupleSpaceGardenAiRequest(data) {
@@ -4339,7 +4644,7 @@ async function handleCoupleSpaceGardenHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"给你们的情侣树浇了水，写了："${data.waterContent || ''}"，并点了爱心。
 你会不会也想给这条浇水记录点爱心？考虑你的性格和你们的关系。
 请只回答 "yes" 或 "no"，不要其他内容。`;
@@ -4347,11 +4652,11 @@ async function handleCoupleSpaceGardenHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }], temperature: 0.7 })
       });
     }
@@ -4370,7 +4675,7 @@ async function handleCoupleSpaceGardenHeartRequest(data) {
 
 async function generateCoupleSpaceGardenAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const gardenSettings = data.gardenSettings || {};
   const maxCharVisible = gardenSettings.visibleCharWaters ?? 10;
@@ -4462,23 +4767,23 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceGardenComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const systemPrompt = `# 你的任务
 你是"${ctx.charName}"。"${ctx.myNickname}"给你们的情侣树浇了水，写了一段话，请你评论。
@@ -4509,11 +4814,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
@@ -4536,7 +4841,7 @@ function setupCoupleSpaceGardenAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 浇水 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleGardenAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 浇水 的自动生成`);
-          triggerAutoGardenWater(space.charId, true);
+          return triggerAutoGardenWater(space.charId, true);
         });
         scheduleGardenAutoWater(space.charId, settings.autoTime);
       }
@@ -4548,14 +4853,14 @@ function scheduleGardenAutoWater(charId, timeStr) {
   coupleSpaceGardenTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleGardenAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 浇水 的自动生成`);
-      triggerAutoGardenWater(charId, true);
+      return triggerAutoGardenWater(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoGardenWater(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleGardenSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 浇水记录...`);
@@ -4568,31 +4873,46 @@ async function triggerAutoGardenWater(charId, isTimer = false) {
       gardenSettings: settings,
       treeStatus: ''
     });
+    gardenData.charId = charId;
+    const reward = calculateCoupleSpaceGardenReward(gardenData);
     const newWater = {
-      id: 'water_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      id: 'water_auto_' + charId + '_' + getCoupleSpaceLocalDateKey(),
       content: result.content,
       author: 'char',
       createdAt: Date.now(),
-      coinsEarned: 0,
-      specialDate: null,
+      coinsEarned: reward.amount,
+      specialDate: reward.special,
+      rewardTransactionId: '',
+      rewardSettled: false,
       hearts: { char: true },
       comments: []
     };
+    newWater.rewardTransactionId = 'garden-water-' + newWater.id;
+    const rewardSaved = await applyCoupleSpaceGardenReward({
+      charId,
+      author: 'char',
+      amount: reward.amount,
+      description: reward.description,
+      transactionId: newWater.rewardTransactionId
+    });
+    if (!rewardSaved) throw new Error('自动浇水奖励入账失败');
+    newWater.rewardSettled = true;
+
+    gardenData.waterLogs = waterLogs;
+    gardenData.waterLogs.push(newWater);
+    gardenData.totalCoins = (Number(gardenData.totalCoins) || 0) + reward.amount;
+    localStorage.setItem('coupleGarden_' + charId, JSON.stringify(gardenData));
+
     const iframe = document.getElementById('couple-space-iframe');
-    const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+    const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes(COUPLE_SPACE_IFRAME_PATH) && localStorage.getItem('coupleSpaceLastId') === charId;
     
     if (isIframeOpenForThisChar && iframe.contentWindow) {
       iframe.contentWindow.postMessage({ type: 'coupleSpaceGardenAutoResult', item: newWater }, '*');
-    } else {
-      try {
-        const gardenData = JSON.parse(localStorage.getItem('coupleGarden_' + charId) || '{}');
-        if (!gardenData.waterLogs) gardenData.waterLogs = [];
-        gardenData.waterLogs.push(newWater);
-        localStorage.setItem('coupleGarden_' + charId, JSON.stringify(gardenData));
-      } catch(e) { console.error('Failed to save garden offline:', e); }
     }
+    return true;
   } catch(err) {
     console.error('Auto garden water failed:', err);
+    return false;
   }
 }
 
@@ -4610,9 +4930,8 @@ function handleCoupleSpaceLocationChanged(data) {
 }
 
 function handleCoupleSpaceLocationSettingsChanged(data) {
-  localStorage.setItem('coupleLocSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleLocAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 定位 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleLocSettings_', ['coupleLocAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 定位 设置并重新初始化定时器`);
   setupCoupleSpaceLocationAutoTimer();
 }
 
@@ -4668,7 +4987,7 @@ async function handleCoupleSpaceLocationHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const prompt = `你是"${ctx.charName}"。伴侣"${ctx.myNickname}"给一条定位记录点了爱心。
 地点: "${data.locationName}"
 描述: "${data.locationDesc || ''}"
@@ -4677,11 +4996,11 @@ async function handleCoupleSpaceLocationHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '回爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '回爱心吗？' }], temperature: 0.5 })
       });
     }
@@ -4700,7 +5019,7 @@ async function handleCoupleSpaceLocationHeartRequest(data) {
 
 async function generateCoupleSpaceLocationAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const locSettings = data.locationSettings || {};
   const maxCharVisible = locSettings.visibleCharLocations ?? 10;
@@ -4789,23 +5108,23 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceLocationComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const systemPrompt = `# 你的任务
 你是"${ctx.charName}"。定位记录上有一条地点分享，请你写一条评论。
@@ -4830,11 +5149,11 @@ ${ctx.aiPersona}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
@@ -4854,7 +5173,7 @@ function setupCoupleSpaceLocationAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 定位 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleLocAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 定位 的自动生成`);
-          triggerAutoLocationPost(space.charId, true);
+          return triggerAutoLocationPost(space.charId, true);
         });
         scheduleLocationAutoPost(space.charId, settings.autoTime);
       }
@@ -4866,14 +5185,14 @@ function scheduleLocationAutoPost(charId, timeStr) {
   coupleSpaceLocationTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleLocAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 定位 的自动生成`);
-      triggerAutoLocationPost(charId, true);
+      return triggerAutoLocationPost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoLocationPost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleLocSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 定位...`);
@@ -4897,12 +5216,14 @@ async function triggerAutoLocationPost(charId, isTimer = false) {
       hearts: { char: true },
       comments: []
     };
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceLocationAutoResult',
       item: newLoc
     }, 'coupleLocations_', newLoc);
+    return saved;
   } catch(err) {
     console.error('Auto location post failed:', err);
+    return false;
   }
 }
 
@@ -4918,10 +5239,8 @@ function handleCoupleSpaceSleepChanged(data) {
 }
 
 function handleCoupleSpaceSleepSettingsChanged(data) {
-  localStorage.setItem('coupleSleepSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleSleepAuto_sleep_' + data.charId);
-  localStorage.removeItem('coupleSleepAuto_wake_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 睡眠 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleSleepSettings_', ['coupleSleepAuto_sleep_', 'coupleSleepAuto_wake_'], ['autoEnabled', 'autoSleepTime', 'autoWakeTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 睡眠 设置并重新初始化定时器`);
   setupCoupleSpaceSleepAutoTimer();
 }
 
@@ -4975,7 +5294,7 @@ async function handleCoupleSpaceSleepHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const sleepDesc = data.sleepNote || data.wakeNote || '';
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"记录了一条睡眠动态"${sleepDesc}"并点了爱心。
 你会不会也想给这条睡眠动态点爱心？考虑你的性格和你们的关系。
@@ -4984,11 +5303,11 @@ async function handleCoupleSpaceSleepHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }], temperature: 0.7 })
       });
     }
@@ -5007,7 +5326,7 @@ async function handleCoupleSpaceSleepHeartRequest(data) {
 
 async function generateCoupleSpaceSleepAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const sleepSettings = data.sleepSettings || {};
   const phase = data.phase || 'sleep';
@@ -5237,23 +5556,23 @@ quality 可选值: good(睡得好) normal(一般) bad(没睡好) terrible(失眠
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceSleepComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
 
   const typeLabel = data.sleepStatus === 'completed' ? '已完成的睡眠' : '入睡';
@@ -5295,11 +5614,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({ model, messages: [{ role: 'system', content: systemPrompt }, ...messages], temperature: state.globalSettings.apiTemperature || 0.8, top_p: state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0, presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0, frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0 })
     });
   }
@@ -5323,7 +5642,7 @@ function setupCoupleSpaceSleepAutoTimer() {
           console.log(`✅ [情侣空间] 已重置 睡眠(入睡) 的定时器，新的定时时间为：${settings.autoSleepTime}`);
           checkAndRunMissed(settings.autoSleepTime, 'coupleSleepAuto_sleep_' + space.charId, () => {
             console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 睡眠(入睡) 的自动生成`);
-            triggerAutoSleepPost(space.charId, 'sleep', true);
+            return triggerAutoSleepPost(space.charId, 'sleep', true);
           });
           scheduleSleepAutoPost(space.charId, settings.autoSleepTime, 'sleep');
         }
@@ -5331,7 +5650,7 @@ function setupCoupleSpaceSleepAutoTimer() {
           console.log(`✅ [情侣空间] 已重置 睡眠(起床) 的定时器，新的定时时间为：${settings.autoWakeTime}`);
           checkAndRunMissed(settings.autoWakeTime, 'coupleSleepAuto_wake_' + space.charId, () => {
             console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 睡眠(起床) 的自动生成`);
-            triggerAutoSleepPost(space.charId, 'wake', true);
+            return triggerAutoSleepPost(space.charId, 'wake', true);
           });
           scheduleSleepAutoPost(space.charId, settings.autoWakeTime, 'wake');
         }
@@ -5345,14 +5664,14 @@ function scheduleSleepAutoPost(charId, timeStr, phase) {
   coupleSpaceSleepTimers[timerKey] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleSleepAuto_' + phase + '_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 睡眠(${phase}) 的自动生成`);
-      triggerAutoSleepPost(charId, phase, true);
+      return triggerAutoSleepPost(charId, phase, true);
     });
   }, 60000);
 }
 
 async function triggerAutoSleepPost(charId, phase, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleSleepSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 睡眠(${phase})...`);
@@ -5367,7 +5686,7 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
       const newSleep = {
         id: 'sleep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
         author: 'char',
-        sleepAt: new Date().toISOString().split('T')[0] + 'T' + (sleepResult.sleepTime || '23:00') + ':00',
+        sleepAt: getCoupleSpaceLocalDateKey() + 'T' + (sleepResult.sleepTime || '23:00') + ':00',
         wakeAt: null,
         duration: null,
         sleepNote: sleepResult.sleepNote,
@@ -5382,15 +5701,16 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
         hearts: { char: true },
         comments: []
       };
-      sendOrSaveCoupleSpaceData(charId, {
+      const saved = sendOrSaveCoupleSpaceData(charId, {
         type: 'coupleSpaceSleepAutoResult',
         phase: 'sleep',
         item: newSleep
       }, 'coupleSleep_', newSleep);
+      return saved;
     } else if (phase === 'wake') {
       // Find the latest sleeping record
       const sleepingIdx = existingSleeps.map((s, i) => ({ s, i })).reverse().find(x => x.s.author === 'char' && x.s.status === 'sleeping');
-      if (!sleepingIdx) return;
+      if (!sleepingIdx) return true;
       const currentSleep = existingSleeps[sleepingIdx.i];
 
       // Phase 2: Generate sleep events
@@ -5417,7 +5737,7 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
       const wakeResult = await generateCoupleSpaceSleepAi(chat, {
         charId, existingSleeps, sleepSettings: settings, phase: 'wake', currentSleep
       });
-      currentSleep.wakeAt = new Date().toISOString().split('T')[0] + 'T' + (wakeResult.wakeTime || '07:00') + ':00';
+      currentSleep.wakeAt = getCoupleSpaceLocalDateKey() + 'T' + (wakeResult.wakeTime || '07:00') + ':00';
       currentSleep.wakeNote = wakeResult.wakeNote;
       currentSleep.wakeMood = wakeResult.wakeMood;
       currentSleep.quality = wakeResult.quality;
@@ -5432,7 +5752,7 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
       } catch(e) {}
 
       const iframe = document.getElementById('couple-space-iframe');
-      const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes('330-main/index.html') && localStorage.getItem('coupleSpaceLastId') === charId;
+      const isIframeOpenForThisChar = iframe && iframe.src && iframe.src.includes(COUPLE_SPACE_IFRAME_PATH) && localStorage.getItem('coupleSpaceLastId') === charId;
       
       if (isIframeOpenForThisChar && iframe.contentWindow) {
         iframe.contentWindow.postMessage({ type: 'coupleSpaceSleepAutoResult', phase: 'wake', item: currentSleep, sleepIndex: sleepingIdx.i }, '*');
@@ -5442,9 +5762,11 @@ async function triggerAutoSleepPost(charId, phase, isTimer = false) {
           localStorage.setItem('coupleSleep_' + charId, JSON.stringify(existingSleeps));
         } catch(e) { console.error('Failed to save sleep wake offline:', e); }
       }
+      return true;
     }
   } catch(err) {
     console.error('Auto sleep post failed:', err);
+    return false;
   }
 }
 
@@ -5460,9 +5782,8 @@ function handleCoupleSpaceFinanceChanged(data) {
 }
 
 function handleCoupleSpaceFinanceSettingsChanged(data) {
-  localStorage.setItem('coupleFinanceSettings_' + data.charId, JSON.stringify(data.settings || {}));
-  localStorage.removeItem('coupleFinanceAutoLast_' + data.charId);
-  console.log(`[情侣空间] ⚙️ 已保存 记账 设置并清除当天执行记录，重新初始化定时器`);
+  saveCoupleSpaceSettingsWithSchedule(data, 'coupleFinanceSettings_', ['coupleFinanceAutoLast_'], ['autoEnabled', 'autoTime']);
+  console.log(`[情侣空间] ⚙️ 已保存 记账 设置并重新初始化定时器`);
   setupCoupleSpaceFinanceAutoTimer();
 }
 
@@ -5476,7 +5797,7 @@ async function handleCoupleSpaceFinanceAiRequest(data) {
   }
   try {
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) {
+    if (!proxyUrl || !model) {
       iframe.contentWindow.postMessage({ type: 'coupleSpaceFinanceAiResult', error: true }, '*');
       return;
     }
@@ -5524,7 +5845,7 @@ async function handleCoupleSpaceFinanceHeartRequest(data) {
   try {
     const ctx = buildDiaryAiContext(chat);
     const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-    if (!proxyUrl || !apiKey || !model) return;
+    if (!proxyUrl || !model) return;
     const typeLabel = data.itemType === 'income' ? '收入' : '支出';
     const prompt = `你是"${ctx.charName}"。你的伴侣"${ctx.myNickname}"记了一笔${typeLabel}："${data.itemTitle}"，金额¥${data.itemAmount}，并点了爱心。
 你会不会也想给这条记录点爱心？考虑你的性格和你们的关系。
@@ -5533,11 +5854,11 @@ async function handleCoupleSpaceFinanceHeartRequest(data) {
     let response;
     if (isGemini) {
       const geminiConfig = toGeminiRequestData(model, apiKey, prompt, [{ role: 'user', content: '你要点爱心吗？' }]);
-      response = await fetch(geminiConfig.url, geminiConfig.data);
+      response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
     } else {
-      response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+      response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+        headers: getCoupleSpaceRequestHeaders(apiKey),
         body: JSON.stringify({ model, messages: [{ role: 'system', content: prompt }, { role: 'user', content: '你要点爱心吗？' }], temperature: 0.7 })
       });
     }
@@ -5556,7 +5877,7 @@ async function handleCoupleSpaceFinanceHeartRequest(data) {
 
 async function generateCoupleSpaceFinanceAi(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const finSettings = data.financeSettings || {};
   const maxCharVisible = finSettings.visibleCharItems ?? 10;
@@ -5658,7 +5979,7 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
     const requestBody = JSON.stringify({
       model,
@@ -5668,9 +5989,9 @@ ${ctx.currentTime}
               presence_penalty: state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0,
               frequency_penalty: state.globalSettings.apiFrequencyPenalty !== undefined ? state.globalSettings.apiFrequencyPenalty : 0.0
     });
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: requestBody
     });
   }
@@ -5678,12 +5999,12 @@ ${ctx.currentTime}
   if (!response.ok) throw new Error('API请求失败: ' + response.status);
   const respData = await response.json();
   const raw = getGeminiResponseText(respData).replace(/^```json\s*/, '').replace(/```$/, '').trim();
-  return JSON.parse(raw);
+  return parseCoupleSpaceJson(raw);
 }
 
 async function generateCoupleSpaceFinanceComment(chat, data) {
   const { proxyUrl, apiKey, model } = getCoupleSpaceApiConfig();
-  if (!proxyUrl || !apiKey || !model) throw new Error('API未配置');
+  if (!proxyUrl || !model) throw new Error('API未配置');
   const ctx = buildDiaryAiContext(chat);
   const typeLabel = data.itemType === 'income' ? '收入' : '支出';
   const catLabel = data.itemCategory || '未分类';
@@ -5724,11 +6045,11 @@ ${ctx.currentTime}
   let response;
   if (isGemini) {
     const geminiConfig = toGeminiRequestData(model, apiKey, systemPrompt, messages);
-    response = await fetch(geminiConfig.url, geminiConfig.data);
+    response = await fetchCoupleSpaceWithTimeout(geminiConfig.url, geminiConfig.data);
   } else {
-    response = await fetch(`${proxyUrl}/v1/chat/completions`, {
+    response = await fetchCoupleSpaceWithTimeout(`${proxyUrl}/v1/chat/completions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      headers: getCoupleSpaceRequestHeaders(apiKey),
       body: JSON.stringify({
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -5759,7 +6080,7 @@ function setupCoupleSpaceFinanceAutoTimer() {
         console.log(`✅ [情侣空间] 已重置 记账 的定时器，新的定时时间为：${settings.autoTime}`);
         checkAndRunMissed(settings.autoTime, 'coupleFinanceAutoLast_' + space.charId, () => {
           console.log(`⏰ [情侣空间] 定时补执行时间已到！开始强制触发 记账 的自动生成`);
-          triggerAutoFinancePost(space.charId, true);
+          return triggerAutoFinancePost(space.charId, true);
         });
         scheduleFinanceAutoPost(space.charId, settings.autoTime);
       }
@@ -5771,14 +6092,14 @@ function scheduleFinanceAutoPost(charId, timeStr) {
   coupleSpaceFinanceTimers[charId] = setInterval(() => {
     checkAndRunMissed(timeStr, 'coupleFinanceAutoLast_' + charId, () => {
       console.log(`⏰ [情侣空间] 定时时间已到！开始强制触发 记账 的自动生成`);
-      triggerAutoFinancePost(charId, true);
+      return triggerAutoFinancePost(charId, true);
     });
   }, 60000);
 }
 
 async function triggerAutoFinancePost(charId, isTimer = false) {
   const chat = state.chats[charId];
-  if (!chat) return;
+  if (!chat) return false;
   const settings = JSON.parse(localStorage.getItem('coupleFinanceSettings_' + charId) || '{}');
 
   console.log(`⏳ [情侣空间] 正在向 AI 请求生成 记账...`);
@@ -5798,18 +6119,20 @@ async function triggerAutoFinancePost(charId, isTimer = false) {
       category: result.category || '',
       title: result.title || '',
       note: result.note || '',
-      date: new Date().toISOString().split('T')[0],
+      date: getCoupleSpaceLocalDateKey(),
       author: 'char',
       createdAt: Date.now(),
       hearts: { char: true },
       comments: []
     };
-    sendOrSaveCoupleSpaceData(charId, {
+    const saved = sendOrSaveCoupleSpaceData(charId, {
       type: 'coupleSpaceFinanceAutoResult',
       item: newItem
     }, 'coupleFinance_', newItem);
+    return saved;
   } catch(err) {
     console.error('Auto finance post failed:', err);
+    return false;
   }
 }
 
