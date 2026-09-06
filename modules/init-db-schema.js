@@ -140,4 +140,18 @@ db.version(61).stores({
   forumAskBoxQuestions: '++id, targetKind, targetKey, timestamp',
 });
 
+// MCP 使用独立表，避免改变任何既有聊天或设置数据结构。
+db.version(62).stores({
+  mcpConnections: '&id, type, enabled, status, updatedAt',
+  mcpActivities: '&id, connectionId, status, chatId, createdAt',
+  mcpSettings: '&id',
+  mcpSecrets: '&id'
+});
+
+// 回复守护：独立表，保存中断回复任务与保活自定义音频
+db.version(63).stores({
+  replyTasks: '&id, chatId, status, updatedAt, createdAt',
+  keepAliveAssets: '&id, updatedAt'
+});
+
 window.db = db;

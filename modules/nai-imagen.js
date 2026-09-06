@@ -563,6 +563,187 @@
   }
   // ========== Google Imagen 结束 ==========
 
+  // ========== OpenAI GPT Image 生图功能 ==========
+  function getOpenAIImageSettings() {
+    const defaultSettings = {
+      model: 'gpt-image-2',
+      endpoint: 'https://api.openai.com',
+      size: 'auto',
+      quality: 'auto',
+      outputFormat: 'png',
+      outputCompression: 100,
+      background: 'auto',
+      moderation: 'auto',
+      positivePrompt: ''
+    };
+    const saved = localStorage.getItem('openai-image-settings');
+    if (!saved) return defaultSettings;
+    try {
+      return { ...defaultSettings, ...JSON.parse(saved) };
+    } catch (error) {
+      console.warn('[GPT Image] 设置解析失败，已使用默认设置。', error);
+      return defaultSettings;
+    }
+  }
+
+  function saveOpenAIImageSettings() {
+    const enabled = document.getElementById('openai-image-switch')?.checked || false;
+    const model = document.getElementById('openai-image-model')?.value.trim() || 'gpt-image-2';
+    const apiKey = document.getElementById('openai-image-api-key')?.value.trim() || '';
+    const endpoint = document.getElementById('openai-image-endpoint')?.value.trim() || 'https://api.openai.com';
+    const compressionValue = parseInt(document.getElementById('openai-image-compression')?.value, 10);
+    const settings = {
+      model,
+      endpoint,
+      size: document.getElementById('openai-image-size')?.value || 'auto',
+      quality: document.getElementById('openai-image-quality')?.value || 'auto',
+      outputFormat: document.getElementById('openai-image-output-format')?.value || 'png',
+      outputCompression: Math.min(100, Math.max(0, Number.isFinite(compressionValue) ? compressionValue : 100)),
+      background: document.getElementById('openai-image-background')?.value || 'auto',
+      moderation: document.getElementById('openai-image-moderation')?.value || 'auto',
+      positivePrompt: document.getElementById('openai-image-positive')?.value.trim() || ''
+    };
+
+    localStorage.setItem('openai-image-enabled', String(enabled));
+    localStorage.setItem('openai-image-model', model);
+    localStorage.setItem('openai-image-api-key', apiKey);
+    localStorage.setItem('openai-image-settings', JSON.stringify(settings));
+  }
+
+  function getOpenAIImageGenerationsUrl(endpoint) {
+    const normalized = String(endpoint || 'https://api.openai.com').trim().replace(/\/+$/, '');
+    if (/\/images\/generations$/i.test(normalized)) return normalized;
+    return /\/v1$/i.test(normalized)
+      ? `${normalized}/images/generations`
+      : `${normalized}/v1/images/generations`;
+  }
+
+  function getOpenAIImageMimeType(outputFormat) {
+    if (outputFormat === 'jpg') return 'image/jpeg';
+    return `image/${outputFormat || 'png'}`;
+  }
+
+  async function generateOpenAIImageFromPrompt(aiPrompt) {
+    const prompt = String(aiPrompt || '').trim() || 'A beautiful scene';
+    const apiKey = localStorage.getItem('openai-image-api-key');
+    if (!apiKey) {
+      throw new Error('GPT 生图 API Key 未配置。请在 GPT 生图设置中填写 API Key。');
+    }
+
+    const settings = getOpenAIImageSettings();
+    const model = localStorage.getItem('openai-image-model') || settings.model || 'gpt-image-2';
+    const finalPrompt = settings.positivePrompt ? `${prompt}, ${settings.positivePrompt}` : prompt;
+    const outputFormat = settings.outputFormat || 'png';
+    if (outputFormat === 'jpeg' && settings.background === 'transparent') {
+      throw new Error('JPEG 不支持透明背景，请选择 PNG/WebP，或将背景改为自动/不透明。');
+    }
+    const requestBody = {
+      model,
+      prompt: finalPrompt,
+      n: 1,
+      size: settings.size || 'auto',
+      quality: settings.quality || 'auto',
+      output_format: outputFormat,
+      background: settings.background || 'auto',
+      moderation: settings.moderation || 'auto'
+    };
+    if (outputFormat === 'jpeg' || outputFormat === 'webp') {
+      const compressionValue = Number(settings.outputCompression);
+      requestBody.output_compression = Math.min(100, Math.max(0, Number.isFinite(compressionValue) ? compressionValue : 100));
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 180000);
+    let response;
+    try {
+      response = await fetch(getOpenAIImageGenerationsUrl(settings.endpoint), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${getRandomValue(apiKey)}`
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error('GPT 生图请求超时（超过3分钟），请检查网络或稍后重试。');
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
+    if (!response.ok) {
+      let errorMessage = `GPT 生图 API 请求失败 (${response.status})`;
+      try {
+        const errorData = await response.json();
+        const code = errorData?.error?.code;
+        if (code === 'moderation_blocked') {
+          errorMessage = '该提示词或生成结果未通过安全检查，请调整描述后重试。';
+        } else if (errorData?.error?.message) {
+          errorMessage += `: ${errorData.error.message}`;
+        }
+      } catch (_) {}
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    const image = data?.data?.[0];
+    if (!image) throw new Error('GPT 生图响应中未找到图片数据。');
+
+    const mimeType = getOpenAIImageMimeType(outputFormat);
+    const imageUrl = image.b64_json
+      ? `data:${mimeType};base64,${image.b64_json}`
+      : image.url;
+    if (!imageUrl) throw new Error('GPT 生图响应中未找到可用的图片内容。');
+
+    return {
+      imageUrl,
+      fullPrompt: image.revised_prompt || finalPrompt,
+      model,
+      mimeType,
+      requestId: response.headers.get('x-request-id') || ''
+    };
+  }
+
+  async function testOpenAIImageGeneration() {
+    const apiKey = document.getElementById('openai-image-api-key')?.value.trim();
+    if (!apiKey) {
+      alert('请先填写 GPT 生图 API Key！');
+      return;
+    }
+    saveOpenAIImageSettings();
+
+    const testBtn = document.getElementById('openai-image-test-btn');
+    const resultDiv = document.getElementById('openai-image-test-result');
+    const resultImg = document.getElementById('openai-image-result-image');
+    if (!testBtn || !resultDiv || !resultImg) return;
+
+    testBtn.disabled = true;
+    resultDiv.style.display = 'none';
+    let seconds = 0;
+    const timer = setInterval(() => {
+      seconds += 1;
+      testBtn.textContent = `⏳ 生成中... (${seconds}s)`;
+    }, 1000);
+    testBtn.textContent = '⏳ 生成中... (0s)';
+
+    try {
+      const result = await generateOpenAIImageFromPrompt('一只戴着红色围巾的橘猫坐在温暖的窗边，细腻自然光，高质量摄影');
+      resultImg.src = result.imageUrl;
+      resultDiv.style.display = 'block';
+    } catch (error) {
+      alert(`❌ GPT 生图测试失败: ${error.message}`);
+      console.error('[GPT Image] 测试失败:', error);
+    } finally {
+      clearInterval(timer);
+      testBtn.disabled = false;
+      testBtn.textContent = '🧪 测试生成';
+    }
+  }
+  // ========== OpenAI GPT Image 结束 ==========
+
   function getNovelAISettings() {
     const defaultSettings = {
       resolution: '1024x1024',
@@ -1239,6 +1420,10 @@
   window.saveGoogleImagenSettings = saveGoogleImagenSettings;
   window.fetchGoogleImagenModels = fetchGoogleImagenModels;
   window.testGoogleImagenGeneration = testGoogleImagenGeneration;
+  window.saveOpenAIImageSettings = saveOpenAIImageSettings;
+  window.testOpenAIImageGeneration = testOpenAIImageGeneration;
+  window.generateOpenAIImageFromPrompt = generateOpenAIImageFromPrompt;
+  window.getOpenAIImageSettings = getOpenAIImageSettings;
   window.openNaiBindingModal = openNaiBindingModal;
   window.generateNovelAIImage = generateNovelAIImage;
   window.handleDeleteNaiPreset = handleDeleteNaiPreset;
