@@ -1,0 +1,676 @@
+    <div id="forum-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('home-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>论坛</span>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-hottopics-btn" title="热搜">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+          </span>
+          <span class="action-btn" id="forum-dm-inbox-btn" title="私信">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+          </span>
+          <span class="action-btn" id="forum-identity-btn" title="切换身份(主号/小号)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </span>
+        </div>
+      </div>
+      <div id="forum-board-tabs" class="forum-board-tabs"></div>
+      <div id="forum-posts-list" class="forum-posts-list"></div>
+      <button id="forum-create-post-btn" class="forum-fab" title="发帖">＋</button>
+    </div>
+
+    <!-- 论坛热搜列表 -->
+    <div id="forum-hottopics-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>热搜</span>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-hottopics-refresh-btn" title="刷新热搜">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+          </span>
+        </div>
+      </div>
+      <div id="forum-hottopics-list" class="forum-hottopics-list"></div>
+    </div>
+
+    <!-- 热搜词条详情 -->
+    <div id="forum-hottopic-detail-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-hottopics-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span id="forum-hottopic-detail-title">热搜</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-hottopic-detail-body" class="forum-post-detail-body"></div>
+    </div>
+
+    <!-- 个人主页 -->
+    <div id="forum-profile-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>主页</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-profile-body" class="forum-post-detail-body">
+        <div class="forum-profile-banner"></div>
+        <div class="forum-profile-header">
+          <img id="forum-profile-avatar" class="forum-profile-avatar" src="">
+          <button id="forum-profile-dm-btn" class="forum-profile-dm-btn">私信</button>
+        </div>
+        <div class="forum-profile-info">
+          <div class="forum-profile-name" id="forum-profile-name"></div>
+          <div class="forum-profile-stats">
+            <span id="forum-profile-post-count">0</span> 条帖子
+          </div>
+        </div>
+        <div class="forum-profile-tabs">
+          <span class="forum-profile-tab active" data-tab="posts">帖子</span>
+          <span class="forum-profile-tab" data-tab="askbox">提问箱</span>
+        </div>
+        <div id="forum-profile-posts-list"></div>
+        <div id="forum-profile-askbox-area" style="display:none;">
+          <div class="forum-askbox-card">
+            <img id="forum-askbox-avatar" class="forum-askbox-card-avatar" src="">
+            <div class="forum-askbox-input-wrap">
+              <textarea id="forum-askbox-input" class="forum-askbox-textarea" placeholder="请向TA匿名提问..." rows="2"></textarea>
+              <button id="forum-askbox-submit-btn" class="forum-askbox-submit-btn">提问</button>
+            </div>
+          </div>
+          <div id="forum-askbox-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 私信收件箱 -->
+    <div id="forum-dm-inbox-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>私信</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-dm-inbox-list" class="forum-post-detail-body"></div>
+    </div>
+
+    <!-- 私信对话 -->
+    <div id="forum-dm-thread-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-dm-inbox-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span id="forum-dm-thread-title">私信</span>
+        <div class="header-actions"></div>
+      </div>
+      <div id="forum-dm-thread-body" class="forum-post-detail-body"></div>
+      <div class="forum-comment-input-bar">
+        <input type="text" id="forum-dm-input" class="forum-comment-input" placeholder="发消息...">
+        <button id="forum-dm-send-btn" class="forum-comment-send-btn">发送</button>
+      </div>
+    </div>
+
+    <!-- 转发帖子到聊天：选择聊天弹窗 -->
+    <div id="forum-forward-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>转发到...</span>
+          <span class="close-btn" id="forum-forward-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-forward-chat-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 论坛身份/小号切换弹窗 -->
+    <div id="forum-identity-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>切换身份</span>
+          <span class="close-btn" id="forum-identity-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-identity-list" class="forum-identity-list"></div>
+          <div id="forum-alt-avatar-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+            <img id="forum-alt-avatar-preview" class="forum-image-preview" style="max-height:100px;" src="">
+            <button id="forum-alt-avatar-remove-btn" class="forum-image-remove-btn" title="移除头像">&times;</button>
+          </div>
+          <div class="forum-image-toolbar">
+            <button type="button" id="forum-alt-avatar-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传头像</span>
+            </button>
+            <button type="button" id="forum-alt-avatar-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>头像链接</span>
+            </button>
+            <input type="file" id="forum-alt-avatar-file-input" accept="image/*" style="display:none;">
+          </div>
+          <input type="text" id="forum-alt-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+          <div class="forum-identity-new-row">
+            <input type="text" id="forum-new-alt-name-input" class="forum-image-url-input" placeholder="新小号名称">
+            <button id="forum-new-alt-create-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">创建</button>
+          </div>
+          <div class="forum-manage-char-alt-link" id="forum-manage-char-alt-link">管理角色小号 ›</div>
+          <div class="forum-manage-char-alt-link" id="forum-manage-npc-link">管理网友 ›</div>
+          <div class="forum-manage-char-alt-link" id="forum-manage-seed-link">一键生成初始内容 ›</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 角色小号管理弹窗 -->
+    <div id="forum-char-alt-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>角色小号</span>
+          <span class="close-btn" id="forum-char-alt-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-char-alt-chat-list" class="forum-identity-list"></div>
+          <div id="forum-char-alt-editor" style="display:none;">
+            <div class="forum-identity-new-row" style="margin-bottom:8px;">
+              <span id="forum-char-alt-editor-title" style="font-size:13px; color:#888;"></span>
+            </div>
+            <div id="forum-char-alt-existing-list" class="forum-identity-list"></div>
+
+            <div class="forum-board-section-title">新增一个小号</div>
+            <div id="forum-char-alt-avatar-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+              <img id="forum-char-alt-avatar-preview" class="forum-image-preview" style="max-height:100px;" src="">
+              <button id="forum-char-alt-avatar-remove-btn" class="forum-image-remove-btn" title="移除头像">&times;</button>
+            </div>
+            <div class="forum-image-toolbar">
+              <button type="button" id="forum-char-alt-avatar-upload-btn" class="forum-image-tool-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+                <span>上传头像</span>
+              </button>
+              <button type="button" id="forum-char-alt-avatar-url-btn" class="forum-image-tool-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                <span>头像链接</span>
+              </button>
+              <button type="button" id="forum-char-alt-avatar-frompool-btn" class="forum-image-tool-btn">
+                <span>从头像池随机选</span>
+              </button>
+              <input type="file" id="forum-char-alt-avatar-file-input" accept="image/*" style="display:none;">
+            </div>
+            <input type="text" id="forum-char-alt-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+            <div class="forum-identity-new-row">
+              <input type="text" id="forum-char-alt-name-input" class="forum-image-url-input" placeholder="小号名称">
+              <button id="forum-char-alt-save-btn" class="forum-primary-btn" style="width:auto; padding:8px 14px;">添加</button>
+            </div>
+
+            <div class="forum-board-section-title">角色小号头像池<span style="color:#999; font-weight:400;">(独立于网友头像池)</span></div>
+            <div id="forum-char-avatar-pool-list" class="forum-avatar-pool-list"></div>
+            <div class="forum-image-toolbar" style="margin-top:8px;">
+              <button type="button" id="forum-char-alt-pool-upload-btn" class="forum-image-tool-btn">
+                <span>批量上传</span>
+              </button>
+              <button type="button" id="forum-char-alt-pool-url-btn" class="forum-image-tool-btn">
+                <span>链接加入</span>
+              </button>
+              <input type="file" id="forum-char-alt-pool-file-input" accept="image/*" multiple style="display:none;">
+            </div>
+            <input type="text" id="forum-char-alt-pool-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 网友管理弹窗 -->
+    <!-- 一键生成初始内容弹窗 -->
+    <div id="forum-seed-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>一键生成初始内容</span>
+          <span class="close-btn" id="forum-seed-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div class="forum-board-section-title">生成多少条帖子(范围，实际数量会在区间内随机)</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="number" id="forum-seed-post-min-input" class="forum-image-url-input" value="12" min="1" max="50">
+            <span style="color:#999;">~</span>
+            <input type="number" id="forum-seed-post-max-input" class="forum-image-url-input" value="24" min="1" max="50">
+          </div>
+          <div class="forum-board-section-title">每条帖子配几条评论(大致)</div>
+          <input type="number" id="forum-seed-comment-count-input" class="forum-image-url-input" value="5" min="0" max="15">
+          <div class="forum-board-section-title">要不要让角色也发帖(用TA们真实人设)</div>
+          <div id="forum-seed-char-list" class="forum-identity-list"></div>
+          <p class="forum-empty-tip" style="padding:6px 0; font-size:12px;">勾选具体角色就只让TA们发；一个都不勾就是"随机挑几个"；都不想要就把下面这个开关关掉</p>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:6px;">
+            <input type="checkbox" id="forum-seed-include-char-checkbox" checked style="width:16px; height:16px;">
+            <label for="forum-seed-include-char-checkbox" style="font-size:13px; color:#333;">启用角色发帖</label>
+          </div>
+          <p class="forum-empty-tip" style="padding:12px 0; font-size:12.5px;">如果网友数量不够，会先自动补充几个网友再开始生成。生成过程可能需要几十秒，请耐心等待。</p>
+          <button id="forum-seed-generate-btn" class="forum-primary-btn" style="margin-top:8px;">开始生成</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="forum-npc-manage-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>网友管理</span>
+          <span class="close-btn" id="forum-npc-manage-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-npc-existing-list" class="forum-identity-list"></div>
+
+          <div class="forum-board-section-title">新建网友</div>
+          <div id="forum-npc-avatar-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+            <img id="forum-npc-avatar-preview" class="forum-image-preview" style="max-height:100px;" src="">
+            <button id="forum-npc-avatar-remove-btn" class="forum-image-remove-btn" title="移除头像">&times;</button>
+          </div>
+          <div class="forum-image-toolbar">
+            <button type="button" id="forum-npc-avatar-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传头像</span>
+            </button>
+            <button type="button" id="forum-npc-avatar-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>头像链接</span>
+            </button>
+            <input type="file" id="forum-npc-avatar-file-input" accept="image/*" style="display:none;">
+          </div>
+          <input type="text" id="forum-npc-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+          <input type="text" id="forum-npc-name-input" class="forum-image-url-input" placeholder="网友昵称" style="margin-top:8px;">
+          <textarea id="forum-npc-persona-input" class="forum-post-textarea" placeholder="人设/性格描述(会影响它发帖回帖的风格)" rows="3" style="margin-top:8px;"></textarea>
+          <div style="display:flex; align-items:center; gap:8px; margin-top:8px;">
+            <span style="font-size:13px; color:#888; flex-shrink:0;">冷却(分钟)</span>
+            <input type="number" id="forum-npc-cooldown-input" class="forum-image-url-input" placeholder="15" style="margin-top:0;" value="15" min="1">
+          </div>
+          <button id="forum-npc-create-btn" class="forum-primary-btn" style="margin-top:8px;">创建网友</button>
+
+          <div class="forum-board-section-title">AI批量生成网友</div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:13px; color:#888; flex-shrink:0;">数量</span>
+            <input type="number" id="forum-npc-batch-count-input" class="forum-image-url-input" style="margin-top:0;" value="5" min="1" max="20">
+          </div>
+          <button id="forum-npc-batch-generate-btn" class="forum-image-tool-btn" style="margin-top:8px; width:100%; justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>AI批量生成</span>
+          </button>
+
+          <div class="forum-board-section-title">从一句话描述生成单个网友</div>
+          <input type="text" id="forum-npc-hint-input" class="forum-image-url-input" placeholder="比如：毒舌产科医生，喜欢吐槽同事">
+          <button id="forum-npc-hint-generate-btn" class="forum-image-tool-btn" style="margin-top:8px; width:100%; justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>生成预览</span>
+          </button>
+          <div id="forum-npc-hint-preview" style="display:none;"></div>
+
+          <div class="forum-board-section-title">头像池<span style="color:#999; font-weight:400;">(AI建网友时随机从这里挑)</span></div>
+          <div id="forum-avatar-pool-list" class="forum-avatar-pool-list"></div>
+          <div class="forum-image-toolbar" style="margin-top:8px;">
+            <button type="button" id="forum-pool-avatar-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传加入头像池</span>
+            </button>
+            <button type="button" id="forum-pool-avatar-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>链接加入</span>
+            </button>
+            <input type="file" id="forum-pool-avatar-file-input" accept="image/*" multiple style="display:none;">
+          </div>
+          <input type="text" id="forum-pool-avatar-url-input" class="forum-image-url-input" placeholder="粘贴头像链接，回车确认" style="display:none;">
+        </div>
+      </div>
+    </div>
+
+    <!-- 板块管理弹窗 -->
+    <div id="forum-board-manage-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-identity-content">
+        <div class="modal-header">
+          <span>板块管理</span>
+          <span class="close-btn" id="forum-board-manage-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <div id="forum-board-existing-list" class="forum-identity-list"></div>
+
+          <div class="forum-board-section-title">手动创建</div>
+          <input type="text" id="forum-new-board-name-input" class="forum-image-url-input" placeholder="板块名称">
+          <input type="text" id="forum-new-board-desc-input" class="forum-image-url-input" placeholder="板块简介(可选)" style="margin-top:8px;">
+          <textarea id="forum-new-board-worldview-input" class="forum-post-textarea" placeholder="这个板块专属的世界观设定(可选，不填就用整体默认)" rows="3" style="margin-top:8px;"></textarea>
+          <button id="forum-new-board-create-btn" class="forum-primary-btn" style="margin-top:8px;">创建板块</button>
+
+          <div class="forum-board-section-title">AI帮我想板块</div>
+          <input type="text" id="forum-board-ai-theme-input" class="forum-image-url-input" placeholder="想要什么方向的板块？(可选，不填就自由发挥)">
+          <button id="forum-board-ai-generate-btn" class="forum-image-tool-btn" style="margin-top:8px; width:100%; justify-content:center;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            <span>AI生成板块建议</span>
+          </button>
+          <div id="forum-board-ai-suggestions" class="forum-identity-list" style="margin-top:8px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 论坛帖子详情(评论区) -->
+    <div id="forum-post-detail-screen" class="screen">
+      <div class="header forum-header">
+        <span class="back-btn" onclick="showScreen('forum-screen')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </span>
+        <span>帖子</span>
+        <div class="header-actions">
+          <span class="action-btn" id="forum-generate-comments-btn" title="生成网友评论">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          </span>
+        </div>
+      </div>
+      <div id="forum-post-detail-body" class="forum-post-detail-body"></div>
+      <div class="forum-comment-input-bar">
+        <input type="text" id="forum-comment-input" class="forum-comment-input" placeholder="友善评论...">
+        <button id="forum-comment-send-btn" class="forum-comment-send-btn">发送</button>
+      </div>
+    </div>
+
+    <!-- 论坛发帖弹窗 -->
+    <div id="forum-create-post-modal" class="modal" style="display: none;">
+      <div class="modal-content forum-create-post-content">
+        <div class="modal-header">
+          <span>发帖</span>
+          <span class="close-btn" id="forum-create-post-close-btn">&times;</span>
+        </div>
+        <div class="modal-body">
+          <select id="forum-create-post-board-select" class="forum-board-select"></select>
+          <div id="forum-quote-preview-wrap" style="display:none; margin-bottom:8px;">
+            <div id="forum-quote-preview-content"></div>
+          </div>
+          <textarea id="forum-create-post-textarea" class="forum-post-textarea" placeholder="想说点什么..." rows="6"></textarea>
+
+          <div id="forum-image-preview-wrap" class="forum-image-preview-wrap" style="display:none;">
+            <img id="forum-image-preview" class="forum-image-preview" src="">
+            <button id="forum-image-remove-btn" class="forum-image-remove-btn" title="移除图片">&times;</button>
+          </div>
+
+          <div class="forum-image-toolbar">
+            <button type="button" id="forum-image-ai-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M3 12h3M18 12h3M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>AI配图</span>
+            </button>
+            <button type="button" id="forum-image-upload-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <span>上传图片</span>
+            </button>
+            <button type="button" id="forum-image-url-btn" class="forum-image-tool-btn">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+              <span>图片链接</span>
+            </button>
+            <input type="file" id="forum-image-file-input" accept="image/*" style="display:none;">
+          </div>
+          <input type="text" id="forum-image-url-input" class="forum-image-url-input" placeholder="粘贴图片链接，回车确认" style="display:none;">
+
+          <div class="forum-board-section-title">互动组件<span style="color:#999; font-weight:400;">(可选)</span></div>
+          <select id="forum-widget-type-select" class="forum-board-select">
+            <option value="">不添加</option>
+            <option value="poll">投票</option>
+            <option value="donation">打赏/众筹进度条</option>
+            <option value="chain">接龙/接话条</option>
+            <option value="bounty">悬赏倒计时</option>
+            <option value="rating">易得分卡</option>
+            <option value="dice">骰子</option>
+            <option value="wheel">转盘</option>
+          </select>
+          <div id="forum-widget-config-area"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="forum-create-post-submit-btn" class="forum-primary-btn">发布</button>
+        </div>
+      </div>
+    </div>
+    <div id="werewolf-game-screen" class="screen">
+      <div class="header"> <span id="werewolf-game-title">狼人杀</span>
+        <div class="header-actions"><span class="action-btn" id="werewolf-retry-btn" title="重试上一步AI操作" style="display: none;"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+              <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+            </svg></span> <span class="action-btn" id="exit-werewolf-game-btn">退出</span> </div>
+      </div>
+      <div id="werewolf-player-grid"></div>
+      <div id="werewolf-log" class="list-container"></div>
+      <div id="werewolf-action-bar">
+        <div id="chat-input-main-row" style="width: 100%;"> <textarea id="werewolf-user-input" rows="1" placeholder="轮到你发言了..."></textarea>
+          <div id="input-actions-wrapper" style="gap: 5px;"> <button id="werewolf-wait-reply-btn" class="action-button" style="display: none; background-color: #007bff; height: 40px; padding: 0 10px; font-size: 13px;">等待回应</button> <button id="werewolf-finish-speech-btn" class="action-button"
+              style="display: none; background-color: var(--accent-color); height: 40px; padding: 0 10px; font-size: 13px;">结束发言</button> <button id="werewolf-next-step-btn" class="form-button" style="margin-top:0; display: none;">下一步</button> </div>
+        </div>
+      </div>
+    </div>
+    <div id="long-term-memory-screen" class="screen">
+      <div class="header"> <span class="back-btn" id="memory-screen-back-btn">‹</span> <span data-lang-key="chatHeaderLongTermMemory">长期记忆</span>
+        <div class="header-actions"> 
+            <!-- 精炼按钮 (替换为 漏斗/过滤 图标) -->
+            <span class="action-btn" id="refine-memory-btn-header" title="精炼 (整合旧记忆)"> 
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                </svg>
+            </span> 
+            
+            <!-- 总结按钮 (替换为 文档/列表 图标) -->
+            <span class="action-btn" id="summarize-recent-btn-header" title="总结 (最近对话)"> 
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </span> 
+            
+            <!-- 添加按钮 (统一替换为 SVG 加号) -->
+            <span class="action-btn" id="add-manual-memory-btn-header" title="手动添加">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </span> 
+        </div>
+      </div>
+      <div class="list-container" id="memory-list-container" style="padding: 15px; display: flex; flex-direction: column; gap: 15px; background-color: #f0f2f5;">
+        <!-- Tab 切换栏（仅在结构化记忆或向量记忆开启时显示） -->
+        <div id="memory-tab-bar" class="sm-tab-bar" style="display: none;">
+          <button class="sm-tab active" data-tab="original" id="memory-tab-original">原始记忆</button>
+          <button class="sm-tab" data-tab="structured" id="memory-tab-structured">结构化表格</button>
+          <button class="sm-tab" data-tab="vector" id="memory-tab-vector">向量记忆</button>
+        </div>
+        <!-- 原始记忆容器 -->
+        <div id="original-memory-container">
+            <style>
+              #export-original-memory-btn {
+                position: fixed;
+                width: 50px;
+                height: 50px;
+                border-radius: 50%;
+                background-color: var(--accent-color, #007aff);
+                color: white;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                cursor: pointer;
+                z-index: 1000;
+                transition: opacity 0.3s;
+                user-select: none;
+                -webkit-user-select: none;
+                touch-action: none;
+                margin-bottom: 0;
+              }
+              #export-original-memory-btn.hidden {
+                display: none !important;
+              }
+              #export-original-memory-btn.dragging {
+                transition: none;
+                opacity: 0.8;
+              }
+            </style>
+            <div id="export-original-memory-btn" title="导出记忆">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            </div>
+            <div id="original-memory-list"></div>
+        </div>
+        <!-- 结构化记忆表格 -->
+        <div id="structured-memory-container" style="display: none;"></div>
+        <!-- 向量记忆容器 -->
+        <div id="vector-memory-container" style="display: none;"></div>
+      </div>
+    </div>
+    
+    <div id="chat-settings-screen" class="screen">
+      <div class="header"> 
+          <span class="back-btn" onclick="showScreen('chat-interface-screen')">‹</span> 
+          <span>聊天详情</span> 
+          <span class="save-btn" id="save-chat-settings-btn" data-lang-key="save">完成</span> 
+      </div>
+      
+      <div class="settings-container">
+        
+        <!-- 第一组：基础信息 -->
+        <div class="settings-section">
+            <div class="settings-item" id="chat-name-group">
+                <label>备注名 / 群名</label>
+                <div class="settings-right">
+                    <input type="text" id="chat-name-input" placeholder="未设置">
+                </div>
+            </div>
+            
+            <div class="settings-item" id="ai-original-name-group">
+                <label>对方本名 (AI识别用)</label>
+                <div class="settings-right">
+                    <input type="text" id="ai-original-name-input" placeholder="必填">
+                </div>
+            </div>
+
+            <div class="settings-item" id="my-nickname-group">
+                <label>我的昵称</label>
+                <div class="settings-right">
+                    <input type="text" id="my-nickname-input" placeholder="我">
+                </div>
+            </div>
+
+            <div class="settings-item" id="character-country-group" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 8px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; width: 100% !important;">
+                    <label style="margin-bottom: 4px !important;">角色国籍 (默认货币)</label>
+                    <div class="settings-desc" style="margin: 0 !important; width: 100% !important;">决定角色转账和显示的默认货币</div>
+                </div>
+                <div class="settings-right" style="width: 100% !important; margin: 0 !important; justify-content: flex-start !important;">
+                    <select id="character-country-select" class="settings-select" style="width: 100% !important; max-width: none !important;">
+                        <option value="China">中国 (¥ 人民币)</option>
+                        <option value="USA">美国 ($ 美元)</option>
+                        <option value="Japan">日本 (¥ 日元)</option>
+                        <option value="UK">英国 (£ 英镑)</option>
+                        <option value="Europe">欧洲 (€ 欧元)</option>
+                        <option value="Austria">奥地利 (€ 欧元)</option>
+                        <option value="Korea">韩国 (₩ 韩元)</option>
+                        <option value="Russia">俄罗斯 (₽ 卢布)</option>
+                        <option value="India">印度 (₹ 卢比)</option>
+                        <option value="Canada">加拿大 (C$ 加元)</option>
+                        <option value="Australia">澳大利亚 (A$ 澳元)</option>
+                        <option value="Singapore">新加坡 (S$ 新加坡元)</option>
+                        <option value="Thailand">泰国 (฿ 泰铢)</option>
+                        <option value="Vietnam">越南 (₫ 越南盾)</option>
+                        <option value="None">无国籍 (¥ 人民币)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="settings-item" id="dynamic-currency-transfer-group" style="display: flex !important; justify-content: space-between !important; align-items: center !important; flex-direction: row !important;">
+                <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                    <label style="margin-bottom: 2px;">动态货币转账</label>
+                    <div class="settings-desc">允许AI根据语境自由选择货币种类（需结合汇率换算）</div>
+                </div>
+                <label class="toggle-switch" style="margin: 0;"> 
+                    <input type="checkbox" id="dynamic-currency-transfer-switch"> 
+                    <span class="slider"></span> 
+                </label>
+            </div>
+
+            <div class="settings-item" id="my-group-nickname-group">
+                <label>我的群昵称</label>
+                <div class="settings-right">
+                    <input type="text" id="my-group-nickname-input">
+                </div>
+            </div>
+            
+            <!-- 头像相关 -->
+            <div class="settings-item" id="ai-avatar-group">
+                 <label>对方头像</label>
+                 <div class="settings-right full-width">
+                    <div class="avatar-action-wrapper">
+                         <!-- 头像在左 -->
+                         <img id="ai-avatar-preview" class="settings-avatar">
+                         <!-- 按钮组在右 -->
+                         <div class="avatar-btn-group">
+                             <button class="settings-mini-btn" onclick="document.getElementById('ai-avatar-input').click()">更换</button>
+                             <button class="settings-mini-btn" id="ai-avatar-url-btn">URL</button>
+                             <button class="settings-mini-btn" id="manage-ai-avatar-library-btn">图库</button>
+                             <button class="settings-mini-btn change-frame-btn" data-type="ai">挂件</button>
+                             <input type="file" id="ai-avatar-input" accept="image/*" hidden>
+                         </div>
+                    </div>
+                 </div>
+            </div>
+
+            <div class="settings-item" id="group-avatar-group">
+                 <label>群头像</label>
+                 <div class="settings-right full-width">
+                    <div class="avatar-action-wrapper">
+                         <img id="group-avatar-preview" class="settings-avatar">
+                         <div class="avatar-btn-group">
+                             <button class="settings-mini-btn" onclick="document.getElementById('group-avatar-input').click()">更换</button>
+                             <button class="settings-mini-btn" id="manage-group-avatar-library-btn">图库</button>
+                             <input type="file" id="group-avatar-input" accept="image/*" hidden>
+                         </div>
+                    </div>
+                 </div>
+            </div>
+
+            <div class="settings-item" id="my-avatar-group">
+                 <label>我的头像</label>
+                 <div class="settings-right full-width">
+                    <div class="avatar-action-wrapper">
+                         <img id="my-avatar-preview" class="settings-avatar">
+                         <div class="avatar-btn-group">
+                             <button class="settings-mini-btn" onclick="document.getElementById('my-avatar-input').click()">更换</button>
+                             <button class="settings-mini-btn" id="my-avatar-url-btn">URL</button>
+                             <button class="settings-mini-btn" id="manage-my-avatar-library-btn">图库</button>
+                             <button class="settings-mini-btn change-frame-btn" data-type="my">挂件</button>
+                             <button class="settings-mini-btn" id="open-persona-library-btn">预设</button>
+                             <input type="file" id="my-avatar-input" accept="image/*" hidden>
+                         </div>
+                    </div>
+                 </div>
+            </div>
+            
+            <div class="settings-item" id="assign-group-section" style="display: none;"> 
+                <label>好友分组</label>
+                <div class="settings-right"> 
+                    <select id="assign-group-select" class="settings-select"></select> 
+                    <button id="manage-groups-btn" class="settings-icon-btn">⚙️</button> 
+                </div>
+            </div>
+        </div>
+
+        <!-- 第二组：人设与剧情 (核心) -->
+        <div class="settings-section">
+            <div class="settings-item-block" id="ai-persona-group">
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    对方人设 (AI Persona)
+                    <button type="button" onclick="openFullscreenEditor('ai-persona', '对方人设')" title="放大编辑" style="background: none; border: none; cursor: pointer; color: #888; padding: 4px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                </label>
+                <textarea id="ai-persona" rows="3" class="settings-textarea" placeholder="输入详细的角色设定..."></textarea>
+            </div>
+
+            <div class="settings-item-block" id="ai-birthday-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; height: 30px;">
+                    <label for="ai-dynamic-age-toggle" style="line-height: 30px;">动态角色年龄</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="ai-dynamic-age-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>

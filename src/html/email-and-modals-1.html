@@ -1,0 +1,570 @@
+            <div id="product-variations-container" style="display: flex; flex-direction: column; gap: 15px;"> </div> <button id="add-product-variation-btn" class="form-button form-button-secondary" style="margin-top: 15px;">+ 添加新的一款</button>
+          </div>
+        </div>
+        <div class="modal-footer"> <button class="cancel" id="cancel-product-editor-btn"data-lang-key="cancel">取消</button> <button class="save" id="save-product-btn"data-lang-key="save">保存</button> </div>
+      </div>
+    </div>
+    <div id="gift-receipt-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header"> <span>购物小票</span> </div>
+        <div class="modal-body" id="gift-receipt-body"> </div>
+        <div class="modal-footer"> <button class="save" id="close-receipt-btn" style="width:100%;">关闭</button> </div>
+      </div>
+    </div>
+   <input type="file" id="import-card-input" accept=".json,.png" multiple style="display: none;"> <input type="file" id="import-world-book-input" accept=".json,.txt,.zip,.docx" multiple style="display: none;">
+  <div id="persona-library-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span>我的人设库</span>
+        <div style="display: flex; gap: 10px;">
+          <button id="import-tavern-persona-btn" class="action-button">导入</button>
+          <button id="add-persona-preset-btn" class="action-button" data-lang-key="add">添加</button>
+          <button id="manage-persona-preset-btn" class="action-button" data-lang-key="manage">管理</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="persona-library-grid"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="close-persona-library-btn">关闭</button>
+        <div id="persona-manage-actions" style="display: none; gap: 10px;">
+          <button class="action-button" id="select-all-persona-btn">全选</button>
+          <button class="action-button" id="delete-selected-persona-btn" style="background-color: #ff3b30;">删除</button>
+          <button class="cancel" id="cancel-manage-persona-btn">取消</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="import-tavern-persona-input" accept=".json" style="display: none;">
+  
+  <!-- 人设操作选择弹窗 -->
+  <div id="persona-action-modal" class="modal">
+    <div class="modal-content" style="width: 350px; height: auto;">
+      <div class="modal-header">
+        <span id="persona-action-title">人设操作</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <button class="form-button" id="apply-persona-direct-btn" style="width: 100%; margin-bottom: 15px; padding: 15px; font-size: 16px; background: #007AFF; color: white; border: none;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          直接应用
+        </button>
+        <button class="form-button" id="edit-persona-first-btn" style="width: 100%; padding: 15px; font-size: 16px; background: #f0f0f0; color: #333; border: none;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          编辑后应用
+        </button>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-persona-action-btn">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 批量导入角色卡预览模态框 -->
+  <div id="batch-import-preview-modal" class="modal">
+    <div class="modal-content" style="height: 80%; max-width: 900px;">
+      <div class="modal-header">
+        <span>批量导入角色卡预览</span>
+        <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px;">
+          <input type="checkbox" id="select-all-import-cards" checked> 全选
+        </label>
+      </div>
+      <div class="modal-body" id="batch-import-preview-list" style="padding: 0; overflow-y: auto;">
+        <!-- 角色卡预览列表将在这里动态生成 -->
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-batch-import-btn">取消</button>
+        <button class="save" id="confirm-batch-import-btn">确认导入</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="tavern-persona-selector-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header">
+        <span>选择要导入的预设</span>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <div id="tavern-persona-selector-list" style="overflow-y: auto; height: 100%;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-tavern-import-btn">取消</button>
+        <button class="save" id="confirm-tavern-import-btn">确认导入</button>
+      </div>
+    </div>
+  </div>
+  <div id="persona-editor-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><span id="persona-editor-title">添加人设预设</span></div>
+      <div class="modal-body">
+        <div class="form-group"><label>预设头像</label>
+          <div class="avatar-upload"><img id="preset-avatar-preview"><button onclick="document.getElementById('preset-avatar-input').click()">上传头像</button><input type="file" id="preset-avatar-input" accept="image/*"></div>
+        </div>
+        <div class="form-group"><label for="preset-persona-input">预设人设</label><textarea id="preset-persona-input" rows="4" placeholder="在此输入这个人设的详细设定..."></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="cancel" id="cancel-persona-editor-btn"data-lang-key="cancel">取消</button><button class="save" id="save-persona-preset-btn"data-lang-key="save">保存</button></div>
+    </div>
+  </div>
+  <div id="member-settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"><span data-lang-key="edit">编辑群成员</span></div>
+      <div class="modal-body">
+        <div class="form-group"><label for="member-name-input">名字</label><input type="text" id="member-name-input"></div>
+        <div class="form-group"><label for="member-persona-input">人设</label><textarea id="member-persona-input" rows="4"></textarea></div>
+        <div class="form-group"><label>头像</label>
+          <div class="avatar-upload"><img id="member-avatar-preview"><button onclick="document.getElementById('member-avatar-input').click()">上传头像</button><button class="change-frame-btn" data-type="member">更换头像框</button><input type="file" id="member-avatar-input" accept="image/*"></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="cancel" id="cancel-member-settings-btn"data-lang-key="cancel">取消</button><button class="save" id="save-member-settings-btn"data-lang-key="save">保存</button></div>
+    </div>
+  </div>
+  <div id="custom-modal-overlay">
+    <div id="custom-modal">
+      <div class="custom-modal-header" id="custom-modal-title"></div>
+      <div class="custom-modal-body" id="custom-modal-body"></div>
+      <div class="custom-modal-footer"> <button id="custom-modal-cancel"data-lang-key="cancel">取消</button> <button id="custom-modal-confirm" class="confirm-btn"data-lang-key="confirm">确定</button> </div>
+    </div>
+  </div>
+  
+  <!-- 手动总结弹窗 -->
+  <div id="manual-summary-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px; width: 90%;">
+      <div class="modal-header">
+        <span>手动总结长期记忆</span>
+        <span class="close-btn" id="manual-summary-close-btn" style="cursor: pointer; font-size: 24px;">&times;</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label style="display: block; margin-bottom: 8px; color: #333;">选择消息范围</label>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <div style="flex: 1;">
+              <label style="font-size: 12px; color: #666;">从第</label>
+              <input type="number" id="manual-summary-start" min="1" value="1" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <span style="color: #666;">到</span>
+            <div style="flex: 1;">
+              <label style="font-size: 12px; color: #666;">第</label>
+              <input type="number" id="manual-summary-end" min="1" value="20" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-top: 4px;">
+            </div>
+            <span style="color: #666;">条</span>
+          </div>
+          <div style="margin-top: 8px; font-size: 12px; color: #999;">
+            当前聊天共有 <span id="manual-summary-total-count">0</span> 条消息
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 15px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button id="manual-summary-cancel-btn" style="padding: 8px 20px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">取消</button>
+        <button id="manual-summary-confirm-btn" style="padding: 8px 20px; border: none; background: var(--accent-color); color: white; border-radius: 4px; cursor: pointer;">开始总结</button>
+      </div>
+    </div>
+  </div>
+  
+  <div id="preset-actions-modal" class="modal">
+    <div id="custom-modal" style="width: 250px;">
+      <div class="custom-modal-footer"> <button id="preset-action-edit" data-lang-key="edit">编辑预设</button> <button id="preset-action-delete" class="btn-danger">删除预设</button> <button id="preset-action-cancel" style="margin-top: 8px; border-radius: 8px; background-color: #f0f0f0;"data-lang-key="cancel">取消</button> </div>
+    </div>
+  </div>
+  <div id="transfer-modal">
+    <div class="transfer-content">
+      <div class="transfer-header">给Ta一个惊喜！</div>
+      <div class="transfer-input-group"> <label for="transfer-amount">转账金额</label> <input type="number" id="transfer-amount" placeholder="0.00" min="0" step="0.01"> </div>
+      <div class="transfer-input-group"> <label for="transfer-note">备注 (可选)</label> <input type="text" id="transfer-note" placeholder="留下你的小心思~" maxlength="20"> </div>
+      <div class="transfer-actions"> <button id="transfer-cancel-btn" data-lang-key="cancel">取消</button> <button id="transfer-confirm-btn">确认转账</button> </div>
+    </div>
+  </div>
+  <div id="battery-alert-modal">
+    <div class="battery-alert-content"> <img id="battery-alert-image" src="">
+      <p id="battery-alert-text"></p>
+    </div>
+  </div>
+  <div id="waimai-request-modal" class="modal">
+    <div class="modal-content" style="width: 290px;">
+      <div class="modal-header"> <span>发起外卖订单</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label for="waimai-product-info">商品信息</label> <input type="text" id="waimai-product-info" placeholder="例如：一杯杨枝甘露"> </div>
+        <div class="form-group"> <label for="waimai-amount">订单金额 (元)</label> <input type="number" id="waimai-amount" placeholder="例如：21" min="0" step="0.01"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="waimai-order-for-ai-btn">为TA点单</button> <button class="save" id="waimai-confirm-btn">发起请求</button> </div>
+    </div>
+  </div>
+  <div id="create-countdown-modal" class="modal">
+    <div class="modal-content" style="height: auto;">
+      <div class="modal-header"> <span>新建约定</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label for="countdown-title-input">约定标题</label> <input type="text" id="countdown-title-input" placeholder="例如：我的生日"> </div>
+        <div class="form-group"> <label for="countdown-date-input">约定日期与时间</label> <input type="datetime-local" id="countdown-date-input"> </div>
+      </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-create-countdown-btn"data-lang-key="cancel">取消</button> <button class="save" id="confirm-create-countdown-btn"data-lang-key="save">保存约定</button> </div>
+    </div>
+  </div>
+  <div id="red-packet-modal" class="modal">
+    <div class="modal-content" style="width: 300px; height: auto;">
+      <div class="modal-header"> <span>发红包</span> </div>
+      <div class="modal-body" style="padding: 0;">
+        <div class="frame-tabs">
+          <div id="rp-tab-group" class="frame-tab active">拼手气红包</div>
+          <div id="rp-tab-direct" class="frame-tab">专属红包</div>
+        </div>
+        <div id="rp-content-group" class="frame-content" style="padding: 20px 15px;">
+          <div class="form-group"> <label>总金额 (元)</label> <input type="number" id="rp-group-amount" placeholder="0.00"> </div>
+          <div class="form-group"> <label>红包个数</label> <input type="number" id="rp-group-count" placeholder="填写红包个数"> </div>
+          <div class="form-group"> <label>祝福语</label> <input type="text" id="rp-group-greeting" placeholder="恭喜发财，大吉大利！"> </div>
+          <p id="rp-group-total" style="text-align: center; font-size: 24px; font-weight: bold; margin: 10px 0;">¥ 0.00</p> <button id="send-group-packet-btn" class="form-button">塞钱进红包</button>
+        </div>
+        <div id="rp-content-direct" class="frame-content" style="display: none; padding: 20px 15px;">
+          <div class="form-group"> <label>发送给</label> <select id="rp-direct-receiver"></select> </div>
+          <div class="form-group"> <label>金额 (元)</label> <input type="number" id="rp-direct-amount" placeholder="0.00"> </div>
+          <div class="form-group"> <label>祝福语</label> <input type="text" id="rp-direct-greeting" placeholder="恭喜发财，大吉大利！"> </div>
+          <p id="rp-direct-total" style="text-align: center; font-size: 24px; font-weight: bold; margin: 10px 0;">¥ 0.00</p> <button id="send-direct-packet-btn" class="form-button">塞钱进红包</button>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center;"> <button class="cancel" id="cancel-red-packet-btn" style="width: 100%;"data-lang-key="cancel">取消</button> </div>
+    </div>
+  </div>
+  <div id="red-packet-details-modal" class="modal">
+    <div class="modal-content" style="width: 280px; height: auto; background-color: #f7f7f7;">
+      <div class="modal-header" style="background-color: #F96259; color: white; border-bottom: none; padding-bottom: 5px;">
+        <div style="text-align: center; width: 100%;">
+          <div id="rp-details-sender" style="font-size: 16px;"></div>
+          <div style="font-size: 13px; opacity: 0.8;">的红包</div>
+        </div>
+      </div>
+      <div class="modal-body" style="padding: 15px;">
+        <p id="rp-details-greeting" style="text-align: center; font-size: 20px; color: #333; margin: 0 0 20px 0;"></p>
+        <div id="rp-details-my-amount" style="text-align: center; display: none; margin-bottom: 20px;"> <span style="font-size: 40px; font-weight: bold; color: #E44D44;">0.00</span> <span style="font-size: 18px; color: #E44D44;">元</span> </div>
+        <div id="rp-details-summary" style="font-size: 13px; color: #8a8a8a; border-top: 1px solid #e0e0e0; padding-top: 10px;"></div>
+        <div id="rp-details-list" style="max-height: 150px; overflow-y: auto; margin-top: 10px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-rp-details-btn" style="width: 100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="create-poll-modal" class="modal">
+    <div class="modal-content" style="width: 300px; height: auto;">
+      <div class="modal-header"> <span>发起投票</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label for="poll-question-input">投票问题</label> <textarea id="poll-question-input" rows="2" placeholder="例如：今晚我们看什么电影？"></textarea> </div>
+        <div class="form-group"> <label>投票选项 (至少2项)</label>
+          <div id="poll-options-container" style="display: flex; flex-direction: column; gap: 8px;"> </div> <button id="add-poll-option-btn" class="form-button form-button-secondary" style="margin-top: 12px;">+ 添加选项</button>
+        </div>
+      </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-create-poll-btn" data-lang-key="cancel">取消</button> <button class="save" id="confirm-create-poll-btn">发起投票</button> </div>
+    </div>
+  </div>
+  <div id="ai-avatar-library-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span id="ai-avatar-library-title">对方的头像库</span>
+        <div class="header-actions"> <button id="add-ai-avatar-batch-btn" class="action-button">批量</button> <button id="add-ai-avatar-url-btn" class="action-button">URL</button> <button id="add-ai-avatar-upload-btn" class="action-button">上传</button> </div>
+      </div>
+      <div class="modal-body" style="padding: 15px;">
+        <div id="ai-avatar-library-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 15px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-ai-avatar-library-btn" style="width: 100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="my-avatar-library-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span id="my-avatar-library-title">我的头像库</span>
+        <div class="header-actions"> <button id="add-my-avatar-batch-btn" class="action-button">批量</button> <button id="add-my-avatar-url-btn" class="action-button">URL</button> <button id="add-my-avatar-upload-btn" class="action-button">上传</button> </div>
+      </div>
+      <div class="modal-body" style="padding: 15px;">
+        <div id="my-avatar-library-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 15px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-my-avatar-library-btn" style="width: 100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="group-avatar-library-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span id="group-avatar-library-title">群头像库</span>
+        <div class="header-actions"> <button id="add-group-avatar-batch-btn" class="action-button">批量</button> <button id="add-group-avatar-url-btn" class="action-button">URL</button> <button id="add-group-avatar-upload-btn" class="action-button">上传</button> </div>
+      </div>
+      <div class="modal-body" style="padding: 15px;">
+        <div id="group-avatar-library-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 15px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-group-avatar-library-btn" style="width: 100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="chat-list-actions-modal" class="modal">
+    <div id="custom-modal" style="width: 250px;">
+      <div class="custom-modal-footer"> <button id="chat-list-action-pin"></button> <button id="chat-list-action-delete" class="btn-danger">删除聊天</button> <button id="chat-list-action-cancel" style="margin-top: 8px; border-radius: 8px; background-color: #f0f0f0;"data-lang-key="cancel">取消</button> </div>
+    </div>
+  </div>
+  <div id="share-link-modal" class="modal">
+    <div class="modal-content" style="width: 300px; height: auto;">
+      <div class="modal-header"> <span>分享链接</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label for="link-title-input">标题</label> <input type="text" id="link-title-input" placeholder="输入文章或链接的标题"> </div>
+        <div class="form-group"> <label for="link-description-input">摘要 (可选)</label> <textarea id="link-description-input" rows="2" placeholder="简单描述一下链接内容"></textarea> </div>
+        <div class="form-group"> <label for="link-source-input">来源名称 (可选)</label> <input type="text" id="link-source-input" placeholder="例如：知乎日报、B站"> </div>
+        <div class="form-group"> <label for="link-content-input">完整内容 (可选，用于浏览器内显示)</label> <textarea id="link-content-input" rows="4" placeholder="粘贴或输入完整的文章内容"></textarea> </div>
+      </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-share-link-btn"data-lang-key="cancel">取消</button> <button class="save" id="confirm-share-link-btn">分享</button> </div>
+    </div>
+  </div>
+  <div id="transfer-actions-modal" class="modal">
+    <div class="transfer-actions-content">
+      <div class="transfer-actions-header">请选择操作</div>
+      <div class="transfer-actions-body">
+        <p>你收到了来自 <strong id="transfer-sender-name"></strong> 的一笔转账。</p>
+      </div>
+      <div class="transfer-actions-footer"> <button id="transfer-action-decline" class="action-btn decline">残忍拒绝</button> <button id="transfer-action-accept" class="action-btn accept">开心收下</button> </div> <button id="transfer-action-cancel" class="cancel-btn">×</button>
+    </div>
+  </div>
+  <div id="call-transcript-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span id="transcript-modal-title">通话详情</span> </div>
+      <div class="modal-body" id="call-transcript-modal-body" style="background-color: #f0f2f5;"> </div>
+      <div class="modal-footer"> <button class="cancel" id="delete-transcript-btn" style="background-color: #ff3b30; color: white; border-color: #ff3b30;">删除记录</button> <button class="save" id="manual-summarize-btn" style="background-color: #ffc107; border-color: #ffc107;">手动总结</button>
+        <button class="save" id="close-call-transcript-btn" style="width: 100%;">关闭</button>
+      </div>
+    </div>
+  </div>
+  <div id="share-target-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span>分享到...</span> </div>
+      <div class="modal-body" id="share-target-list" style="padding: 0;"> </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-share-target-btn"data-lang-key="cancel">取消</button> <button class="save" id="confirm-share-target-btn">确认分享</button> </div>
+    </div>
+  </div>
+  <div id="forward-target-modal" class="modal">
+    <div class="modal-content" style="height: 70%; display: flex; flex-direction: column;">
+      <div class="modal-header"> <span>转发到...</span> </div>
+      <div style="padding: 10px 15px; border-bottom: 1px solid var(--border-color); flex-shrink: 0;">
+        <input type="text" id="forward-target-search-input" placeholder="搜索联系人..." style="width: 100%; padding: 8px 12px; border: 1px solid var(--border-color); border-radius: 6px; box-sizing: border-box; font-size: 14px; background: var(--secondary-bg); color: var(--text-color);">
+      </div>
+      <div class="modal-body" id="forward-target-list" style="padding: 0; flex: 1; overflow-y: auto;"> </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-forward-target-btn"data-lang-key="cancel">取消</button> <button class="save" id="confirm-forward-target-btn">确认转发</button> </div>
+    </div>
+  </div>
+  <div id="shared-history-viewer-modal" class="modal">
+    <div class="modal-content" style="height: 80%;">
+      <div class="modal-header"> <span id="shared-history-viewer-title">聊天记录</span> </div>
+      <div class="modal-body" id="shared-history-viewer-content" style="background-color: #f0f2f5;"> </div>
+      <div class="modal-footer"> <button class="save" id="close-shared-history-viewer-btn" style="width:100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="world-book-category-manager-modal" class="modal">
+    <div class="modal-content" style="height: 60%;">
+      <div class="modal-header"> <span>管理世界书分类</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label>新建分类</label>
+          <div style="display: flex; gap: 10px;"> <input type="text" id="new-category-name-input" placeholder="输入分类名..." style="flex-grow: 1;"> <button id="add-new-category-btn" class="form-button" style="width: auto; margin-top: 0; padding: 0 15px;"data-lang-key="add">添加</button> </div>
+        </div>
+        <hr style="opacity: 0.2;">
+        <div id="existing-categories-list" style="display: flex; flex-direction: column; gap: 10px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-category-manager-btn" style="width: 100%;"data-lang-key="done">完成</button> </div>
+    </div>
+  </div>
+  <div id="announcement-board-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"> <span>群公告板</span> </div>
+      <div id="announcement-board-content"> </div>
+      <div class="modal-footer"> <button class="save" id="close-announcement-board-btn" style="width: 100%;">关闭</button> </div>
+    </div>
+  </div>
+  <div id="announcement-actions-modal" class="modal">
+    <div id="custom-modal" style="width: 250px;">
+      <div class="custom-modal-footer"> <button id="announcement-action-pin">置顶公告</button> <button id="announcement-action-delete" class="btn-danger">删除公告</button> <button id="announcement-action-cancel" style="margin-top: 8px; border-radius: 8px; background-color: #f0f0f0;"data-lang-key="cancel">取消</button> </div>
+    </div>
+  </div>
+  <div id="truth-game-modal" class="modal">
+    <div class="modal-content" style="height: 85%; max-width: 600px; display: flex; flex-direction: column;">
+      <div class="modal-header" style="position: relative; border-bottom: 1px solid #e0e0e0; padding: 15px 20px; display: flex; align-items: center; justify-content: space-between;">
+        <span style="font-size: 16px; font-weight: 500;">真心话</span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="truth-game-settings-btn" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #999; line-height: 1; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">⚙</button>
+          <button id="minimize-truth-game-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #999; line-height: 1; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">−</button>
+          <button id="close-truth-game-btn" style="background: none; border: none; font-size: 28px; cursor: pointer; color: #999; line-height: 1; padding: 0; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">×</button>
+        </div>
+      </div>
+      <div class="modal-body" style="flex: 1; overflow-y: auto; background-color: #f5f5f5; padding: 0; display: flex; flex-direction: column;">
+        <div id="truth-game-messages" style="flex: 1; overflow-y: auto; padding: 15px;"></div>
+      </div>
+      <div id="truth-game-input-area" style="background: #fff; border-top: 1px solid #e0e0e0; padding: 10px 15px;">
+        <div id="truth-rps-selector" style="display: none; gap: 8px; margin-bottom: 10px;">
+          <button class="truth-rps-btn" data-choice="rock" style="flex: 1; padding: 10px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px; color: #333;">石头</button>
+          <button class="truth-rps-btn" data-choice="scissors" style="flex: 1; padding: 10px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px; color: #333;">剪刀</button>
+          <button class="truth-rps-btn" data-choice="paper" style="flex: 1; padding: 10px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px; color: #333;">布</button>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap;">
+          <textarea id="truth-input" rows="1" placeholder="输入消息..." style="flex: 1 1 100%; padding: 10px; border: 1px solid #d0d0d0; border-radius: 4px; resize: none; font-size: 14px; min-height: 40px; max-height: 100px; min-width: 0;"></textarea>
+          <div id="truth-game-buttons" style="display: flex; gap: 8px; flex: 1 1 100%;">
+            <button id="truth-start-game-btn" style="flex: 1; padding: 10px 12px; background: #ff9500; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; color: white; white-space: nowrap;">开始游戏</button>
+            <button id="truth-call-api-btn" style="flex: 1; padding: 10px 12px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px; color: #333; white-space: nowrap;">调用API</button>
+            <button id="truth-send-btn" style="flex: 1; padding: 10px 12px; background: #07c160; border: none; border-radius: 4px; cursor: pointer; color: white; font-size: 14px; white-space: nowrap;">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="truth-game-settings-modal" class="modal">
+    <div class="modal-content" style="width: 350px; height: auto;">
+      <div class="modal-header">
+        <span>真心话设置</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group">
+          <label>AI参考历史轮数</label>
+          <input type="number" id="truth-history-limit-input" min="1" value="5" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+          <p style="font-size: 12px; color: #999; margin-top: 5px;">限制AI参考的历史轮数，避免token过大。建议设置为5-20轮，设置过大会消耗更多token。完整记录仍会保存到聊天历史。</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-truth-settings-btn">取消</button>
+        <button class="save" id="save-truth-settings-btn">保存</button>
+      </div>
+    </div>
+  </div>
+  <div id="truth-game-float-ball" style="display: none;">
+    <img id="truth-game-float-avatar" src="" alt="角色头像">
+    <div id="truth-game-float-indicator"></div>
+  </div>
+  <div id="watch-together-modal" class="modal">
+    <div id="watch-together-container">
+      <div id="watch-together-header">
+        <span style="font-size: 16px; font-weight: 500;">一起看电影</span>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button id="watch-together-playlist-btn" style="font-size: 16px;">播放列表</button>
+          <button id="watch-together-settings-btn" style="font-size: 16px;">设置</button>
+          <button id="watch-together-upload-btn" style="font-size: 20px; font-weight: bold;">+</button>
+          <button id="close-watch-together-btn" style="font-size: 24px;">×</button>
+        </div>
+      </div>
+      <div id="watch-together-main">
+        <div id="watch-together-video-container">
+          <video id="watch-together-video" controls></video>
+          <div id="watch-together-placeholder">
+            <p>点击右上角"+"上传视频开始观看</p>
+          </div>
+        </div>
+        <div id="watch-together-chat-float">
+          <div id="watch-together-chat-header">
+            <span id="watch-together-chat-name"></span>
+            <button id="watch-together-chat-toggle">-</button>
+          </div>
+          <div id="watch-together-chat-messages"></div>
+          <div id="watch-together-chat-input-area">
+            <textarea id="watch-together-chat-input" rows="1" placeholder="输入消息..."></textarea>
+            <button id="watch-together-call-api-btn">调用API</button>
+            <button id="watch-together-chat-send">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-upload-modal" class="modal" style="z-index: 10001;">
+    <div class="modal-content" style="width: 400px; height: auto;">
+      <div class="modal-header">
+        <span>上传视频</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+          <button id="watch-together-upload-local" style="padding: 15px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px;">本地上传</button>
+          <button id="watch-together-upload-url" style="padding: 15px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px;">URL上传</button>
+          <button id="watch-together-search-online" style="padding: 15px; background: #fff; border: 1px solid #d0d0d0; border-radius: 4px; cursor: pointer; font-size: 14px;">在线搜索影视</button>
+        </div>
+        <input type="file" id="watch-together-file-input" accept="video/*" style="display: none;">
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-watch-together-upload-btn">取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-url-modal" class="modal" style="z-index: 10001;">
+    <div class="modal-content" style="width: 450px; height: auto;">
+      <div class="modal-header">
+        <span>输入视频URL</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <input type="text" id="watch-together-url-input" placeholder="输入视频URL..." style="width: 100%; padding: 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px;">
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-watch-together-url-btn">取消</button>
+        <button class="save" id="confirm-watch-together-url-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-search-modal" class="modal" style="z-index: 10002;">
+    <div class="modal-content" style="width: 800px; height: 600px; max-width: 90vw; max-height: 90vh;">
+      <div class="modal-header">
+        <span>在线搜索影视</span>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; height: calc(100% - 100px);">
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+          <input type="text" id="watch-together-search-input" placeholder="输入影片名称搜索..." style="flex: 1; padding: 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px;">
+          <button id="watch-together-search-btn" style="padding: 10px 20px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500;">搜索</button>
+        </div>
+        <div id="watch-together-search-status" style="margin-bottom: 10px; color: #666; font-size: 13px; min-height: 20px;"></div>
+        <div id="watch-together-search-results" style="flex: 1; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 4px; padding: 10px;">
+          <div style="text-align: center; color: #999; padding: 40px;">在上方输入影片名称开始搜索</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-watch-together-search-btn">取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-playlist-modal" class="modal" style="z-index: 10001;">
+    <div class="modal-content" style="width: 600px; max-width: 90vw; height: 70vh;">
+      <div class="modal-header">
+        <span>播放列表</span>
+        <button id="close-watch-together-playlist-btn" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #666;">×</button>
+      </div>
+      <div class="modal-body" style="padding: 15px; overflow-y: auto;">
+        <div id="watch-together-playlist-list" style="display: flex; flex-direction: column; gap: 10px;">
+          <p style="text-align: center; color: #999; padding: 40px;">暂无视频，上传视频后可保存到列表</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-watch-together-playlist-btn">关闭</button>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-save-video-modal" class="modal" style="z-index: 10002;">
+    <div class="modal-content" style="width: 400px; height: auto;">
+      <div class="modal-header">
+        <span>保存视频到播放列表</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #333;">视频名称</label>
+          <input type="text" id="watch-together-video-name-input" placeholder="输入视频名称..." style="width: 100%; padding: 10px; border: 1px solid #d0d0d0; border-radius: 4px; font-size: 14px;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-save-video-btn">取消</button>
+        <button class="save" id="confirm-save-video-btn">保存</button>
+      </div>
+    </div>
+  </div>
+  <div id="watch-together-settings-modal" class="modal" style="z-index: 10001;">
+    <div class="modal-content" style="width: 450px; height: auto;">
+      <div class="modal-header">
+        <span>观影设置</span>
+      </div>
+      <div class="modal-body" style="padding: 20px;">
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #333;">聊天模式</label>
+          <select id="watch-together-mode-select" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+            <option value="online">线上模式（AI可发送多条消息）</option>
+            <option value="offline">线下模式（单条长文本）</option>
+          </select>
+          <p style="font-size: 12px; color: #999; margin-top: 5px;">线上模式类似普通聊天，AI可以发送多条消息；线下模式AI只发送一条完整回复</p>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #333;">截图间隔 (秒)</label>
+          <input type="number" id="watch-together-interval-input" min="1" max="60" value="5" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+          <p style="font-size: 12px; color: #999; margin-top: 5px;">定时截取视频画面发送给AI，帮助AI理解视频内容</p>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px;">
+          <label style="display: block; margin-bottom: 8px; font-size: 14px; color: #333;">语音识别</label>
+          <select id="watch-together-speech-api-select" style="width: 100%; padding: 8px; border: 1px solid #d0d0d0; border-radius: 4px;">
+            <option value="none">不识别视频音频</option>
+            <option value="whisper">Whisper API</option>
+          </select>
+        </div>

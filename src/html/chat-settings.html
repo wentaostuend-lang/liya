@@ -1,0 +1,577 @@
+            <div id="video-optimization-config-container" style="display: none;">
+                
+                <!-- 对方视频图片 -->
+                <div class="settings-item-block">
+                    <label style="font-weight: 500;">对方视频画面</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                        <img id="remote-video-preview" src="" 
+                             style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd; display: none;">
+                        <div id="remote-video-placeholder" style="width: 80px; height: 80px; border-radius: 8px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #999;">未设置</div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button class="settings-mini-btn" onclick="document.getElementById('remote-video-input').click()">本地上传</button>
+                        <button class="settings-mini-btn" id="remote-video-url-btn">URL上传</button>
+                        <button class="settings-mini-btn" id="remote-video-reset-btn" style="background: #ff3b30; color: white;">重置</button>
+                        <input type="file" id="remote-video-input" accept="image/*" hidden>
+                    </div>
+                    <input type="text" id="remote-video-url-input" placeholder="或输入图片URL" 
+                           style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                </div>
+
+                <!-- 我方视频图片 -->
+                <div class="settings-item-block" style="border-bottom: none;">
+                    <label style="font-weight: 500;">我方视频画面</label>
+                    <div style="display: flex; align-items: center; gap: 10px; margin-top: 8px;">
+                        <img id="local-video-preview" src="" 
+                             style="width: 80px; height: 80px; border-radius: 8px; object-fit: cover; border: 2px solid #ddd; display: none;">
+                        <div id="local-video-placeholder" style="width: 80px; height: 80px; border-radius: 8px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #999;">未设置</div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 10px;">
+                        <button class="settings-mini-btn" onclick="document.getElementById('local-video-input').click()">本地上传</button>
+                        <button class="settings-mini-btn" id="local-video-url-btn">URL上传</button>
+                        <button class="settings-mini-btn" id="local-video-reset-btn" style="background: #ff3b30; color: white;">重置</button>
+                        <input type="file" id="local-video-input" accept="image/*" hidden>
+                    </div>
+                    <input type="text" id="local-video-url-input" placeholder="或输入图片URL" 
+                           style="width: 100%; padding: 8px; margin-top: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                </div>
+
+                <!-- 真实摄像头设置 -->
+                <div class="settings-item-block" style="border-bottom: none; padding-top: 15px; border-top: 1px solid #e0e0e0; margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <label style="font-weight: 500;">使用真实摄像头</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="enable-real-camera-switch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div style="font-size: 12px; color: #666; margin-bottom: 10px;">
+                        启用后，我方画面将使用设备摄像头，AI可以真正"看到"你
+                    </div>
+                    
+                    <!-- 截图间隔设置 -->
+                    <div id="camera-interval-setting" style="display: none;">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px;">
+                            <label style="font-size: 13px; white-space: nowrap;">截图间隔</label>
+                            <input type="number" id="camera-capture-interval" 
+                                   min="1" max="60" value="5" 
+                                   style="width: 60px; padding: 6px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <span style="font-size: 13px; color: #666;">秒</span>
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            定时截取摄像头画面发送给AI，默认5秒
+                        </div>
+                        
+                        <!-- 使用后置摄像头开关 -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                            <label style="font-size: 13px;">使用后置摄像头</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enable-rear-camera-switch">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div style="font-size: 11px; color: #999; margin-top: 5px;">
+                            开启后将切换为后置摄像头（仅移动设备有效）
+                        </div>
+
+                        <!-- 摄像头状态 -->
+                        <div id="camera-status" style="margin-top: 10px; padding: 8px; background: #f9f9f9; border-radius: 6px; font-size: 12px; display: none;">
+                            <div style="display: flex; align-items: center; gap: 5px;">
+                                <span id="camera-status-icon" style="width: 8px; height: 8px; border-radius: 50%; background: #ccc;"></span>
+                                <span id="camera-status-text" style="color: #666;">摄像头未激活</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 仅读取对话开关 -->
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-weight: 500; font-size: 13px;">仅读取对话内容</label>
+                            <label class="toggle-switch" style="transform: scale(0.9);">
+                                <input type="checkbox" id="tts-dialogue-only-switch">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div style="font-size: 11px; color: #666; line-height: 1.5;">
+                            启用后，语音播报只读取引号内的对话，不读取动作描写等旁白内容
+                        </div>
+                    </div>
+
+                    <!-- 旁白对话穿插模式 -->
+                    <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <label style="font-weight: 500; font-size: 13px;">旁白与对话穿插</label>
+                            <label class="toggle-switch" style="transform: scale(0.9);">
+                                <input type="checkbox" id="video-interleaved-mode-switch">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                        <div style="font-size: 11px; color: #666; line-height: 1.5;">
+                            启用后，旁白和对话按自然顺序穿插显示，而非旁白合并在前、对话在后
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 记忆库区域 -->
+        <div class="settings-section" id="memory-archive-section">
+            <div class="settings-item">
+                <label style="font-weight: 600; font-size: 16px;">记忆库</label>
+            </div>
+            
+            <div id="memory-archive-container" style="padding: 0 15px;">
+                <div style="margin-bottom: 15px; color: var(--text-secondary); font-size: 13px;">
+                    保存当前聊天的所有记录和设置（人设、头像、长期记忆、语音、预设等），方便多路线管理
+                </div>
+                
+                <button id="save-memory-archive-btn" class="form-button" style="margin-bottom: 15px;">
+                    保存当前状态
+                </button>
+                
+                <div id="memory-archive-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- 存档列表将动态生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- API调用历史区域 -->
+        <div class="settings-section" id="api-history-section">
+            <div class="settings-item">
+                <label style="font-weight: 600; font-size: 16px;">API调用历史</label>
+            </div>
+            
+            <div style="padding: 0 15px;">
+                <div style="margin-bottom: 15px; color: var(--text-secondary); font-size: 13px;">
+                    查看每次发送给AI的原始提示词、调用信息和返回的原始数据
+                </div>
+                
+                <button id="view-api-history-btn" class="form-button" style="margin-bottom: 15px;">
+                    查看返回的提示词
+                </button>
+            </div>
+        </div>
+
+        <!-- 消息导航区域 -->
+        <div class="settings-section" id="message-navigation-section">
+            <div class="settings-item">
+                <label style="font-weight: 600; font-size: 16px;">消息导航</label>
+            </div>
+            
+            <div style="padding: 0 15px;">
+                <div style="margin-bottom: 15px; color: var(--text-secondary); font-size: 13px;">
+                    快速跳转到聊天记录的开头或结尾。当聊天记录较多时，可能会有轻微延迟。
+                </div>
+                
+                <button id="scroll-to-first-message-btn" class="form-button" style="margin-bottom: 10px;">
+                    回到第一条消息
+                </button>
+                
+                <button id="scroll-to-last-message-btn" class="form-button" style="margin-bottom: 15px;">
+                    回到最后一条消息
+                </button>
+            </div>
+        </div>
+
+        <!-- 第四组：高级功能 (TTS, NAI, 线下模式) -->
+        <div class="settings-section">
+             <!-- 时间戳显示格式 -->
+             <div class="settings-item">
+                 <div>
+                     <div style="font-weight: 500;">显示秒数</div>
+                     <div style="font-size: 12px; color: var(--text-secondary);">开启后，此聊天的时间戳将显示为"时:分:秒"格式（覆盖全局设置）</div>
+                 </div>
+                 <label class="toggle-switch">
+                     <input type="checkbox" id="chat-show-seconds-switch">
+                     <span class="slider"></span>
+                 </label>
+             </div>
+             
+             <!-- 语音 -->
+             <div class="settings-item" id="tts-enable-group">
+                 <label>启用语音合成 (TTS)</label>
+                 <label class="toggle-switch"> <input type="checkbox" id="enable-tts-switch"> <span class="slider"></span> </label>
+             </div>
+             <div class="settings-item" id="ai-voice-id-group">
+                 <label>语音 ID</label>
+                 <div class="settings-right">
+                    <input type="text" id="ai-voice-id-input" placeholder="minimax voice_id">
+                 </div>
+             </div>
+             <div class="settings-item" id="ai-voice-lang-group">
+                <label>语音语言/方言</label>
+                <div class="settings-right">
+                  <select id="ai-voice-lang-select" class="settings-select" style="width: 100%; text-align: right;">
+                    <option value=""> 自动识别 (Auto)</option>
+                    <hr disabled>
+                    <option value="zh-CN">🇨🇳 国语/普通话 (Chinese)</option>
+                    <option value="zh-HK">🇭🇰 粤语/广东话 (Cantonese)</option>
+                    <option value="en-US">🇺🇸 英语 (English)</option>
+                    <option value="ja-JP">🇯🇵 日语 (Japanese)</option>
+                    <option value="ko-KR">🇰🇷 韩语 (Korean)</option>
+                    <hr disabled>
+                    <option value="de-DE">🇩🇪 德语 (German)</option>
+                    <option value="fr-FR">🇫🇷 法语 (French)</option>
+                    <option value="es-ES">🇪🇸 西班牙语 (Spanish)</option>
+                    <option value="it-IT">🇮🇹 意大利语 (Italian)</option>
+                    <option value="ru-RU">🇷🇺 俄语 (Russian)</option>
+                    <option value="pt-BR">🇧🇷 葡萄牙语 (Portuguese)</option>
+                    <option value="nl-NL">🇳🇱 荷兰语 (Dutch)</option>
+                    <option value="pl-PL">🇵🇱 波兰语 (Polish)</option>
+                    <option value="sv-SE">🇸🇪 瑞典语 (Swedish)</option>
+                    <hr disabled>
+                    <option value="tr-TR">🇹🇷 土耳其语 (Turkish)</option>
+                    <option value="id-ID">🇮🇩 印尼语 (Indonesian)</option>
+                    <option value="ms-MY">🇲🇾 马来语 (Malay)</option>
+                    <option value="vi-VN">🇻🇳 越南语 (Vietnamese)</option>
+                    <option value="th-TH">🇹🇭 泰语 (Thai)</option>
+                    <option value="hi-IN">🇮🇳 印地语 (Hindi)</option>
+                   <option value="ar-SA">🇸🇦 阿拉伯语 (Arabic)</option>
+                 </select>
+               </div>
+            </div>
+            <div class="settings-item" id="ai-voice-speed-group">
+               <label>语音速度</label>
+               <div class="settings-right">
+                 <input type="number" id="ai-voice-speed-input" min="0.5" max="2.0" step="0.1" value="1.0" style="width: 80px; text-align: right; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--secondary-bg); color: var(--text-color);">
+                 <span style="margin-left: 5px; color: var(--text-secondary); font-size: 12px;">x</span>
+               </div>
+            </div>
+ <div class="settings-item" id="synth-music-group">
+    <div>
+        <label>启用乐谱合成</label>
+        <div class="settings-desc">允许角色发送乐谱并自动演奏</div>
+    </div>
+    <label class="toggle-switch">
+        <input type="checkbox" id="enable-synth-music-switch">
+        <span class="slider"></span>
+    </label>
+</div>
+<div class="settings-item" id="narrator-mode-group" style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="flex: 1; padding-right: 10px;">
+        <label style="margin-bottom: 2px;">启用旁白模式</label>
+        <div class="settings-desc">AI每轮回复都会附带环境或心理描写 (灰色系统字)</div>
+    </div>
+    <label class="toggle-switch" style="margin: 0;"> 
+        <input type="checkbox" id="narrator-mode-toggle">
+        <span class="slider"></span>
+    </label>
+</div>
+
+<!-- 双语模式设置 -->
+<div class="settings-item" id="bilingual-mode-group" style="display: flex; justify-content: space-between; align-items: center;">
+    <div style="flex: 1; padding-right: 10px;">
+        <label style="margin-bottom: 2px;">启用双语模式</label>
+        <div class="settings-desc">AI回复会同时包含外语和中文翻译，点击消息可切换显示</div>
+    </div>
+    <label class="toggle-switch" style="margin: 0;"> 
+        <input type="checkbox" id="bilingual-mode-toggle"> 
+        <span class="slider"></span> 
+    </label>
+</div>
+
+<!-- 双语模式生效角色 (仅群聊) -->
+<div class="settings-item-block" id="bilingual-characters-group" style="display: none;"> 
+    <label>双语生效角色 (仅群聊)</label>
+    <div class="settings-desc">勾选需要输出双语的角色，未勾选的将只输出单语（如果不勾选任何角色，则等同于全员双语）。</div>
+    <div class="custom-multiselect" style="margin-top: 5px; position: relative;" id="bilingual-chars-multiselect">
+        <div class="select-box"> <span class="selected-options-text">-- 点击选择 --</span> <span class="arrow-down">▼</span> </div>
+        <div id="bilingual-chars-checkboxes-container" class="checkboxes-container"> </div>
+    </div>
+</div>
+
+<!-- 双语模式显示位置设置 -->
+<div class="settings-item" id="bilingual-display-mode-group" style="display: none;">
+    <label>翻译显示位置</label>
+    <div class="settings-right">
+        <select id="bilingual-display-mode-select" class="settings-select" style="width: 100%; text-align: right;">
+            <option value="outside">气泡外部</option>
+            <option value="inside">气泡内部</option>
+        </select>
+    </div>
+</div>
+
+<div class="settings-item" id="todo-list-setting-group">
+    <div style="flex: 1; padding-right: 10px;">
+        <label style="margin-bottom: 2px;">启用待办事项同步</label>
+        <div class="settings-desc">开启后，AI将读取【今日】及【未完成】的待办事项。</div>
+    </div>
+    <label class="toggle-switch" style="margin: 0;"> 
+        <input type="checkbox" id="enable-todo-list-switch"> 
+        <span class="slider"></span> 
+    </label>
+</div>
+             <!-- 表情包识图 -->
+             <div class="settings-item" id="sticker-vision-group">
+                 <div>
+                    <label>启用表情包识图</label>
+                    <div class="settings-desc">CHAR可以看到USER表情包的内容</div>
+                 </div>
+                 <label class="toggle-switch"> 
+                    <input type="checkbox" id="enable-sticker-vision-checkbox"> 
+                    <span class="slider"></span> 
+                 </label>
+             </div>
+             
+             <!-- 表情包智能匹配 -->
+             <div class="settings-item" id="sticker-smart-match-group">
+                 <div>
+                    <label>启用表情包智能匹配</label>
+                    <div class="settings-desc">输入文字时自动匹配相关表情包</div>
+                 </div>
+                 <label class="toggle-switch"> 
+                    <input type="checkbox" id="enable-sticker-smart-match-checkbox"> 
+                    <span class="slider"></span> 
+                 </label>
+             </div>
+             
+             <!-- 线下模式 -->
+             <div id="offline-mode-group">
+                 <div class="settings-item">
+                     <div>
+                        <label>线下模式 (描写模式)</label>
+                        <div class="settings-desc">AI将输出包含动作/心理的描写文本</div>
+                     </div>
+                     <label class="toggle-switch"> <input type="checkbox" id="offline-mode-toggle"> <span class="slider"></span> </label>
+                 </div>
+                 <div id="offline-mode-options" style="display: none; padding: 0 16px 16px 16px;">
+                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                        <span style="font-size:13px; color:#666;">字数范围:</span>
+                        <input type="number" id="offline-min-length-input" class="settings-num-input" value="100">
+                        <span>-</span>
+                        <input type="number" id="offline-max-length-input" class="settings-num-input" value="300">
+                     </div>
+                     <label style="font-size:13px; color:#666;">文风预设:</label>
+                     <select id="offline-preset-select" class="settings-select" style="width:100%; margin-top:5px;"></select>
+                     <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px;">
+                        <div>
+                           <span style="font-size:13px; color:#666;">连续排版模式</span>
+                           <div style="font-size:11px; color:#999; margin-top:2px;">对话与描写不分段，保持自然段落</div>
+                        </div>
+                        <label class="toggle-switch"> <input type="checkbox" id="offline-continuous-layout-toggle"> <span class="slider"></span> </label>
+                     </div>
+                 </div>
+             </div>
+
+            <!-- 时间感知 -->
+            <div class="settings-item" id="time-perception-group">
+                <label>时间感知</label>
+                <label class="toggle-switch"> <input type="checkbox" id="time-perception-toggle"> <span class="slider"></span> </label>
+            </div>
+
+            <!-- 一起听时长感知 -->
+            <div class="settings-item" id="music-time-awareness-group" style="display: none;">
+                <div style="flex: 1; padding-right: 10px;">
+                    <label style="margin-bottom: 2px;">一起听时长感知</label>
+                    <div class="settings-desc">开启后角色可感知累计一起听歌的时长</div>
+                </div>
+                <label class="toggle-switch" style="margin: 0;">
+                    <input type="checkbox" id="music-time-awareness-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item-block" id="time-zone-group" style="display: none;">
+                <label>时区设置</label>
+                <div style="margin-top: 10px; width: 100%;">
+                    <input type="search" id="time-zone-search-input" placeholder="搜索时区..." class="settings-textarea" style="height: 36px; padding: 8px; margin-bottom: 8px;">
+                    <select id="time-zone-select" class="settings-select" style="width: 100%; padding: 10px; background-color: #f5f5f7;"></select>
+                </div>
+            </div>
+
+            <!-- 自定义时间 -->
+            <div class="settings-item" id="custom-time-group">
+                <label>自定义时间</label>
+                <label class="toggle-switch"> <input type="checkbox" id="custom-time-toggle"> <span class="slider"></span> </label>
+            </div>
+            <div class="settings-item-block" id="custom-time-settings-group" style="display: none;">
+                <label>时间设置</label>
+                <div style="margin-top: 10px; width: 100%;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">年份</label>
+                            <input type="number" id="custom-year-input" class="settings-num-input" placeholder="2024" min="1900" max="2100" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">月份</label>
+                            <input type="number" id="custom-month-input" class="settings-num-input" placeholder="1-12" min="1" max="12" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">日期</label>
+                            <input type="number" id="custom-day-input" class="settings-num-input" placeholder="1-31" min="1" max="31" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">小时</label>
+                            <input type="number" id="custom-hour-input" class="settings-num-input" placeholder="0-23" min="0" max="23" style="width: 100%;">
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #666; display: block; margin-bottom: 5px;">分钟</label>
+                            <input type="number" id="custom-minute-input" class="settings-num-input" placeholder="0-59" min="0" max="59" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div style="font-size: 12px; color: #999; margin-top: 5px;">
+                        当前设置：<span id="custom-time-preview" style="color: #007AFF; font-weight: 500;">未设置</span>
+                    </div>
+                </div>
+            </div>
+             
+             <!-- NAI设置 (单聊/群聊复用ID，JS控制) -->
+             <div class="settings-item-block" id="nai-character-settings-group" style="display: none;">
+                <label>NAI 出图设置 (角色专属)</label>
+                <div style="margin-top: 10px;">
+                    <button id="character-nai-prompts-btn" class="settings-full-btn">配置专属提示词</button>
+                </div>
+             </div>
+             <div class="settings-item-block" id="group-nai-settings-group" style="display: none;">
+                <label>NAI 出图设置 (群聊专属)</label>
+                <div style="margin-top: 10px;">
+                    <button id="group-character-nai-prompts-btn" class="settings-full-btn">配置专属提示词</button>
+                </div>
+             </div>
+        </div>
+
+        <!-- 第五组：外观与视觉 -->
+        <div class="settings-section">
+            <div class="settings-item">
+                 <label>聊天背景</label>
+                 <!-- 增加 full-width 类以保持右对齐，内部使用 avatar-btn-group 保持间距一致 -->
+                 <div class="settings-right full-width">
+                     <div class="avatar-btn-group" style="justify-content: flex-end; width: 100%;">
+                         <!-- 升级为实体小按钮 -->
+                         <button class="settings-mini-btn" onclick="document.getElementById('bg-input').click()">上传</button>
+                         <button class="settings-mini-btn" id="remove-bg-btn">移除</button>
+                         
+                         <!-- 保持原有的隐藏 input 和预览图逻辑 -->
+                         <input type="file" id="bg-input" accept="image/*" hidden>
+                         <img id="bg-preview" class="settings-bg-preview">
+                     </div>
+                 </div>
+            </div>
+            
+            <div class="settings-item-block">
+                <label>气泡主题</label>
+                 <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                    <select id="theme-preset-select" class="settings-select" style="flex:1; margin-right:10px;"></select>
+                    <div style="display:flex; gap:5px;">
+                        <button id="save-theme-preset-btn" class="settings-icon-btn">💾</button>
+                        <button id="delete-theme-preset-btn" class="settings-icon-btn" style="color:#ff3b30;">🗑️</button>
+                    </div>
+                 </div>
+                 <!-- 补全所有主题选项 -->
+                 <div class="theme-selector" id="theme-selector-container" style="max-height: 120px; overflow-y: auto; display: flex; flex-wrap: wrap; gap: 12px; padding: 5px 0;">
+                      <label><input type="radio" name="theme-select" value="default" id="theme-default"> 默认</label>
+                      <label><input type="radio" name="theme-select" value="pink_blue"> 粉蓝</label> 
+                      <label><input type="radio" name="theme-select" value="blue_white"> 蓝白</label>
+                      <label><input type="radio" name="theme-select" value="purple_yellow"> 紫黄</label>
+                      <label><input type="radio" name="theme-select" value="black_white"> 黑白</label>
+                      <label><input type="radio" name="theme-select" value="yellow_white"> 黄白</label>
+                      <label><input type="radio" name="theme-select" value="red_black"> 红黑</label>
+                      <label><input type="radio" name="theme-select" value="blue_yellow"> 蓝黄</label>
+                      <label><input type="radio" name="theme-select" value="pink_yellow"> 粉黄</label>
+                      <label><input type="radio" name="theme-select" value="pink_purple"> 粉紫</label>
+                      <label><input type="radio" name="theme-select" value="gray_white"> 灰白</label>
+                      <label><input type="radio" name="theme-select" value="blue_green"> 蓝绿</label>
+                      <label><input type="radio" name="theme-select" value="pink_white"> 粉白</label>
+                      <label><input type="radio" name="theme-select" value="pink_black"> 粉黑</label>
+                      <label><input type="radio" name="theme-select" value="pink_green"> 粉绿</label>
+                      <label><input type="radio" name="theme-select" value="green_black"> 绿黑</label>
+                      
+                      <!-- 动态渲染的自定义预设将插入在这里 -->
+                      
+                      <button id="reset-theme-btn" class="settings-text-btn" style="margin-left: auto;">重置默认</button>
+                 </div>
+                 
+                 <!-- 新增：自定义气泡颜色功能区 -->
+                 <div style="margin-top: 10px; padding-top: 10px; border-top: 1px dashed rgba(0,0,0,0.1);">
+                     <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px;">
+                         <label style="font-size: 13px; color: var(--text-secondary);">我的气泡</label>
+                         <input type="color" id="custom-user-bubble-color" value="#fff0f6" style="width: 30px; height: 30px; padding: 0; border: none; cursor: pointer;">
+                         <label style="font-size: 13px; color: var(--text-secondary); margin-left: 10px;">对方气泡</label>
+                         <input type="color" id="custom-ai-bubble-color" value="#eff7ff" style="width: 30px; height: 30px; padding: 0; border: none; cursor: pointer;">
+                     </div>
+                     <div style="display: flex; flex-direction: column; gap: 8px;">
+                         <input type="text" id="custom-theme-name" placeholder="自定义颜色名称..." style="width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 14px;">
+                         <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                             <button id="add-custom-theme-btn" class="settings-mini-btn" style="background-color: var(--accent-color); color: white;">保存预设</button>
+                             <button id="manage-custom-themes-btn" class="settings-mini-btn">管理</button>
+                         </div>
+                     </div>
+                 </div>
+            </div>
+
+            <div class="settings-item">
+                 <label>字体大小 <span id="chat-font-size-value" style="color:#888; font-size:12px;">13px</span></label>
+                 <div class="settings-right" style="width: 50%;">
+                    <input type="range" id="chat-font-size-slider" min="12" max="20" step="1" style="width:100%;">
+                 </div>
+            </div>
+            
+            <div class="settings-item-block">
+                 <label style="display: flex; justify-content: space-between; align-items: center;">
+                     <div style="display: flex; align-items: center; gap: 5px;">
+                         自定义 CSS
+                         <button type="button" onclick="openFullscreenEditor('custom-css-input', '当前聊天自定义 CSS')" title="放大编辑" style="background: none; border: none; cursor: pointer; color: #888; padding: 4px; display: flex; align-items: center; justify-content: center;">
+                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                         </button>
+                     </div>
+                     <button id="reset-custom-css-btn" style="font-size:12px;">重置</button>
+                 </label>
+                 <textarea id="custom-css-input" rows="3" class="settings-textarea" placeholder="/* 针对当前聊天的CSS */"></textarea>
+            </div>
+
+            <div class="settings-item-block">
+                <label>效果预览</label>
+                <div id="settings-preview-area" style="margin-top:10px;"></div>
+            </div>
+            
+            <div class="settings-item-block" id="lyrics-position-group" style="display: none;">
+                 <label>歌词栏设置</label>
+                 <div style="display:flex; gap:10px; margin-top:10px;">
+                     <select id="lyrics-vertical-pos" class="settings-select"><option value="top">顶部</option><option value="bottom">底部</option></select>
+                     <select id="lyrics-horizontal-pos" class="settings-select"><option value="center">居中</option><option value="left">居左</option><option value="right">居右</option></select>
+                     <input type="number" id="lyrics-offset-input" class="settings-num-input" value="10" placeholder="偏移">
+                 </div>
+            </div>
+        </div>
+
+        <!-- 第六组：数据与操作 (底部) -->
+        <div class="settings-section">
+             <div class="settings-item clickable" id="search-history-btn">
+                 <label>查找聊天记录</label>
+                 <div class="settings-right">›</div>
+             </div>
+             
+             <div class="settings-item clickable" id="export-single-chat-btn">
+                 <label>导出聊天记录</label>
+                 <div class="settings-right">›</div>
+             </div>
+             
+             <div class="settings-item clickable" id="import-single-chat-btn">
+                 <label>导入聊天记录</label>
+                 <div class="settings-right">
+                     ›
+                     <input type="file" id="import-single-chat-input" accept="application/json" hidden>
+                 </div>
+             </div>
+
+             <div class="settings-item clickable" id="export-character-full-btn">
+                 <label>导出角色</label>
+                 <div class="settings-right">›</div>
+             </div>
+
+             <div class="settings-item clickable" id="clear-chat-btn">
+                 <label style="color: #ff3b30;">清空聊天记录</label>
+                 <div class="settings-right">›</div>
+             </div>
+             
+             <div class="settings-item clickable" id="block-chat-btn">
+                 <label style="color: #ff3b30;">拉黑对方 / 移出群聊</label>
+                 <div class="settings-right">›</div>
+             </div>
+        </div>
+        
+        <div style="height: 40px;"></div> <!-- 底部垫高 -->
+      </div>
+    </div>

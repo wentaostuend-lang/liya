@@ -1,0 +1,658 @@
+        <div id="myphone-amap-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone QQ -->
+      <div id="myphone-qq-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span>QQ</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-qq-btn" title="手动添加对话"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-qq-btn" title="重新生成"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-qq-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-chat-list" class="list-container"></div>
+      </div>
+      
+      <!-- MY Phone QQ 对话 -->
+      <div id="myphone-qq-conversation-screen" class="char-screen">
+        <div class="header"> 
+          <span class="back-btn" id="back-to-myphone-qq-list-btn">‹</span> 
+          <span id="myphone-conversation-partner-name"></span> 
+          <div class="header-actions" id="myphone-conversation-settings-btn" style="display: none;">
+            <span class="action-btn" title="设置">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m-9-9h6m6 0h6"></path>
+                <path d="M19.07 4.93l-4.24 4.24m0 5.66l4.24 4.24M4.93 4.93l4.24 4.24m0 5.66l-4.24 4.24"></path>
+              </svg>
+            </span>
+          </div>
+        </div>
+        <div id="myphone-conversation-messages" class="list-container"> </div>
+        <div id="myphone-conversation-input-area" style="padding: 8px; border-top: 1px solid var(--border-color); display: flex; gap: 8px; background-color: #f7f7f7;"> 
+          <input type="text" id="myphone-simulated-input" placeholder="" style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #eee;"> 
+          <button id="myphone-simulated-send-btn" style="padding: 0 20px; border: none; background-color: var(--accent-color); color: white; border-radius: 6px; font-weight: 500;">发送</button> 
+        </div>
+      </div>
+      
+      <!-- MY Phone 联系人设置 -->
+      <div id="myphone-contact-settings-screen" class="char-screen">
+        <div class="header"> 
+          <span class="back-btn" id="back-to-myphone-conversation-btn">‹</span> 
+          <span>联系人设置</span> 
+          <span style="width: 30px;"></span> 
+        </div>
+        <div class="list-container" style="padding: 20px;">
+          <div style="margin-bottom: 30px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <div id="myphone-settings-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; margin: 0 auto; overflow: hidden; border: 2px solid var(--border-color);">
+                <img id="myphone-settings-avatar-img" src="" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+              <button id="myphone-change-avatar-btn" style="margin-top: 15px; padding: 8px 20px; background: var(--accent-color); color: white; border: none; border-radius: 6px; cursor: pointer;">更换头像</button>
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-color);">联系人名称</label>
+            <input type="text" id="myphone-settings-name" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--secondary-bg); color: var(--text-color); box-sizing: border-box;">
+          </div>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 500; color: var(--text-color);">备注</label>
+            <input type="text" id="myphone-settings-remark" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--secondary-bg); color: var(--text-color); box-sizing: border-box;">
+          </div>
+          
+          <button id="myphone-save-contact-settings-btn" style="width: 100%; padding: 12px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-weight: 500; cursor: pointer; margin-bottom: 15px;">保存设置</button>
+          
+          <div style="border-top: 1px solid var(--border-color); padding-top: 20px; margin-top: 20px;">
+            <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 500; color: var(--text-color);">对话记录</h3>
+            <div id="myphone-conversation-list" style="max-height: 200px; overflow-y: auto;"></div>
+            <button id="myphone-add-message-btn" style="width: 100%; padding: 10px; background: var(--secondary-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; margin-top: 10px;">添加对话</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 相册 -->
+      <div id="myphone-album-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneAlbumTitle">我的相册</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-album-btn" title="手动添加照片"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-album-btn" title="重新生成相册内容"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-album-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div class="list-container">
+          <div id="myphone-album-grid"></div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 浏览器 -->
+      <div id="myphone-browser-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneBrowserTitle">我的浏览器历史</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-browser-btn" title="手动添加浏览记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-browser-btn" title="重新生成浏览记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-browser-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-browser-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 浏览器文章详情 -->
+      <div id="myphone-browser-article-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="back-to-myphone-browser-list-btn">‹</span> <span id="myphone-article-title-header"></span> <span style="width: 30px;"></span> </div>
+        <div class="list-container" style="padding: 15px;">
+          <h2 id="myphone-article-title" style="font-size: 20px; margin-bottom: 10px;"></h2>
+          <div id="myphone-article-meta" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 20px;"></div>
+          <div id="myphone-article-content" style="font-size: 15px; line-height: 1.8; white-space: pre-wrap;"></div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 淘宝 -->
+      <div id="myphone-taobao-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneTaobaoTitle">我的淘宝</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-taobao-btn" title="手动添加购物记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-taobao-btn" title="重新生成购物记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-taobao-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-taobao-grid" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 钱包 -->
+      <div id="myphone-wallet-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span>钱包</span> <span style="width: 30px;"></span> </div>
+      </div>
+      
+      <!-- MY Phone 备忘录 -->
+      <div id="myphone-memo-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneMemoTitle">我的备忘录</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-memo-btn" title="手动添加备忘录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-memo-btn" title="重新生成备忘录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-memo-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-memo-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 备忘录详情 -->
+      <div id="myphone-memo-detail-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="back-to-myphone-memo-list-btn">‹</span> <span id="myphone-memo-title-header"></span> <span style="width: 30px;"></span> </div>
+        <div class="list-container" style="padding: 15px;">
+          <h3 id="myphone-memo-detail-title" style="font-size: 18px; margin-bottom: 10px;"></h3>
+          <div id="myphone-memo-detail-date" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;"></div>
+          <div id="myphone-memo-detail-content" style="font-size: 15px; line-height: 1.6; white-space: pre-wrap;"></div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 日记 -->
+      <div id="myphone-diary-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneDiaryTitle">我的日记</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-diary-btn" title="手动添加日记"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-diary-btn" title="重新生成日记"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-diary-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-diary-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 日记详情 -->
+      <div id="myphone-diary-detail-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="back-to-myphone-diary-list-btn">‹</span> <span id="myphone-diary-title-header"></span> <span style="width: 30px;"></span> </div>
+        <div class="list-container" style="padding: 15px;">
+          <h3 id="myphone-diary-detail-title" style="font-size: 18px; margin-bottom: 10px;"></h3>
+          <div id="myphone-diary-detail-date" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 5px;"></div>
+          <div id="myphone-diary-detail-weather" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 15px;"></div>
+          <div id="myphone-diary-detail-preface" style="font-size: 14px; font-style: italic; color: var(--text-secondary); margin-bottom: 15px; padding: 10px; background: rgba(0,0,0,0.05); border-radius: 8px;"></div>
+          <div id="myphone-diary-detail-content" style="font-size: 15px; line-height: 1.6; white-space: pre-wrap;"></div>
+        </div>
+      </div>
+      
+      <!-- MY Phone APP使用记录 -->
+      <div id="myphone-usage-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneUsageTitle">我的APP使用记录</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-usage-btn" title="手动添加使用记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-usage-btn" title="重新生成使用记录"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-usage-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-usage-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 音乐 -->
+      <div id="myphone-music-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span data-lang-key="myphoneMusicTitle">我的音乐</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-music-btn" title="手动添加歌曲"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-music-btn" title="重新生成歌单"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-music-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>
+        <div id="myphone-music-list" class="list-container"> </div>
+      </div>
+      
+      <!-- MY Phone 设置 -->
+      <div id="myphone-settings-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span>设置</span> <span style="width: 30px;"></span> </div>
+        <div class="list-container" style="padding: 20px;">
+          <div class="settings-section" style="background: var(--secondary-bg); border-radius: 12px; padding: 0; overflow: hidden;">
+            <div class="settings-item" style="padding: 15px; border-bottom: 0.5px solid rgba(0,0,0,0.1);">
+              <label style="font-size: 15px;">启用锁屏密码</label>
+              <label class="toggle-switch">
+                <input type="checkbox" id="myphone-lock-screen-toggle">
+                <span class="slider"></span>
+              </label>
+            </div>
+            
+            <!-- 锁屏详情 (JS控制显示隐藏) -->
+            <div id="myphone-lock-screen-settings-detail" style="display: none;">
+              <div class="settings-item" style="padding: 15px; background-color: rgba(0,0,0,0.02); border-bottom: 0.5px solid rgba(0,0,0,0.1);">
+                <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <label style="font-size: 14px; color: var(--text-secondary);">4位数字密码</label>
+                    <input type="tel" id="myphone-lock-screen-password-input" maxlength="4" placeholder="1234" 
+                           style="width: 100px; padding: 8px 12px; border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; 
+                                  font-size: 14px; letter-spacing: 3px; text-align: center; background: white;">
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary); padding-left: 0;">
+                    开启后，点击MyPhone图标时需要输入密码才能进入
+                  </div>
+                </div>
+              </div>
+              
+              <div class="settings-item" style="padding: 15px; background-color: rgba(0,0,0,0.02);">
+                <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                  <label style="font-size: 14px; color: var(--text-secondary);">锁屏壁纸</label>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div id="myphone-lock-wallpaper-preview" class="wallpaper-thumbnail" 
+                         style="width: 60px; height: 80px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; text-align: center;">
+                      无
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="settings-mini-btn" onclick="document.getElementById('myphone-lock-wallpaper-input').click()">本地</button>
+                      <button id="myphone-upload-lock-wallpaper-url-btn" class="settings-mini-btn">URL</button>
+                    </div>
+                    <input type="file" id="myphone-lock-wallpaper-input" accept="image/*" style="display: none;">
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">
+                    设置此角色MyPhone的锁屏壁纸
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 查看记录（占位） -->
+      <div id="myphone-view-records-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span>查看记录</span> <span style="width: 30px;"></span> </div>
+        <div class="list-container" style="padding: 50px 20px; text-align: center; color: var(--text-secondary);">
+          <p>此功能正在开发中...</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 角色生成器屏幕将由character-generator.js动态创建 -->
+    
+    <div id="world-book-screen" class="screen">
+      <div class="header">
+        <div class="header-left-actions"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span class="action-btn" id="import-world-book-btn" title="导入世界书"data-lang-key-title="worldBookImportTitle"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg> </span> <span class="action-btn" id="export-world-book-btn" title="导出世界书"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg> </span> </div> <span data-lang-key="worldBookTitle">世界书</span>
+        <div class="header-actions"> <span class="action-btn" id="manage-world-book-categories-btn" title="管理分类"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg> </span> <span class="action-btn" id="add-world-book-btn">+</span> </div>
+      </div>
+      <div id="world-book-tabs"></div>
+      <div id="world-book-content-container"></div>
+    </div>
+    <div id="world-book-editor-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('world-book-screen')">‹</span> <span id="world-book-editor-title"data-lang-key="worldBookEditorTitle"data-lang-key="edit">编辑世界书</span> <span class="save-btn" id="save-world-book-btn"data-lang-key="save">保存</span> </div>
+      <div class="form-container">
+        <div class="form-group"> <label for="world-book-name-input"data-lang-key="worldBookNameLabel">书名</label> <input type="text" id="world-book-name-input" placeholder="请输入世界书的名称..."data-lang-key-placeholder="worldBookNamePlaceholder"> </div>
+        <div class="form-group"> <label for="world-book-category-select"data-lang-key="worldBookCategoryLabel">分类</label> <select id="world-book-category-select"></select> </div>
+        <div class="form-group">
+          <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+            <span>
+              <span style="font-weight: 500;">全局世界书</span>
+              <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">开启后，所有角色将自动关联此世界书</span>
+            </span>
+            <input type="checkbox" id="world-book-global-switch" style="width: 44px; height: 24px; cursor: pointer;">
+          </label>
+        </div>
+        <div class="form-group" id="world-book-inject-position-group">
+          <label for="world-book-inject-position-select">
+            <span style="font-weight: 500;">注入位置</span>
+            <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">选择世界书内容在提示词中的注入位置</span>
+          </label>
+          <select id="world-book-inject-position-select" style="margin-top: 8px; padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-primary); font-size: 14px;">
+            <option value="before">前 - 提示词前面</option>
+            <option value="middle">中 - 提示词中间</option>
+            <option value="after">后 - 提示词最后</option>
+          </select>
+        </div>
+        <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;"> <label data-lang-key="worldBookEntriesLabel">内容条目</label>
+          <div id="world-book-entries-container" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding: 5px; flex-grow: 1;"> </div>
+        </div> <button id="add-world-book-entry-btn" class="form-button form-button-secondary"data-lang-key="worldBookAddEntryBtn"> [+] 添加新条目 </button>
+      </div>
+    </div>
+
+    <!-- 屏蔽词管理界面 (全局 或 单个聊天，取决于打开时传入的 scope) -->
+    <div id="banned-words-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="banned-words-back-btn">‹</span>
+        <span id="banned-words-title">屏蔽词管理</span>
+        <span style="width: 30px;"></span>
+      </div>
+      <div class="form-container" style="flex-grow: 0;">
+        <div style="font-size:12px; color:var(--text-secondary,#888); margin-bottom:10px; line-height:1.6;" id="banned-words-scope-hint"></div>
+        <div class="settings-item" style="padding:10px 0; border-bottom:1px solid var(--border-color,#eee); margin-bottom:10px;">
+          <label>启用屏蔽词功能</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="banned-words-enabled-toggle">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>屏蔽词 / 正则表达式(不勾选正则的话,可以用逗号一次填多个词)</label>
+          <input type="text" id="banned-word-input" placeholder="例如：某个词,另一个词 或 /某\d+词/gi">
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="banned-word-is-regex" style="width:auto;">
+            当作正则表达式解析
+          </label>
+        </div>
+        <div class="form-group">
+          <label>命中后替换为(留空=直接删除，让AI自己找近义词表达)</label>
+          <input type="text" id="banned-word-replacement" placeholder="留空即可">
+        </div>
+        <button class="form-button" id="add-banned-word-btn">+ 添加</button>
+        <div style="height:1px; background:var(--border-color,#eee); margin:16px 0;"></div>
+        <div class="form-group">
+          <label>批量导入(粘贴一整段禁词说明文档，AI会自动提取真正要禁止的词句，忽略掉解释性文字)</label>
+          <textarea id="banned-words-bulk-import-text" rows="6" class="settings-textarea" placeholder="把类似禁词库文档粘贴进来..."></textarea>
+        </div>
+        <button class="form-button form-button-secondary" id="extract-banned-words-ai-btn">🤖 AI智能提取并添加</button>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 15px; border-bottom:1px solid var(--border-color,#eee); flex-shrink:0;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px;">
+          <input type="checkbox" id="banned-words-select-all" style="width:auto;">
+          全选
+        </label>
+        <button class="action-btn" id="batch-generate-synonyms-btn">🤖 为选中的词批量生成近义词</button>
+      </div>
+      <div id="banned-words-list" class="list-container" style="flex-grow: 1; overflow-y: auto;"></div>
+    </div>
+    <div id="preset-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span data-lang-key="presetTitle">预设</span>
+        <div class="header-actions"> <span class="action-btn" id="import-preset-btn" title="导入预设文件" data-lang-key-title="presetImportTitle"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg> </span> <span class="action-btn" id="manage-preset-categories-btn" title="管理分类"data-lang-key-title="presetManageCategoriesTitle"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg> </span> <span class="action-btn" id="add-preset-btn">+</span> </div>
+      </div>
+      <div id="preset-tabs"></div>
+      <div id="preset-content-container"></div>
+    </div>
+    <div id="tutorial-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span data-lang-key="tutorialTitle">教程</span> <span style="width: 30px;"></span> </div>
+      <div class="list-container" style="padding: 0; overflow: hidden;"> <iframe id="tutorial-iframe" src="tutorial.html" style="width: 100%; height: 100%; border: none;"></iframe> </div>
+    </div>
+    <div id="preset-editor-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('preset-screen')">‹</span> <span id="preset-editor-title"data-lang-key="presetEditorTitle">编辑预设</span> <span class="save-btn" id="save-preset-btn"data-lang-key="save">保存</span> </div>
+      <div class="form-container">
+        <div class="form-group"> <label for="preset-name-input"data-lang-key="presetNameLabel">预设名称</label> <input type="text" id="preset-name-input" placeholder="请输入预设的名称..."data-lang-key-placeholder="presetNamePlaceholder"> </div>
+        <div class="form-group"> <label for="preset-category-select"data-lang-key="presetCategoryLabel">分类</label> <select id="preset-category-select"></select> </div>
+        <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;"> <label data-lang-key="presetEntriesLabel">内容条目</label>
+          <div id="preset-entries-container" style="display: flex; flex-direction: column; gap: 15px; overflow-y: auto; padding: 5px; flex-grow: 1;"> </div>
+        </div> <button type="button" id="add-preset-entry-btn" class="form-button form-button-secondary"data-lang-key="presetAddEntryBtn"> [+] 添加新条目 </button>
+      </div>
+    </div>
+    <div id="api-settings-screen" class="screen ios-settings-screen">
+      <div class="header"> 
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span> 
+        <span data-lang-key="apiSettingsTitle">设置</span> 
+        <span class="save-btn" id="save-api-settings-btn" data-lang-key="save">完成</span> 
+      </div>
+      
+      <div class="settings-container ios-scroll-container">
+        
+        <!-- 语言设置 -->
+        <div class="settings-section">
+            <div class="settings-item">
+                <label for="language-select" data-lang-key="languageLabel">语言</label>
+                <div class="settings-right">
+                    <select id="language-select" class="settings-select">
+                        <option value="zh-CN">简体中文</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 调试控制台 -->
+        <div class="settings-header">调试工具</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>移动端控制台</label>
+                <div class="settings-right">
+                    <button id="open-console-btn" class="settings-mini-btn">打开控制台</button>
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>安全渲染模式</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="safe-render-mode-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="settings-description" style="padding: 0 15px 10px; color: #888; font-size: 12px;">
+                若聊天列表显示空白，请开启此选项后刷新页面。开启后单个聊天项渲染失败不会影响其他项。
+            </p>
+        </div>
+
+        <!-- 悬浮球快捷工具 -->
+        <div class="settings-header">悬浮球快捷工具</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>启用悬浮球</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="floating-ball-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <p class="settings-description" style="padding: 0 15px 10px; color: #888; font-size: 12px;">
+                悬浮球提供快速切换API预设、应用设置模板等功能。隐藏后可通过三击屏幕唤起。
+            </p>
+        </div>
+
+        <!-- API 预设 -->
+        <div class="settings-header" data-lang-key="apiPresetManagement">配置预设</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                 <!-- 下拉框容器：flex-grow 占满左侧空间，内部左对齐 -->
+                 <div style="flex-grow: 1; display: flex; align-items: center; justify-content: flex-start; overflow: hidden;">
+                     <select id="api-preset-select" class="settings-select">
+                         <!-- JS 填充选项 -->
+                     </select>
+                 </div>
+                 
+                 <!-- 按钮组：固定在右侧 -->
+                 <div class="settings-right" style="flex-grow: 0; width: auto; margin-left: 10px;">
+                     <button id="save-api-preset-btn" class="settings-mini-btn">保存</button>
+                     <button id="delete-api-preset-btn" class="settings-mini-btn">删除</button>
+                 </div>
+            </div>
+        </div>
+
+        <!-- 主 API 设置 -->
+        <div class="settings-header" data-lang-key="apiPrimarySettings">主 API (对话)</div>
+        <div class="settings-section">
+            <!-- 1. 提示条 (还原截图效果) -->
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    提示: 若要使用“发送图片”功能，请务必选择支持 Vision(视觉) 的模型，如 <code>gpt-4o</code> 或 <code>gpt-4-vision-preview</code>。
+                </div>
+            </div>
+
+            <!-- 2. 输入框部分 -->
+            <div class="settings-item">
+                <label>反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="proxy-url" placeholder="https://api.openai.com">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="api-key" placeholder="sk-...">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>拉取模型</label>
+                <div class="settings-right">
+                    <select id="model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <button id="fetch-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 参数设置 -->
+        <div class="settings-header">参数设置</div>
+        <div class="settings-section">
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <label style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">温度 (Temperature)</label>
+                    <button id="reset-api-temperature-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                </div>
+                <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                    <input type="range" id="api-temperature-slider" min="0" max="2" step="0.1" value="0.8" style="flex-grow: 1 !important; width: auto !important;">
+                    <input type="number" id="api-temperature-input" class="settings-num-input" min="0" max="2" step="0.1" value="0.8" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">流式输出 (Stream)</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">开启后主对话会逐步显示回复内容，默认关闭</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enable-api-stream-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- 高级参数设置 -->
+        <div class="settings-header">高级参数</div>
+        <div class="settings-section">
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="api-top-p-enabled" style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">核采样 (Top P)</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="api-top-p-enabled" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>

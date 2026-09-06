@@ -1,0 +1,568 @@
+    <div id="period-detail-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>详情</span>
+          <span class="close-btn" onclick="hidePeriodDetailModal()">×</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <div id="period-detail-content"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 番茄钟 - 角色选择弹窗 -->
+    <div id="focus-companion-modal" style="display: none;">
+      <div class="focus-companion-modal-content">
+        <div class="focus-companion-modal-header">
+          <span class="focus-companion-modal-title">选择陪伴角色</span>
+          <button class="focus-companion-modal-close" onclick="closeFocusCompanionModal()">×</button>
+        </div>
+        <div class="focus-companion-modal-body">
+          <div id="focus-companion-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 番茄钟 - 设置弹窗 -->
+    <div id="focus-settings-modal" style="display: none;">
+      <div class="focus-settings-modal-content">
+        <div class="focus-settings-modal-header">番茄钟设置</div>
+        <div class="focus-settings-form">
+          <div class="focus-settings-row">
+            <label class="focus-settings-label">专注时长（分钟）</label>
+            <input type="number" id="focus-duration-input" class="focus-settings-input" 
+                   min="1" max="120" value="25">
+          </div>
+          <div class="focus-settings-row">
+            <label class="focus-settings-label">定时呼叫间隔（分钟）</label>
+            <input type="number" id="auto-call-interval-input" class="focus-settings-input" 
+                   min="0" max="60" value="0" placeholder="0表示不启用">
+          </div>
+          <div class="focus-settings-hint">
+            设置后，角色会按间隔时间自动呼叫你
+          </div>
+        </div>
+        <div class="focus-settings-actions">
+          <button class="focus-btn focus-btn-secondary" onclick="closeFocusSettings()">取消</button>
+          <button class="focus-btn focus-btn-primary" onclick="saveFocusSettings()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 番茄钟屏幕 -->
+    <div id="focus-timer-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>番茄钟</span>
+        <span style="width: 30px;"></span>
+      </div>
+      <div id="focus-timer-content" class="list-container"></div>
+    </div>
+
+    <!-- 情侣空间屏幕 -->
+    <div id="couple-space-screen" class="screen" style="padding:0;overflow:hidden;">
+      <iframe id="couple-space-iframe" src="" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"></iframe>
+    </div>
+
+    <!-- 情侣空间 - 角色选择/空间列表 -->
+    <div id="couple-space-select-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>情侣空间</span>
+        <span style="width: 30px;"></span>
+      </div>
+      <div id="couple-space-select-content" class="list-container"></div>
+    </div>
+
+    <div id="character-selection-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span data-lang-key="cphoneTitleSelect">选择一部手机</span> <span style="width: 30px;"></span> </div>
+      <div id="character-grid" class="list-container"> </div>
+    </div>
+    <div id="character-phone-screen" class="screen">
+      <div id="char-home-screen" class="char-screen active">
+        <div style="height: 50px;"></div>
+
+        <div id="cphone-pages-container">
+          <div id="cphone-pages">
+            <div class="cphone-page">
+              <div id="cphone-layout-container">
+            
+            <div class="cphone-staggered-group">
+                <div class="cphone-bubble-pill top">
+                    <div class="bubble-avatar-container">
+                        <img id="cphone-widget-avatar-1" src="https://i.postimg.cc/y8xWzCqj/anime-boy.jpg" class="editable-image" onclick="handleWidgetImageChange('cphone-widget-avatar-1')">
+                    </div>
+                    <div class="bubble-content left-align" onclick="editBubbleText('cphone-text-1')">
+                         
+                         <p id="cphone-text-1">Cat radio station☆ﾟ.*･｡</p>
+                         
+                    </div>
+                </div>
+                
+                <div class="cphone-bubble-pill bottom">
+                    <div class="bubble-content right-align" onclick="editBubbleText('cphone-text-2')">
+                        <p id="cphone-text-2" style="font-family: 'Times New Roman', serif;">It's 17:03:42 Now, Good Afternoon✨</p>
+                    </div>
+                    <div class="bubble-avatar-container">
+                        <img id="cphone-widget-avatar-2" src="https://i.postimg.cc/VkQfgzGJ/1.jpg" class="editable-image" onclick="handleWidgetImageChange('cphone-widget-avatar-2')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cphone-fixed-row">
+                <div class="cphone-fixed-app-grid">
+                    <div class="app-icon small" onclick="openCharApp('qq')">
+                        <div class="icon-bg"><img id="cphone-icon-img-qq" src=""></div><span class="label">QQ</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('album')">
+                        <div class="icon-bg"><img id="cphone-icon-img-album" src=""></div><span class="label" data-lang-key="cphoneAppAlbum">相册</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('browser')">
+                        <div class="icon-bg"><img id="cphone-icon-img-browser" src=""></div><span class="label" data-lang-key="cphoneAppBrowser">浏览器</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('taobao')">
+                        <div class="icon-bg"><img id="cphone-icon-img-taobao" src=""></div><span class="label" data-lang-key="cphoneAppTaobao">淘宝</span>
+                    </div>
+                </div>
+
+                <div class="cphone-stack-polaroid">
+                    <div class="polaroid-bg-layer"></div>
+                    <div class="polaroid-main-layer">
+                        <div class="polaroid-photo-frame">
+                             <img id="cphone-polaroid-img" src="https://i.imgur.com/Bv63o3h.jpg" class="editable-image" onclick="handleWidgetImageChange('cphone-polaroid-img')">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cphone-fixed-row">
+                <div class="cphone-circle-widget-wrapper">
+                    <div class="cphone-circle-bg">
+                         <img id="cphone-circle-img" src="https://i.imgur.com/Wp72cEM.jpg" class="editable-image" onclick="handleWidgetImageChange('cphone-circle-img')">
+                    </div>
+                    <div class="circle-text-area">
+    <p id="cphone-circle-text" onclick="editBubbleText('cphone-circle-text')">Super happy</p>
+    <p id="cphone-circle-subtext" onclick="editBubbleText('cphone-circle-subtext')">Day & Night</p> 
+</div>
+                </div>
+
+                <div class="cphone-fixed-app-grid">
+                     <div class="app-icon small" onclick="openCharApp('memo')">
+                        <div class="icon-bg"><img id="cphone-icon-img-memo" src=""></div><span class="label"data-lang-key="cphoneAppMemo">备忘录</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('diary')">
+                        <div class="icon-bg"><img id="cphone-icon-img-diary" src=""></div><span class="label"data-lang-key="cphoneAppDiary">日记</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('amap')">
+                        <div class="icon-bg"><img id="cphone-icon-img-amap" src=""></div><span class="label"data-lang-key="cphoneAppAmap">高德地图</span>
+                    </div>
+                    <div class="app-icon small" onclick="openCharApp('usage')">
+                        <div class="icon-bg"><img id="cphone-icon-img-usage" src=""></div><span class="label"data-lang-key="cphoneAppUsage">APP记录</span>
+                    </div>
+                </div>
+            </div>
+
+              </div>
+            </div>
+
+            <!-- CPhone 第二页 -->
+            <div class="cphone-page">
+              <div id="cphone-page-2-container">
+                <div style="height: 80px;"></div>
+                
+                <div class="cphone-fixed-row">
+                  <div class="cphone-fixed-app-grid">
+                    <div class="app-icon small" onclick="openCharApp('settings')">
+                      <div class="icon-bg"><img id="cphone-icon-img-settings" src="https://i.postimg.cc/mkmMRpqb/settings-icon.png"></div>
+                      <span class="label" data-lang-key="cphoneAppSettings">设置</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 页面指示器 -->
+        <div class="cphone-pagination">
+          <span class="cphone-pagination-dot active" data-page="0"></span>
+          <span class="cphone-pagination-dot" data-page="1"></span>
+        </div>
+
+        <div class="cphone-dock-container">
+            <div class="cphone-dock glass">
+                <div class="app-icon" onclick="openCharApp('music')">
+                    <div class="icon-bg"><img id="cphone-icon-img-music" src=""></div>
+                    <span class="label" data-lang-key="cphoneAppMusic">音乐</span>
+                </div>
+                <div class="app-icon" onclick="openCharApp('bilibili')">
+                    <div class="icon-bg" style="background-color: #FB7299;"><img id="cphone-icon-img-bilibili" src="https://i.postimg.cc/Wz5gV0jB/bilibili-icon.png" style="border-radius:0;"></div>
+                    <span class="label">Bilibili</span>
+                </div>
+                <div class="app-icon" onclick="openCharApp('reddit')">
+                    <div class="icon-bg"><img id="cphone-icon-img-reddit" src=""></div>
+                    <span class="label">Reddit</span>
+                </div>
+                <div class="app-icon" onclick="switchToMyPhone()">
+                    <div class="icon-bg"><img id="cphone-icon-img-ephone" src=""></div>
+                    <span class="label">Ephone</span>
+                </div>
+            </div>
+        </div>
+      </div> 
+      <div id="char-amap-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span>足迹</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-amap-btn" title="重新生成足迹"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-amap-list" class="list-container"> </div>
+      </div>
+      <div id="char-qq-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span>QQ</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-qq-btn" title="重新生成"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-chat-list" class="list-container"></div>
+      </div>
+      <div id="char-qq-conversation-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="back-to-char-qq-list-btn">‹</span> <span id="char-conversation-partner-name"></span> <span style="width: 30px;"></span> </div>
+        <div id="char-conversation-messages" class="list-container"> </div>
+        <div id="char-conversation-input-area" style="padding: 8px; border-top: 1px solid var(--border-color); display: flex; gap: 8px; background-color: #f7f7f7;"> <input type="text" id="char-simulated-input" placeholder="这是模拟对话，无法发送消息" data-lang-key-placeholder="cphoneSimulatedChatPlaceholder"disabled
+            style="flex-grow: 1; padding: 10px; border-radius: 6px; border: 1px solid #ddd; background: #eee;"> <button id="char-simulated-send-btn" style="padding: 0 20px; border: none; background-color: var(--accent-color); color: white; border-radius: 6px; font-weight: 500;">发送</button> </div>
+      </div>
+      <div id="char-album-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneAlbumTitle">TA的相册</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-album-btn" title="重新生成相册内容"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div class="list-container">
+          <div id="char-album-grid"></div>
+        </div>
+      </div>
+      <div id="char-browser-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneBrowserTitle">TA的浏览器历史</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-browser-btn" title="重新生成浏览记录"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-browser-history" class="list-container"> </div>
+      </div>
+      <div id="char-browser-article-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharScreen('char-browser-screen')">‹</span> <span id="char-article-title" style="max-width: 70%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">文章</span>
+          <div class="header-actions"> <span class="action-btn" id="favorite-article-btn" title="收藏"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg> </span> <span class="action-btn" id="copy-article-content-btn" title="复制内容"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-article-content" class="list-container" style="padding: 20px; font-size: 16px; line-height: 1.8; overflow-y: auto;"></div>
+      </div>
+      <div id="char-taobao-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneTaobaoTitle">TA的淘宝订单</span>
+          <div class="header-actions"> <span class="action-btn" id="char-wallet-btn" title="查看钱包" onclick="openCharWallet()"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                stroke-linejoin="round">
+                <path d="M20 12V8H4v4"></path>
+                <path d="M4 8V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2"></path>
+                <path d="M18 12v6a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2v-6"></path>
+              </svg> </span> <span class="action-btn" id="regenerate-char-taobao-btn" title="重新生成购买记录"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-product-grid" class="list-container"></div>
+      </div>
+      <div id="char-wallet-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="char-wallet-back-btn">‹</span> <span data-lang-key="cphoneWalletTitle">钱包</span> <span style="width: 30px;"></span> </div>
+        <div id="char-wallet-content" class="list-container" style="padding: 15px; display: flex; flex-direction: column; gap: 15px;"> </div>
+      </div>
+      <div id="char-memo-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneMemoTitle">备忘录</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-memo-btn" title="重新生成备忘录"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> <span class="action-btn" id="add-char-memo-btn">+</span> </div>
+        </div>
+        <div id="char-memo-list" class="list-container" style="padding: 10px;"></div>
+      </div>
+      <div id="char-memo-detail-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="char-memo-detail-back-btn">‹</span> <span id="char-memo-detail-title"></span>
+          <div class="header-actions"> <span class="action-btn" id="favorite-memo-btn" title="收藏"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg> </span> <span class="action-btn" id="copy-memo-content-btn" title="复制内容"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg> </span> </div>
+        </div>
+        <div class="form-container" style="padding: 0;"> <textarea id="char-memo-detail-content" readonly></textarea> </div>
+      </div>
+      <div id="char-diary-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneDiaryTitle">日记</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-diary-btn" title="重新生成日记本"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> <span class="action-btn" id="add-char-diary-btn">+</span> </div>
+        </div>
+        <div id="char-diary-list" class="list-container"></div>
+      </div>
+      <div id="char-diary-detail-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" id="char-diary-detail-back-btn">‹ </span> <span id="char-diary-detail-title"></span>
+          <div class="header-actions"> <span class="action-btn" id="edit-diary-btn" title="编辑日记"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg> </span> <span class="action-btn" id="favorite-diary-btn" title="收藏"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg> </span> <span class="action-btn" id="copy-diary-content-btn" title="复制内容"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-diary-detail-content-wrapper" class="list-container">
+          <div id="char-diary-detail-content"> </div>
+        </div>
+      </div>
+      <div id="char-usage-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneUsageTitle">App使用记录</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-usage-btn" title="重新生成记录"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-usage-list" class="list-container"> </div>
+      </div>
+      <div id="char-qq-transcript-modal" class="modal">
+        <div class="modal-content" style="height: 80%;">
+          <div class="modal-header"> <span id="transcript-modal-char-name"></span> </div>
+          <div class="modal-body" id="transcript-modal-body" style="background-color: #f0f2f5; padding: 15px; display: flex; flex-direction: column; gap: 15px;"> </div>
+          <div class="modal-footer"> <button class="save" id="close-transcript-modal-btn" style="width:100%;">关闭</button> </div>
+        </div>
+      </div>
+      <div id="char-music-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> <span data-lang-key="cphoneMusicTitle">TA的歌单</span>
+          <div class="header-actions"> <span class="action-btn" id="regenerate-char-music-btn" title="重新生成歌单"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> </span> </div>
+        </div>
+        <div id="char-music-list" class="list-container"> </div>
+      </div>
+<div id="char-reddit-screen" class="char-screen">
+  <div class="header" >
+    <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span>
+    <span>Reddit</span>
+    
+    <div class="header-actions"> 
+        <span class="action-btn" id="regenerate-char-reddit-btn" title="根据人设生成推荐流"> 
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+            </svg> 
+        </span> 
+    </div>
+    </div>
+  
+  <div class="search-bar-container" style="background-color: #fff; padding: 10px; border-bottom: 1px solid #eee;">
+    <div style="display: flex; gap: 8px;">
+      <input type="search" id="char-reddit-search-input" placeholder="搜索 Reddit..." 
+             style="flex-grow:1; padding: 8px 12px; border-radius: 20px; border: 1px solid #ddd; background: #f6f7f8;">
+      <button id="char-reddit-search-btn" class="form-button" 
+              style="width: auto; margin: 0; padding: 0 15px; background-color: #FF4500; border-radius: 20px; font-size: 14px;">Go</button>
+    </div>
+  </div>
+
+  <div id="char-reddit-list" class="list-container" style="padding: 0; background-color: #DAE0E6;">
+  </div>
+</div>
+      <div id="char-bilibili-screen" class="char-screen">
+        <div class="header"> 
+            <span class="back-btn" onclick="switchToCharHomeScreen()">‹</span> 
+            <span>Bilibili</span> 
+            <div class="header-actions"> 
+                <span class="action-btn" id="regenerate-char-bilibili-btn" title="根据人设生成推荐"> 
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                        <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+                    </svg> 
+                </span> 
+            </div>
+            </div>
+        <div class="search-bar-container" style="padding: 10px; background: transparent;"> 
+            <div style="display: flex; gap: 8px;">
+                <input type="search" id="char-bilibili-search-input" placeholder="搜索视频..." style="flex-grow:1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color);"> 
+                <button id="char-bilibili-search-btn" class="form-button" style="width: auto; margin: 0; padding: 0 15px; background-color: #FB7299;">搜索</button> 
+            </div>
+        </div>
+        <div id="char-bilibili-list" class="list-container" style="padding: 10px;"> </div>
+      </div>
+
+      <div id="char-bilibili-player-screen" class="char-screen" style="background-color: var(--secondary-bg);">
+    <div class="header"> 
+        <span class="back-btn" onclick="closeCharBilibiliPlayer()">‹</span> 
+        <span>视频详情</span> 
+        <span style="width: 30px;"></span> 
+    </div>
+        <div style="display: flex; flex-direction: column; height: 100%;">
+            <div style="width: 100%; aspect-ratio: 16/9; background: black; display: flex; align-items: center;">
+                <video id="char-bilibili-video" controls playsinline style="width: 100%; max-height: 100%;"></video>
+            </div>
+            <div class="list-container" style="background-color: var(--secondary-bg); flex-grow: 1; padding: 15px;">
+                <h2 id="char-bilibili-player-title" style="font-size: 18px; margin: 0 0 10px 0; line-height: 1.4;"></h2>
+                <div id="char-bilibili-player-author" style="font-size: 14px; color: #FB7299; font-weight: 500; margin-bottom: 15px;"></div>
+                <div style="height: 1px; background: var(--border-color); margin-bottom: 15px;"></div>
+                <div id="char-bilibili-player-desc" style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; white-space: pre-wrap;"></div>
+            </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- MY Phone 角色选择屏幕 -->
+    <div id="myphone-selection-screen" class="screen">
+      <div class="header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span data-lang-key="myphoneTitleSelect">谁可以查看你的手机</span> <span style="width: 30px;"></span> </div>
+      <div id="myphone-character-grid" class="list-container"> </div>
+    </div>
+    
+    <!-- MY Phone 主屏幕 -->
+    <div id="myphone-screen" class="screen">
+      <div id="myphone-home-screen" class="char-screen active">
+        <div style="height: 50px;"></div>
+
+        <div id="myphone-pages-container">
+          <div id="myphone-pages">
+            <div class="myphone-page">
+              <div id="myphone-layout-container">
+            
+            <div class="cphone-staggered-group">
+                <div class="cphone-bubble-pill top">
+                    <div class="bubble-avatar-container">
+                        <img id="myphone-widget-avatar-1" src="https://i.postimg.cc/y8xWzCqj/anime-boy.jpg" class="editable-image" onclick="handleWidgetImageChange('myphone-widget-avatar-1')">
+                    </div>
+                    <div class="bubble-content left-align" onclick="editBubbleText('myphone-text-1')">
+                         
+                         <p id="myphone-text-1">My little world ♡</p>
+                         
+                    </div>
+                </div>
+                
+                <div class="cphone-bubble-pill bottom">
+                    <div class="bubble-content right-align" onclick="editBubbleText('myphone-text-2')">
+                        <p id="myphone-text-2" style="font-family: 'Times New Roman', serif;">Welcome to my phone~</p>
+                    </div>
+                    <div class="bubble-avatar-container">
+                        <img id="myphone-widget-avatar-2" src="https://i.postimg.cc/VkQfgzGJ/1.jpg" class="editable-image" onclick="handleWidgetImageChange('myphone-widget-avatar-2')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="cphone-fixed-row">
+                <div class="cphone-fixed-app-grid">
+                    <div class="app-icon small" onclick="openMyPhoneApp('qq')">
+                        <div class="icon-bg"><img id="myphone-icon-img-qq" src=""></div><span class="label">QQ</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('album')">
+                        <div class="icon-bg"><img id="myphone-icon-img-album" src=""></div><span class="label" data-lang-key="cphoneAppAlbum">相册</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('browser')">
+                        <div class="icon-bg"><img id="myphone-icon-img-browser" src=""></div><span class="label" data-lang-key="cphoneAppBrowser">浏览器</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('taobao')">
+                        <div class="icon-bg"><img id="myphone-icon-img-taobao" src=""></div><span class="label" data-lang-key="cphoneAppTaobao">淘宝</span>
+                    </div>
+                </div>
+
+                <div class="cphone-stack-polaroid">
+                    <div class="polaroid-bg-layer"></div>
+                    <div class="polaroid-main-layer">
+                        <div class="polaroid-photo-frame">
+                             <img id="myphone-polaroid-img" src="https://i.imgur.com/Bv63o3h.jpg" class="editable-image" onclick="handleWidgetImageChange('myphone-polaroid-img')">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cphone-fixed-row">
+                <div class="cphone-circle-widget-wrapper">
+                    <div class="cphone-circle-bg">
+                         <img id="myphone-circle-img" src="https://i.imgur.com/Wp72cEM.jpg" class="editable-image" onclick="handleWidgetImageChange('myphone-circle-img')">
+                    </div>
+                    <div class="circle-text-area">
+    <p id="myphone-circle-text" onclick="editBubbleText('myphone-circle-text')">My Mood</p>
+    <p id="myphone-circle-subtext" onclick="editBubbleText('myphone-circle-subtext')">Today</p> 
+</div>
+                </div>
+
+                <div class="cphone-fixed-app-grid">
+                     <div class="app-icon small" onclick="openMyPhoneApp('memo')">
+                        <div class="icon-bg"><img id="myphone-icon-img-memo" src=""></div><span class="label"data-lang-key="cphoneAppMemo">备忘录</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('diary')">
+                        <div class="icon-bg"><img id="myphone-icon-img-diary" src=""></div><span class="label"data-lang-key="cphoneAppDiary">日记</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('amap')">
+                        <div class="icon-bg"><img id="myphone-icon-img-amap" src=""></div><span class="label"data-lang-key="cphoneAppAmap">高德地图</span>
+                    </div>
+                    <div class="app-icon small" onclick="openMyPhoneApp('usage')">
+                        <div class="icon-bg"><img id="myphone-icon-img-usage" src=""></div><span class="label"data-lang-key="cphoneAppUsage">APP记录</span>
+                    </div>
+                </div>
+            </div>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="cphone-dock-container">
+            <div class="cphone-dock glass">
+                <div class="app-icon" onclick="openMyPhoneApp('music')">
+                    <div class="icon-bg"><img id="myphone-icon-img-music" src=""></div>
+                    <span class="label" data-lang-key="cphoneAppMusic">音乐</span>
+                </div>
+                <div class="app-icon" onclick="openMyPhoneSettings()">
+                    <div class="icon-bg"><img id="myphone-icon-img-settings" src=""></div>
+                    <span class="label">设置</span>
+                </div>
+                <div class="app-icon" onclick="openMyPhoneViewRecords()">
+                    <div class="icon-bg"><img id="myphone-icon-img-records" src=""></div>
+                    <span class="label">查看记录</span>
+                </div>
+                <div class="app-icon" onclick="showScreen('home-screen')">
+                    <div class="icon-bg"><img id="myphone-icon-img-ephone" src=""></div>
+                    <span class="label">EPhone</span>
+                </div>
+            </div>
+        </div>
+      </div>
+      
+      <!-- MY Phone 高德地图 -->
+      <div id="myphone-amap-screen" class="char-screen">
+        <div class="header"> <span class="back-btn" onclick="switchToMyPhoneHomeScreen()">‹</span> <span>足迹</span>
+          <div class="header-actions"> 
+            <span class="action-btn" id="add-myphone-amap-btn" title="手动添加足迹"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg> 
+            </span>
+            <span class="action-btn" id="regenerate-myphone-amap-btn" title="重新生成足迹"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4"></path>
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"></path>
+              </svg> 
+            </span>
+            <span class="action-btn" id="delete-myphone-amap-btn" title="删除"> 
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg> 
+            </span> 
+          </div>
+        </div>

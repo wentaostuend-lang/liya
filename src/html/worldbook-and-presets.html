@@ -1,0 +1,550 @@
+            <div id="github-settings-details" style="display:none;">
+                <!-- 灰条被移到了这里 -->
+                <div class="settings-tip-wrapper">
+                    <div class="settings-tip-content">
+                        将数据备份到私有 GitHub 仓库，方便跨设备同步。<br>
+                        1. <a href="https://github.com/new" target="_blank">创建新仓库</a> (建议设为 Private)<br>
+                        2. <a href="https://github.com/settings/tokens" target="_blank">获取 Token</a> (必须勾选 <strong>repo</strong> 权限)
+                    </div>
+                </div>
+
+                <div class="settings-item">
+                    <label>自动备份 (分钟)</label>
+                    <div class="settings-right" style="gap: 5px;">
+                         <input type="number" id="github-backup-interval" value="30" class="settings-num-input">
+                         <label class="toggle-switch" style="transform: scale(0.8);">
+                            <input type="checkbox" id="github-auto-backup-switch">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                 <div class="settings-item"><label>用户名</label><div class="settings-right"><input type="text" id="github-username" placeholder="如: yourname"></div></div>
+                 <div class="settings-item"><label>仓库名</label><div class="settings-right"><input type="text" id="github-repo" placeholder="如: my-backup"></div></div>
+                 <div class="settings-item"><label>Token</label><div class="settings-right"><div style="position:relative; width:100%;"><input type="password" id="github-token"><span id="github-token-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span></div></div></div>
+                 <div class="settings-item"><label>文件名</label><div class="settings-right"><input type="text" id="github-filename" value="ephone_backup.json"></div></div>
+                 
+                 <!-- GitHub Proxy -->
+                 <div class="settings-item">
+                    <label>代理 (Worker)</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="github-proxy-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                 <div id="github-proxy-input-group" style="display:none;">
+                     <div class="settings-tip-wrapper" style="padding-top:10px !important;">
+                        <div class="settings-tip-content">
+                            国内网络建议开启。需自建 Cloudflare Worker。<br>
+                            🔗 <a href="https://dash.cloudflare.com/" target="_blank">前往 Cloudflare 控制台</a>
+                        </div>
+                    </div>
+                    <div class="settings-item">
+                        <label>代理地址</label>
+                        <div class="settings-right"><input type="text" id="github-proxy-url" placeholder="https://..."></div>
+                    </div>
+                 </div>
+                 
+                 <!-- GitHub 按钮 -->
+                 <div class="settings-item" style="justify-content: space-around; flex-wrap: wrap; gap: 6px;">
+                    <button id="github-upload-btn" class="settings-mini-btn">☁️ 上传备份</button>
+                    <button id="github-upload-large-btn" class="settings-mini-btn">🚀 大数据备份</button>
+                    <button id="github-download-btn" class="settings-mini-btn">📥 恢复备份</button>
+                </div>
+            </div>
+        </div>
+        <!-- 性能 -->
+        <div class="settings-header">性能与显示</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>聊天列表加载数</label>
+                <div class="settings-right">
+                    <input type="number" id="chat-list-render-window-input" class="settings-num-input">
+                </div>
+            </div>
+             <div class="settings-item">
+                <label>聊天内加载数</label>
+                <div class="settings-right">
+                    <input type="number" id="chat-render-window-input" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">启用API历史记录</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">用于调试API请求，关闭可减小数据库体积（推荐关闭）</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enable-api-history-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <!-- AI行为控制 (全局默认) -->
+        <div class="settings-header">AI行为控制（全局默认）</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">启用心声功能</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI会在每次回复后生成内心独白（心声和散记）</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-thoughts-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
+                <div class="custom-thoughts-header">
+                    <div class="custom-thoughts-info">
+                        <div class="custom-thoughts-title">自定义心声提示词</div>
+                        <div class="custom-thoughts-desc">开启后可自定义发送给AI的心声指令内容</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="custom-thoughts-prompt-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="custom-thoughts-prompt-container" class="custom-thoughts-body" style="display: none;">
+                    <textarea id="custom-thoughts-prompt-textarea" class="custom-thoughts-textarea" placeholder="在此输入自定义的心声提示词..."></textarea>
+                    <div class="custom-thoughts-actions">
+                        <button id="export-thoughts-prompt-btn" class="custom-thoughts-io-btn">📤 导出</button>
+                        <button id="import-thoughts-prompt-btn" class="custom-thoughts-io-btn">📥 导入</button>
+                        <input type="file" id="import-thoughts-prompt-file" accept=".json,.txt" style="display:none;">
+                        <button id="reset-thoughts-prompt-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
+                <div class="custom-thoughts-header">
+                    <div class="custom-thoughts-info">
+                        <div class="custom-thoughts-title">自定义心声外观(HTML/CSS)</div>
+                        <div class="custom-thoughts-desc">完全自定义聊天侧边心声弹窗的外观，支持导出导入</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="custom-thoughts-ui-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="custom-thoughts-ui-container" class="custom-thoughts-body" style="display: none;">
+                    <div style="font-size: 12px; color: #ff9800; margin-bottom: 8px; line-height: 1.4; background: #fff3cd; padding: 8px; border-radius: 6px;">
+                        ⚠️ 警告：必须包含 <code>id="profile-heartfelt-voice"</code> 和 <code>id="profile-random-jottings"</code> 元素才能显示内容。如果需要编辑和历史记录按钮，请保留 <code>id="profile-edit-btn"</code> 和 <code>id="profile-history-icon-btn"</code>。
+                    </div>
+                    <label style="font-size: 12px; color: var(--text-secondary);">HTML 结构</label>
+                    <textarea id="custom-thoughts-html-textarea" class="custom-thoughts-textarea" style="min-height: 150px; margin-bottom: 10px;" placeholder="HTML 代码..."></textarea>
+                    
+                    <label style="font-size: 12px; color: var(--text-secondary);">CSS 样式</label>
+                    <textarea id="custom-thoughts-css-textarea" class="custom-thoughts-textarea" style="min-height: 150px;" placeholder="CSS 代码..."></textarea>
+                    
+                    <div class="custom-thoughts-actions" style="margin-top: 10px;">
+                        <button id="export-thoughts-ui-btn" class="custom-thoughts-io-btn">📤 导出</button>
+                        <button id="import-thoughts-ui-btn" class="custom-thoughts-io-btn">📥 导入</button>
+                        <input type="file" id="import-thoughts-ui-file" accept=".json,.txt" style="display:none;">
+                        <button id="reset-thoughts-ui-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
+                <div class="custom-thoughts-header">
+                    <div class="custom-thoughts-info">
+                        <div class="custom-thoughts-title">自定义结构化总结提示词</div>
+                        <div class="custom-thoughts-desc">开启后可自定义结构化记忆总结时发送给AI的提示词</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="custom-summary-prompt-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="custom-summary-prompt-container" class="custom-thoughts-body" style="display: none;">
+                    <div class="custom-summary-hint" style="font-size: 12px; color: var(--text-secondary, #8e8e93); margin-bottom: 8px; line-height: 1.5;">
+                        可用变量：<code>{{角色名}}</code> <code>{{用户昵称}}</code> <code>{{用户人设}}</code> <code>{{角色人设}}</code> <code>{{现有记忆}}</code> <code>{{时间范围}}</code> <code>{{分类说明}}</code> <code>{{对话记录}}</code> <code>{{总结设定}}</code>
+                    </div>
+                    <textarea id="custom-summary-prompt-textarea" class="custom-thoughts-textarea" style="min-height: 220px;" placeholder="在此输入自定义的结构化总结提示词..."></textarea>
+                    <div class="custom-thoughts-actions">
+                        <button id="export-summary-prompt-btn" class="custom-thoughts-io-btn">📤 导出</button>
+                        <button id="import-summary-prompt-btn" class="custom-thoughts-io-btn">📥 导入</button>
+                        <input type="file" id="import-summary-prompt-file" accept=".json,.txt" style="display:none;">
+                        <button id="reset-summary-prompt-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-item custom-thoughts-setting" style="flex-direction: column; align-items: stretch;">
+                <div class="custom-thoughts-header">
+                    <div class="custom-thoughts-info">
+                        <div class="custom-thoughts-title">自定义聊天提示词</div>
+                        <div class="custom-thoughts-desc">开启后可自定义AI聊天时使用的提示词（分单聊/群聊/线下模式）</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="custom-chat-prompt-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="custom-chat-prompt-container" class="custom-thoughts-body" style="display: none;">
+                    <div class="custom-chat-prompt-tabs" style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-color, #e5e5ea); overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch;">
+                        <button class="custom-chat-prompt-tab active" data-tab="single" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid var(--primary-color, #007aff); color: var(--primary-color, #007aff); cursor: pointer; font-size: 14px; flex-shrink: 0;">单聊</button>
+                        <button class="custom-chat-prompt-tab" data-tab="group" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary, #8e8e93); cursor: pointer; font-size: 14px; flex-shrink: 0;">群聊</button>
+                        <button class="custom-chat-prompt-tab" data-tab="offline" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary, #8e8e93); cursor: pointer; font-size: 14px; flex-shrink: 0;">单人线下</button>
+                        <button class="custom-chat-prompt-tab" data-tab="group_offline" style="padding: 8px 16px; background: none; border: none; border-bottom: 2px solid transparent; color: var(--text-secondary, #8e8e93); cursor: pointer; font-size: 14px; flex-shrink: 0;">群聊线下</button>
+                    </div>
+                    
+                    <div class="custom-chat-prompt-tab-content" data-content="single">
+                        <div class="custom-summary-hint" style="font-size: 12px; color: var(--text-secondary, #8e8e93); margin-bottom: 8px; line-height: 1.5;">
+                            单聊提示词：用于一对一聊天场景。下方显示的是完整的默认提示词，你可以直接修改。
+                        </div>
+                        <textarea id="custom-chat-prompt-single-textarea" class="custom-thoughts-textarea" style="min-height: 300px;" placeholder="加载中..."></textarea>
+                        <div class="custom-thoughts-actions">
+                            <button id="reset-chat-prompt-single-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                        </div>
+                    </div>
+                    
+                    <div class="custom-chat-prompt-tab-content" data-content="group" style="display: none;">
+                        <div class="custom-summary-hint" style="font-size: 12px; color: var(--text-secondary, #8e8e93); margin-bottom: 8px; line-height: 1.5;">
+                            群聊提示词：用于群聊场景（有用户参与）。下方显示的是完整的默认提示词，你可以直接修改。
+                        </div>
+                        <textarea id="custom-chat-prompt-group-textarea" class="custom-thoughts-textarea" style="min-height: 300px;" placeholder="加载中..."></textarea>
+                        <div class="custom-thoughts-actions">
+                            <button id="reset-chat-prompt-group-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                        </div>
+                    </div>
+                    
+                    <div class="custom-chat-prompt-tab-content" data-content="offline" style="display: none;">
+                        <div class="custom-summary-hint" style="font-size: 12px; color: var(--text-secondary, #8e8e93); margin-bottom: 8px; line-height: 1.5;">
+                            单人线下模式提示词：用于单人线下剧情模式。下方显示的是完整的默认提示词，你可以直接修改。
+                        </div>
+                        <textarea id="custom-chat-prompt-offline-textarea" class="custom-thoughts-textarea" style="min-height: 300px;" placeholder="加载中..."></textarea>
+                        <div class="custom-thoughts-actions">
+                            <button id="reset-chat-prompt-offline-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                        </div>
+                    </div>
+
+                    <div class="custom-chat-prompt-tab-content" data-content="group_offline" style="display: none;">
+                        <div class="custom-summary-hint" style="font-size: 12px; color: var(--text-secondary, #8e8e93); margin-bottom: 8px; line-height: 1.5;">
+                            群聊线下模式提示词：用于群聊线下剧情模式。下方显示的是完整的默认提示词，你可以直接修改。
+                        </div>
+                        <textarea id="custom-chat-prompt-group-offline-textarea" class="custom-thoughts-textarea" style="min-height: 300px;" placeholder="加载中..."></textarea>
+                        <div class="custom-thoughts-actions">
+                            <button id="reset-chat-prompt-group-offline-btn" class="custom-thoughts-reset-btn">恢复默认</button>
+                        </div>
+                    </div>
+                    
+                    <div class="custom-thoughts-actions" style="margin-top: 12px; border-top: 1px solid var(--border-color, #e5e5ea); padding-top: 12px;">
+                        <button id="export-chat-prompt-btn" class="custom-thoughts-io-btn">📤 导出全部</button>
+                        <button id="import-chat-prompt-btn" class="custom-thoughts-io-btn">📥 导入</button>
+                        <input type="file" id="import-chat-prompt-file" accept=".json" style="display:none;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">启用动态功能</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以主动发动态、评论、点赞</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-qzone-actions-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">启用论坛自主发帖</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在委屈/求助/想分享时去论坛发帖（复用豆瓣帖子库），单个角色可以在角色设置里单独覆盖</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-forum-post-switch" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">查看User手机</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以主动查看你的手机APP（QQ、相册、淘宝、高德等），并给出感想</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-view-myphone-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">跨聊天消息</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在群聊中给你发私信，或在私聊中给群聊发消息</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-cross-chat-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="settings-item">
+                <div>
+                    <div style="font-weight: 500;">清空聊天连带长期记忆</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">在清空聊天记录时弹窗确认是否一并清除对应的长期记忆</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-prompt-clear-memory-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div style="font-size: 12px; color: #666; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 6px;">
+                💡 提示：这是全局默认设置。你可以在每个角色的聊天设置中单独覆盖这些选项。
+            </div>
+        </div>
+
+
+        <!-- 联机功能已迁移到独立的连接APP -->
+
+        <!-- 截图水印 -->
+        <div class="settings-header">截图水印</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>
+                    <span style="display: block;">启用截图水印</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">截图时自动添加全屏水印效果</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="watermark-enabled-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div id="watermark-settings-container" style="display: none;">
+                <!-- 水印文字 -->
+                <div class="settings-item">
+                    <label>水印文字</label>
+                    <input type="text" id="watermark-text" class="settings-input" placeholder="输入水印文字" value="保密内容 请勿外传" style="width: 200px; padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                </div>
+                
+                <!-- 水印布局方式 -->
+                <div class="settings-item">
+                    <label>布局方式</label>
+                    <select id="watermark-layout" class="settings-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; min-width: 150px;">
+                        <option value="diagonal">斜向排列</option>
+                        <option value="grid">网格排列</option>
+                        <option value="sparse">稀疏排列</option>
+                        <option value="dense">密集排列</option>
+                    </select>
+                </div>
+                
+                <!-- 水印颜色 -->
+                <div class="settings-item">
+                    <label>水印颜色</label>
+                  <div style="display: flex; align-items: center; gap: 10px;">
+                    <div id="myphone-lock-wallpaper-preview" class="wallpaper-thumbnail"
+                         style="width: 60px; height: 80px; border-radius: 8px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center;
+                                color: rgba(255,255,255,0.8); font-size: 10px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">
+                      默认壁纸
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                      <button class="settings-mini-btn" onclick="document.getElementById('myphone-lock-wallpaper-input').click()">本地</button>
+                      <button id="myphone-upload-lock-wallpaper-url-btn" class="settings-mini-btn">URL</button>
+                      <button id="myphone-reset-lock-wallpaper-btn" class="settings-mini-btn" style="color: var(--danger-color, #ff3b30); border-color: rgba(255,59,48,0.3);">重置</button>
+                    </div>
+                    <input type="file" id="myphone-lock-wallpaper-input" accept="image/*" style="display: none;">
+                  </div>
+                </div>
+                
+                <!-- 字体大小 -->
+                <div class="settings-item">
+                    <label>字体大小</label>
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                        <input type="range" id="watermark-font-size" min="12" max="48" step="2" value="20" style="flex: 1;">
+                        <span id="watermark-font-size-display" style="min-width: 40px; text-align: right; font-size: 14px;">20px</span>
+                    </div>
+                </div>
+                
+                <!-- 字体选择 -->
+                <div class="settings-item">
+                    <label>字体</label>
+                    <select id="watermark-font-family" class="settings-select" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px; min-width: 150px;">
+                        <option value="Arial, sans-serif">Arial</option>
+                        <option value="'Microsoft YaHei', sans-serif" selected>微软雅黑</option>
+                        <option value="'SimSun', serif">宋体</option>
+                        <option value="'KaiTi', serif">楷体</option>
+                        <option value="'Courier New', monospace">Courier New</option>
+                        <option value="Georgia, serif">Georgia</option>
+                        <option value="'Comic Sans MS', cursive">Comic Sans</option>
+                    </select>
+                </div>
+                
+                <!-- 预览按钮 -->
+                <div class="settings-item">
+                    <label></label>
+                <button id="watermark-preview-btn" class="primary-btn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    预览水印效果
+                </button>
+                </div>
+                
+                <div style="font-size: 12px; color: #666; margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 6px;">
+                    💡 提示：开启后，使用系统截图功能时会自动显示水印。水印仅用于截图，不影响正常使用。
+                </div>
+            </div>
+        </div>
+
+        <!-- 后台保活 -->
+        <div class="settings-header">后台保活</div>
+        <div class="settings-section">
+            <!-- 回复守护/回复恢复（从 xinyuan 移植） -->
+            <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 12px !important;">
+                <label>
+                    <span style="display: block;">回复守护</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">保存回复任务并在页面被暂停或重载后提供恢复。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="reply-guardian-enabled-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 12px !important;">
+                <label>
+                    <span style="display: block;">回复完成通知</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">仅在已开启系统通知且已授权时发送，不会额外索取权限。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="reply-guardian-notification-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item reply-guardian-diagnostic-row">
+                <div class="reply-guardian-diagnostic-copy">
+                    <label>当前保护能力</label>
+                    <span id="reply-guardian-capability-summary">检测中...</span>
+                    <span id="reply-guardian-task-summary">暂无待恢复回复</span>
+                </div>
+                <button id="reply-guardian-refresh-btn" class="settings-mini-btn" type="button">重新检测</button>
+            </div>
+
+            <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 12px !important;">
+                <label>
+                    <span style="display: block;">无声智能保活 (双平台适配)</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">不播放音频，综合运用 Web Locks 锁、1Hz静音振荡器、Web Worker心跳（每15秒自检并恢复AudioContext）与WakeLock屏幕唤醒锁，多重调度降低被系统杀掉的概率。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="smart-keep-alive-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 12px !important;">
+                <label>
+                    <span style="display: block;">启用音频保活</span>
+                    <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">通过播放静音音频防止浏览器和PWA被手机系统后台杀掉。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="background-keep-alive-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <div class="settings-item" id="keep-alive-status" style="display:none;">
+                <label>保活状态</label>
+                <div class="settings-right">
+                    <span id="keep-alive-status-text" style="color: #999;">未启用</span>
+                </div>
+            </div>
+            
+            <!-- 保活音频控制按钮 -->
+            <div class="settings-item" id="keep-alive-audio-btn-container" style="display:none;">
+                <label>保活音频</label>
+                <button id="keep-alive-audio-btn" class="primary-btn" style="padding: 8px 16px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    配置保活音频
+                </button>
+            </div>
+            
+            <!-- 保活音频播放器面板（守护甜心/游戏机风格） -->
+            <div id="keep-alive-audio-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 240, 245, 0.4); backdrop-filter: blur(5px); z-index: 10000; justify-content: center; align-items: center;">
+                <div class="sc-player-device">
+                    <div class="sc-pattern"></div>
+                    <div class="sc-content">
+                        <!-- Header -->
+                        <div class="sc-header">
+                            <div class="sc-title-badge">KEEP ALIVE</div>
+                            <div class="sc-win-actions">
+                                <button id="keep-alive-audio-minimize" class="sc-win-btn sc-btn-min" title="最小化">
+                                    <svg width="12" height="2" viewBox="0 0 12 2" fill="none"><rect width="12" height="2" rx="1" fill="white"/></svg>
+                                </button>
+                                <button id="keep-alive-audio-close" class="sc-win-btn sc-btn-close" title="关闭">
+                                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2L10 10M10 2L2 10" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Screen Area -->
+                        <div class="sc-screen">
+                            <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                                <span class="sc-screen-label">AUDIO VISUALIZER</span>
+                                <span class="sc-screen-label" style="color: #ccc;">● REC</span>
+                            </div>
+                            <div class="sc-visualizer-mock">
+                                <div class="sc-bar"></div><div class="sc-bar"></div><div class="sc-bar"></div><div class="sc-bar"></div><div class="sc-bar"></div>
+                            </div>
+                            <div class="sc-audio-wrapper">
+                                <audio id="keep-alive-audio-player" controls loop>
+                                    您的浏览器不支持音频播放。
+                                </audio>
+                            </div>
+                        </div>
+
+                        <!-- Controls Panel -->
+                        <div class="sc-control-panel">
+                            <!-- File Upload -->
+                            <div class="sc-input-row">
+                                <label for="keep-alive-audio-file" class="sc-file-label">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                                    </svg>
+                                    上传本地音频
+                                </label>
+                                <input type="file" id="keep-alive-audio-file" accept="audio/*" style="display:none">
+                            </div>
+
+                            <!-- URL Load -->
+                            <div class="sc-input-row sc-url-group">
+                                <input type="text" id="keep-alive-audio-url" class="sc-url-input" placeholder="输入音频URL...">
+                                <button id="keep-alive-audio-load-url" class="sc-load-btn">加载</button>
+                            </div>
+                        </div>
+
+                        <!-- Footer Hint -->
+                        <div class="sc-hint">
+                            <div class="sc-hint-icon">!</div>
+                            <span>自动循环播放 • 后台保活中</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="settings-desc">
+            开启后会使用静默音频和定时任务等技术保持应用在后台持续运行，减少被系统清理的概率。
+        </div>
+
+        <!-- 系统级通知 -->
+        <div class="settings-header">系统级通知 <span style="font-size: 12px; color: #999; margin-left: 10px;">v2.1.8</span></div>
+        <div class="settings-section">
+            <!-- 1. 主开关 -->
+            <div class="settings-item">
+                <label>启用系统级通知</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="system-notification-enabled-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <!-- 权限状态显示 -->
+            <div class="settings-item" id="notification-permission-status" style="display:none;">
+                <label>通知权限状态</label>
+                <div class="settings-right">
+                    <span id="permission-status-text" style="color: #999;">未请求</span>
+                </div>
+            </div>
+            
+            <!-- 详细设置区域（主开关开启后显示） -->

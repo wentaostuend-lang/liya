@@ -1,1 +1,550 @@
+            <div id="system-notification-details" style="display:none;">
+                
+                <!-- 2. 应用名称 -->
+                <div class="settings-item">
+                    <label>应用显示名称</label>
+                    <div class="settings-right">
+                        <input type="text" id="system-notification-app-name" placeholder="EPhone" maxlength="20">
+                    </div>
+                </div>
+                
+                <!-- 3. 测试通知按钮 -->
+                <button class="settings-full-btn" id="test-system-notification-btn">
+                     发送测试通知
+                </button>
+                
+                <!-- 3.5 调试按钮 -->
+                <button class="settings-full-btn" id="debug-system-notification-btn" style="background: #ff9500;">
+                    调试系统通知
+                </button>
+                
+                <!-- 4. 服务器推送（高级） -->
+                <div class="settings-item">
+                    <label>启用服务器推送（高级）</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="push-server-enabled-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div id="push-server-details" style="display:none;">
+                    <div class="settings-item">
+                        <label>推送服务器地址</label>
+                        <div class="settings-right">
+                            <input type="text" id="push-server-url" placeholder="https://your-push-server.com">
+                        </div>
+                    </div>
+                    
+                    <div class="settings-item">
+                        <label>API 密钥（可选）</label>
+                        <div class="settings-right">
+                            <input type="text" id="push-server-api-key" placeholder="your-api-key">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 5. 消息震动 -->
+                <div class="settings-item">
+                    <label>消息震动</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notification-vibration-enabled-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div id="vibration-pattern-selector" style="display:none;">
+                    <div class="settings-item">
+                        <label>震动模式</label>
+                        <div class="settings-right">
+                            <select id="vibration-pattern-select">
+                                <option value="short">短震（1次）</option>
+                                <option value="medium">中震（2次）</option>
+                                <option value="long">长震（3次）</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                
+                <!-- 7. 提示音 -->
+                <div class="settings-item">
+                    <label>自定义提示音</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notification-sound-enabled-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <div id="notification-sound-details" style="display:none;">
+                    <div class="settings-item">
+                        <label>使用全局提示音</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="use-global-sound-switch" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div id="custom-sound-input-wrapper" style="display:none;">
+                        <div class="settings-item">
+                            <label>自定义提示音 URL</label>
+                            <div class="settings-right">
+                                <input type="text" id="custom-notification-sound-url" placeholder="https://...">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 8. 在聊天页面也发送系统级通知 -->
+                <div class="settings-item">
+                    <label>
+                        <span style="display: block;">在聊天页面也发送通知</span>
+                        <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;"></span>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="notify-in-chat-page-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+                <!-- 9. 禁用内部弹窗 -->
+                <div class="settings-item">
+                    <label>
+                        <span style="display: block;">仅系统级通知</span>
+                        <span style="font-size: 12px; color: var(--text-secondary); display: block; margin-top: 4px;">开启后只显示系统级通知，不显示应用内弹窗</span>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="disable-internal-notification-switch">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                
+            </div>
+        </div>
+        <div class="settings-desc">
+            系统级通知会在设备通知中心显示，支持横幅弹窗。需要授予通知权限。
+        </div>
 
+        <!-- 数据管理 (危险区域) -->
+        <div class="settings-header">数据管理</div>
+        
+        <div class="settings-section">
+            <!-- 1. 图片占用 + 压缩按钮 (同一行) -->
+            <div class="settings-item">
+                <!-- 左侧标题 -->
+                <label style="flex-shrink: 0;">本地图片占用</label>
+                
+                <!-- 右侧区域：数值 + 按钮 -->
+                <div class="data-row-right">
+                    <!-- 数值 (由JS填充，CSS会隐藏多余文字只留MB) -->
+                    <span id="total-image-size-display">计算中...</span>
+                    
+                    <!-- 压缩按钮 -->
+                    <button id="compress-images-btn" class="settings-mini-btn">压缩</button>
+                </div>
+            </div>
+            
+            <!-- 列表按钮：黑色左对齐 -->
+            <button class="settings-full-btn" id="clear-chat-images-btn">清空聊天的本地图片</button>
+            <button class="settings-full-btn" id="clear-chat-html-btn">清空聊天的HTML内容</button>
+            <button class="settings-full-btn" id="clear-api-history-btn">清空所有API历史记录</button>
+            <button class="settings-full-btn" id="clear-stickers-btn">一键清空表情包</button>
+            <button class="settings-full-btn" id="clear-album-photos-btn">清空相册图片（保留相册）</button>
+            <button class="settings-full-btn" id="clear-avatars-btn">清空本地上传的头像</button>
+            <button class="settings-full-btn" id="clear-all-images-btn" style="color:#dc3545;">一键清空所有本地图片（慎用）</button>
+            <button class="settings-full-btn" id="view-data-distribution-btn" data-lang-key="apiViewDataDistributionBtn">查看数据分布</button>
+            <button class="settings-full-btn" id="view-chats-breakdown-btn">深入分析聊天记录构成</button>
+            <button class="settings-full-btn" id="export-data-btn" data-lang-key="apiExportDataBtn">导出所有数据</button>
+            <button class="settings-full-btn" id="advanced-export-btn">高级导出导入</button>
+            <button class="settings-full-btn" id="import-btn" data-lang-key="apiImportDataBtn">导入备份文件</button>
+            <input id="advanced-import-input" type="file" accept="application/json" hidden>
+            <input id="import-data-input" type="file" accept="application/json" hidden>
+            
+            <button class="settings-full-btn" id="cleanup-data-btn">清理冗余数据</button>
+            <button class="settings-full-btn" id="delete-world-books-btn">删除世界书</button>
+            <button class="settings-full-btn" id="clear-specific-data-btn">高级数据清理</button>
+            <button class="settings-full-btn" id="check-and-fix-data-btn">数据检查与修复</button>
+            <button class="settings-full-btn" id="emergency-reset-appearance-btn" >重置当前外观</button>
+            <button class="settings-full-btn" id="factory-reset-btn" > 初始化所有内容 (慎用)</button>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>持久化存储保护</label>
+                <div class="settings-right">
+                    <button id="check-storage-persistence-btn" class="settings-mini-btn">检查状态</button>
+                </div>
+            </div>
+            <div id="storage-persistence-info" style="display:none; padding: 10px 15px; font-size: 13px; color: #666; line-height: 1.6;">
+            </div>
+        </div>
+        
+        <!-- 检查更新 -->
+        <div class="settings-header">应用更新</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>检查并更新到最新版本</label>
+                <div class="settings-right">
+                    <button id="check-update-btn" class="settings-mini-btn" onclick="ForceUpdater.checkUpdate()">检查更新</button>
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>查看更新日志</label>
+                <div class="settings-right">
+                    <button class="settings-mini-btn" onclick="window.open('update-log.html', '_blank', 'width=800,height=600')">查看日志</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 许愿/反馈 -->
+        <div class="settings-header">许愿 / 反馈</div>
+        <div class="settings-section">
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    <strong>注意：</strong>匿名反馈作者无法回复你，你也收不到回复通知。如需作者回复，请使用下方「公开反馈」。
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>匿名许愿 / 反馈</label>
+                <div class="settings-right">
+                    <a href="javascript:void(0)" onclick="showCustomAlert('功能暂时关闭', '许愿/反馈功能暂时关闭，后续可能会重新开放，敬请期待！')" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>公开反馈（可收到回复）</label>
+                <div class="settings-right">
+                    <a href="javascript:void(0)" onclick="showCustomAlert('功能暂时关闭', '许愿/反馈功能暂时关闭，后续可能会重新开放，敬请期待！')" class="settings-mini-btn" style="text-decoration: none; color: inherit;">前往</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部垫高 -->
+        <div style="height: 60px;"></div>
+      </div>
+    </div>
+<div id="import-options-modal" class="modal">
+  <div class="modal-content" style="height: auto;">
+    <div class="modal-header">
+      <span>发现备份文件</span>
+    </div>
+    <div class="modal-body">
+      <p>在此备份文件中找到了以下数据：</p>
+      <ul id="import-preview-list" style="text-align: left; margin-left: 20px; max-height: 200px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 8px;">
+        </ul>
+      <hr style="opacity: 0.2; margin: 20px 0;">
+      <p style="font-weight: bold;">请选择导入方式：</p>
+    </div>
+    <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+      <button class="save btn-danger" id="confirm-full-import-btn" style="width: 100%; background-color: #ff3b30; border-color: #ff3b30;">
+        <strong>完全导入 (覆盖所有数据)</strong>
+        <small style="display: block; font-weight: normal; opacity: 0.8;">将删除本地所有数据，并替换为备份文件中的数据。</small>
+      </button>
+      <button class="save" id="confirm-selective-import-btn" style="width: 100%;">
+        <strong>选择性导入 (合并数据)</strong>
+        <small style="display: block; font-weight: normal; opacity: 0.8;">将备份文件中的数据【添加】到您现有的数据中。</small>
+      </button>
+      <button class="cancel" id="cancel-import-options-btn" style="width: 100%; margin-top: 8px;" data-lang-key="cancel">取消</button>
+    </div>
+  </div>
+</div>
+
+<div id="selective-import-modal" class="modal">
+  <div class="modal-content" style="height: 70%;">
+    <div class="modal-header">
+      <span>选择要合并的数据</span>
+      <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px;">
+        <input type="checkbox" id="select-all-import-types"> 全选
+      </label>
+    </div>
+    <div class="modal-body" id="selective-import-list" style="padding: 0;">
+      </div>
+    <div class="modal-footer">
+      <button class="cancel" id="cancel-selective-import-btn" data-lang-key="cancel">取消</button>
+      <button class="save" id="confirm-merge-import-btn">确认合并</button>
+    </div>
+  </div>
+</div>
+    <div id="data-clear-wizard-modal" class="modal">
+      <div class="modal-content" style="height: 80%;">
+        <div id="data-clear-step-1" class="wizard-step">
+          <div class="modal-header"> <span>第一步：选择要清理的角色</span> <label> <input type="checkbox" id="select-all-chars-for-clear"> 全选 </label> </div>
+          <div class="modal-body" id="data-clear-char-list" style="padding: 0;"> </div>
+          <div class="modal-footer"> <button class="cancel" id="cancel-clear-wizard-btn-step1"data-lang-key="cancel">取消</button> <button class="save" id="go-to-clear-step2-btn">下一步</button> </div>
+        </div>
+        <div id="data-clear-step-2" class="wizard-step" style="display: none;">
+          <div class="modal-header"> <span>第二步：选择要清理的数据类型</span> <label> <input type="checkbox" id="select-all-types-for-clear"> 全选 </label> </div>
+          <div class="modal-body" id="data-clear-type-list" style="padding: 0;"> </div>
+          <div class="modal-footer"> <button class="form-button-secondary" id="back-to-clear-step1-btn" style="width: 30%; margin:0;">上一步</button> <button class="cancel" id="cancel-clear-wizard-btn-step2" style="width: 30%; margin:0;"data-lang-key="cancel">取消</button> <button class="save btn-danger"
+              id="confirm-final-clear-btn" style="width: 30%; margin:0;">确认清理</button> </div>
+        </div>
+      </div>
+    </div>
+    <div id="clear-chat-images-modal" class="modal">
+      <div class="modal-content" style="height: 70%;">
+        <div class="modal-header">
+          <span>选择要清空图片的角色</span>
+          <label>
+            <input type="checkbox" id="select-all-chars-for-image-clear"> 全选
+          </label>
+        </div>
+        <div class="modal-body" id="clear-chat-images-list" style="padding: 0;">
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-clear-images-btn">取消</button>
+          <button class="save btn-danger" id="confirm-clear-images-btn">确认清空</button>
+        </div>
+      </div>
+    </div>
+    <div id="clear-album-photos-modal" class="modal">
+      <div class="modal-content" style="height: 70%;">
+        <div class="modal-header">
+          <span>选择要清空照片的相册</span>
+          <label>
+            <input type="checkbox" id="select-all-albums-for-photo-clear"> 全选
+          </label>
+        </div>
+        <div class="modal-body" id="clear-album-photos-list" style="padding: 0;">
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-clear-album-photos-btn">取消</button>
+          <button class="save btn-danger" id="confirm-clear-album-photos-btn">确认清空</button>
+        </div>
+      </div>
+    </div>
+    <div id="account-hijack-manage-modal" class="modal">
+      <div class="modal-content" style="height: 80%;">
+        <div class="modal-header">
+          <span>顶号角色管理</span>
+          <label>
+            <input type="checkbox" id="hijack-select-all-toggle"> 全选
+          </label>
+        </div>
+        <div class="modal-body" style="padding: 0;">
+          <div style="padding: 12px 16px; background: #f9f9f9; border-bottom: 0.5px solid #ebedf0;">
+            <div style="font-size: 13px; color: var(--text-secondary, #999); margin-bottom: 8px;">批量设置（先勾选下面的角色，再点应用）</div>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <select id="hijack-batch-mode-select" class="settings-select" style="flex: 1; min-width: 110px;">
+                <option value="ai_decide">AI自主决定</option>
+                <option value="probability">按概率触发</option>
+              </select>
+              <input type="number" id="hijack-batch-probability-input" min="0" max="100" value="10" placeholder="概率%" class="settings-num-input" style="width: 70px !important; display: none;">
+              <button class="settings-mini-btn" id="hijack-batch-apply-btn">应用到已勾选</button>
+            </div>
+          </div>
+          <div id="account-hijack-char-list"></div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="hijack-manage-close-btn">关闭</button>
+        </div>
+      </div>
+    </div>
+    <div id="hijack-popup-modal" class="modal">
+      <div class="modal-content" style="max-width: 320px;">
+        <div class="modal-header">
+          <span id="hijack-popup-title">XX正在翻看你的账号</span>
+        </div>
+        <div class="modal-body" id="hijack-popup-body" style="padding: 20px; text-align: center; white-space: pre-line; line-height: 1.6;">
+          手机在TA手上，你现在要怎么办？
+        </div>
+        <div class="modal-footer" style="flex-direction: column; gap: 8px; align-items: stretch;">
+          <button class="save" id="hijack-popup-watch-btn" style="width: 100%;">我知道了，让我看看</button>
+          <button class="cancel" id="hijack-popup-ignore-btn" style="width: 100%;">不看，ta在干嘛</button>
+          <button class="cancel" id="hijack-popup-reject-btn" style="width: 100%; color: #ff3b30;">拒绝，夺回手机</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 「不看」全屏小剧场 -->
+    <div id="hijack-scene-modal" style="align-items: center; padding-top: 60px; box-sizing: border-box;">
+      <button id="hijack-scene-leave-btn" style="position: absolute; top: 16px; right: 16px; background: #f2f2f7; border: none; border-radius: 20px; padding: 8px 18px; font-size: 14px;">离开</button>
+      <div id="hijack-scene-avatar" style="width: 64px; height: 64px; border-radius: 16px; background: #f2f2f7; background-size: cover; background-position: center; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 600; color: #333; margin-top: 30px;">李</div>
+      <div id="hijack-scene-name" style="font-size: 18px; font-weight: 600; margin-top: 10px;">李川</div>
+      <div id="hijack-scene-progress" style="font-size: 13px; color: #999; margin-top: 6px;">第 1 / 3 题</div>
+      <div id="hijack-scene-narration" style="flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 22px; line-height: 1.7; padding: 40px 32px; box-sizing: border-box; cursor: pointer;"></div>
+      <div id="hijack-scene-choices" style="display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 420px; padding: 0 24px 40px; box-sizing: border-box;"></div>
+      <div id="hijack-scene-final-input-area" style="display: none; width: 100%; max-width: 420px; padding: 0 24px 40px; box-sizing: border-box; gap: 10px;">
+        <input type="text" id="hijack-scene-final-input" placeholder="说点什么..." style="flex: 1; padding: 12px 14px; border-radius: 999px; border: 1px solid #e0e0e0; font-size: 15px;">
+        <button id="hijack-scene-final-send-btn" style="padding: 12px 20px; border-radius: 999px; background: #333; color: #fff; border: none; font-size: 15px;">发送</button>
+      </div>
+    </div>
+
+    <!-- 「让我看看」实时翻看模式：顶部悬浮状态栏 -->
+    <div id="hijack-watch-topbar">
+      <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px;">
+        <span id="hijack-watch-back-btn" style="font-size: 22px; cursor: pointer;">←</span>
+        <span style="font-size: 14px; color: #666;">翻看</span>
+        <div style="display: flex; gap: 8px;">
+          <button id="hijack-watch-minimize-btn" class="settings-mini-btn">最小化</button>
+          <button id="hijack-watch-pause-btn" class="settings-mini-btn">暂停</button>
+          <button id="hijack-watch-kick-btn" class="settings-mini-btn" style="color: #ff3b30; border-color: rgba(255,59,48,0.3);">踢出</button>
+        </div>
+      </div>
+      <div class="hijack-watch-row2" style="display: flex; align-items: center; gap: 8px; padding: 8px 16px 12px; border-top: 1px solid #f5f5f5;">
+        <span style="width: 8px; height: 8px; border-radius: 50%; background: #ff3b30; display: inline-block; animation: hijackRecBlink 1s infinite;"></span>
+        <span style="font-size: 13px; font-weight: 600; color: #ff3b30;">REC</span>
+        <span id="hijack-watch-account-name" style="font-size: 13px; color: #333; flex: 1;">账号：·在操作</span>
+        <span id="hijack-watch-progress" style="font-size: 12px; color: #999;">自动翻看 1/1</span>
+      </div>
+    </div>
+    <div id="hijack-watch-bubble"></div>
+
+    <div id="clear-chat-html-modal" class="modal">
+      <div class="modal-content" style="height: 75%;">
+        <div class="modal-header">
+          <span>选择要清空HTML的聊天</span>
+          <label>
+            <input type="checkbox" id="select-all-chats-for-html-clear"> 全选
+          </label>
+        </div>
+        <div class="modal-body" style="padding: 10px;">
+          <div style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 8px;">
+            <div style="font-weight: 500; margin-bottom: 8px;">清理模式：</div>
+            <label style="display: flex; align-items: center; margin-bottom: 8px; cursor: pointer;">
+              <input type="radio" name="html-clear-mode" value="strip" checked style="margin-right: 8px;">
+              <span>剥离HTML标签（保留纯文本内容）</span>
+            </label>
+            <label style="display: flex; align-items: center; cursor: pointer;">
+              <input type="radio" name="html-clear-mode" value="delete" style="margin-right: 8px;">
+              <span>直接删除含HTML的消息</span>
+            </label>
+          </div>
+          <div id="clear-chat-html-list" style="max-height: calc(100% - 100px); overflow-y: auto;">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-clear-html-btn">取消</button>
+          <button class="save btn-danger" id="confirm-clear-html-btn">确认清空</button>
+        </div>
+      </div>
+    </div>
+    <div id="chat-list-screen" class="screen">
+      <div class="header" id="main-chat-list-header"> <span class="back-btn" onclick="showScreen('home-screen')">‹</span> <span id="chat-list-title"data-lang-key="chatListTitle">消息</span>
+        <div class="header-actions"> <span class="action-btn" id="add-group-chat-btn" title="创建群聊"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.5 17.5C19.1569 17.5 20.5 16.1569 20.5 14.5C20.5 12.8431 19.1569 11.5 17.5 11.5C15.8431 11.5 14.5 12.8431 14.5 14.5C14.5 16.1569 15.8431 17.5 17.5 17.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M21 21L19 19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M8.5 11.5C10.1569 11.5 11.5 10.1569 11.5 8.5C11.5 6.84315 10.1569 5.5 8.5 5.5C6.84315 5.5 5.5 6.84315 5.5 8.5C5.5 10.1569 6.84315 11.5 8.5 11.5Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <path d="M12.5 14.5H4.5C3.39543 14.5 2.5 15.3954 2.5 16.5V18.5H12.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg></span> <span class="action-btn" id="add-chat-btn">+</span> </div>
+      </div>
+      <div id="messages-view" class="chat-list-view active">
+        <div id="chat-list"> </div>
+      </div>
+      <div id="qzone-screen" class="chat-list-view">
+        <div class="qzone-header"> <span class="back-btn" id="qzone-back-btn">‹</span> <span data-lang-key="qzoneTitle">好友动态</span>
+          <div class="header-actions"> <span class="action-btn" id="qzone-more-actions-btn" title="更多操作">…</span> </div>
+        </div>
+        <div class="qzone-content">
+          <div class="qzone-profile-header">
+            <div id="qzone-banner-container" class="qzone-banner-container"> <img id="qzone-banner-img" src="https://files.catbox.moe/r5heyt.gif" alt="背景"> <input type="file" id="qzone-banner-input" accept="image/*" hidden> </div>
+            <div class="qzone-user-info">
+              <div id="qzone-avatar-container" class="qzone-avatar-container"> <img id="qzone-avatar-img" src="https://files.catbox.moe/q6z5fc.jpeg" alt="头像"> <input type="file" id="qzone-avatar-input" accept="image/*" hidden> </div> <span id="qzone-nickname">{{user}}</span>
+            </div>
+          </div>
+          <div class="qzone-actions-bar">
+            <div class="action-item" id="create-shuoshuo-btn"><span data-lang-key="qzoneActionShuoshuo">说说</span></div>
+            <div class="action-item" id="create-post-btn"><span data-lang-key="qzoneActionPost">动态</span></div>
+            <div class="action-item" id="open-album-btn"><span data-lang-key="qzoneActionAlbum">相册</span></div>
+          </div>
+          <div id="qzone-posts-list"></div>
+        </div>
+      </div>
+      <div id="favorites-view" class="chat-list-view">
+        <div class="header"> <span class="back-btn" id="favorites-back-btn">‹</span> <span data-lang-key="navFavorites">我的收藏</span> <span class="action-btn" id="favorites-edit-btn"data-lang-key="edit">编辑</span> </div>
+        <div class="search-bar-container"> <input type="search" id="favorites-search-input" placeholder="搜索收藏的标题、内容或作者..."> <button id="favorites-search-clear-btn" class="search-clear-btn" style="display: none;">×</button> </div>
+        <div id="favorites-list" class="list-container"> </div>
+        <div id="favorites-action-bar" style="display: none;"> 
+          <label class="select-all-label" style="display: flex; align-items: center; gap: 5px;"> 
+            <input type="checkbox" id="select-all-favorites-checkbox"> 全选 
+          </label>
+          <button id="favorites-delete-selected-btn" class="action-bar-btn">删除 (0)</button> 
+        </div>
+      </div>
+      <div id="memories-view" class="chat-list-view">
+        <div class="header"> <span class="back-btn" id="memories-back-btn">‹</span> <span>我们的回忆</span> <span class="action-btn" id="add-countdown-btn">+</span> </div>
+        <div id="memories-list" class="list-container" style="padding: 15px; display: flex; flex-direction: column; gap: 15px;"> </div>
+      </div>
+      <div id="npc-list-view" class="chat-list-view">
+        <div class="header"> <span class="back-btn" id="npc-list-back-btn">‹</span> <span>NPC 列表</span>
+          <div class="header-actions"> <span class="action-btn" id="add-npc-btn">+</span> </div>
+        </div>
+        <div id="npc-list" class="list-container" style="padding: 0;"> </div>
+      </div>
+      <div id="chat-list-bottom-nav">
+        <div class="nav-item active" data-view="messages-view"> <span data-lang-key="navMessages">消息</span> </div>
+        <div class="nav-item" data-view="qzone-screen"> <span data-lang-key="navQzone">动态</span> </div>
+        <div class="nav-item" data-view="memories-view"> <span data-lang-key="navMemories">回忆</span> </div>
+        <div class="nav-item" data-view="favorites-view"> <span data-lang-key="navFavorites">收藏</span> </div>
+        <div class="nav-item" data-view="npc-list-view"> <span data-lang-key="navNpcList">NPC</span> </div>
+      </div>
+    </div>
+    
+    <!-- 数据分析统计界面 -->
+    <div id="data-distribution-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="data-distribution-back-btn">‹</span>
+        <span>📊 数据分析统计</span>
+        <span class="action-btn" id="refresh-distribution-btn" title="刷新数据">🔄</span>
+      </div>
+      <div class="list-container" id="data-distribution-container" style="padding: 15px;">
+        <p style="text-align: center; padding: 40px 0; color: var(--text-secondary);">正在加载数据...</p>
+      </div>
+    </div>
+
+    <div id="chats-breakdown-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="chats-breakdown-back-btn">‹</span>
+        <span>🔍 聊天记录构成分析</span>
+        <span class="action-btn" id="refresh-chats-breakdown-btn" title="刷新数据">🔄</span>
+      </div>
+      <div class="list-container" id="chats-breakdown-container" style="padding: 15px;">
+        <p style="text-align: center; padding: 40px 0; color: var(--text-secondary);">正在加载数据...</p>
+      </div>
+    </div>
+    
+    <div id="album-screen" class="screen">
+      <div class="header"> <span class="back-btn" id="album-back-btn">‹</span> <span>我的相册</span> <span class="action-btn" id="create-album-btn-page">+</span> </div>
+      <div class="list-container">
+        <div id="album-grid-page"> </div>
+      </div>
+    </div>
+    <div id="album-photos-screen" class="screen">
+      <div class="header"> <span class="back-btn" id="album-photos-back-btn">‹</span> <span id="album-photos-title">相册名称</span> <span class="action-btn" id="album-upload-photo-btn">上传</span> </div>
+      <div class="list-container">
+        <div id="photos-grid-page"> </div>
+        <div id="photo-viewer-modal" class="modal"> <button id="photo-viewer-close-btn">×</button> <button id="photo-viewer-prev-btn" class="nav-arrow">‹</button>
+          <div class="photo-viewer-content"> <img id="photo-viewer-image" src="" alt="全屏照片预览"> </div> <button id="photo-viewer-next-btn" class="nav-arrow">›</button>
+        </div>
+      </div>
+    </div>
+    <div id="npc-editor-modal" class="modal">
+      <div class="modal-content" style="height: 80%;">
+        <div class="modal-header"> <span id="npc-editor-title"data-lang-key="add">添加 NPC</span> </div>
+        <div class="modal-body">
+          <div class="form-group"> <label>NPC 头像</label>
+            <div class="avatar-upload"> <img id="npc-avatar-preview" src="https://i.postimg.cc/VkQfgzGJ/1.jpg"> <button onclick="document.getElementById('npc-avatar-input').click()">上传头像</button> <input type="file" id="npc-avatar-input" accept="image/*" hidden> </div>
+          </div>
+          <div class="form-group"> <label for="npc-name-input">NPC 昵称</label> <input type="text" id="npc-name-input" placeholder="输入NPC的常用名"> </div>
+          <div class="form-group"> <label for="npc-persona-input">NPC 人设</label> <textarea id="npc-persona-input" rows="4" placeholder="详细描述这个NPC的性格、背景、说话方式等..."></textarea> </div>
+<div class="form-group" id="npc-group-section">
+            <label for="npc-group-select">NPC 分组 (用于NPC间互评)</label>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <select id="npc-group-select" style="flex-grow: 1;">
+                <option value="">-- 未分组 --</option>
+              </select>
+              <button id="manage-npc-groups-btn" type="button" class="form-button-secondary" style="margin-top: 0; padding: 12px;">管理分组</button>
+            </div>
+            <p style="font-size: 12px; font-weight: normal; color: #999; margin-top: 5px;">
+                只有在同一个分组内的NPC才能互相看见和评论对方的动态。
+            </p>
+          </div>
+          <hr style="opacity: 0.2;">
+          <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;"> <label for="npc-background-activity-switch" style="margin-bottom: 0;"> 启用独立后台活动 <p style="font-size: 12px; font-weight: normal; color: #999; margin-top: 5px;">
+                允许该NPC在后台独立发表动态评论。需同时开启API设置中的总开关。 </p> </label> <label class="toggle-switch"> <input type="checkbox" id="npc-background-activity-switch"> <span class="slider"></span> </label> </div>
+          <div class="form-group"> <label for="npc-action-cooldown-input"> 独立行动冷却 (分钟) <p style="font-size: 12px; font-weight: normal; color: #999; margin-top: 5px;"> 该NPC在后台主动行动的最小间隔。 </p> </label> <input type="number" id="npc-action-cooldown-input" min="1" value="15"
+              style="width: 80px; text-align: center;"> </div>
+          <div class="form-group"> <label>关联的角色 (NPC会去评论这些角色的动态)</label>
+            <div id="npc-association-list" style="max-height: 150px; overflow-y: auto; background: #f9f9f9; padding: 10px; border-radius: 8px;"> </div>
+          </div>
+        </div>
+        <div class="modal-footer"> <button class="cancel" id="cancel-npc-editor-btn"data-lang-key="cancel">取消</button> <button class="save" id="save-npc-btn">保存</button> </div>
+      </div>
+    </div>

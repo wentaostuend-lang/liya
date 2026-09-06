@@ -1,0 +1,599 @@
+      <div id="werewolf-role-reveal-list" style="max-height: 250px; overflow-y: auto; margin: 20px 0; border-top: 1px solid #444; padding-top: 10px;"> </div> <button id="werewolf-game-over-close-btn" class="form-button">返回大厅</button> <button id="manual-werewolf-summary-btn"
+        class="form-button form-button-secondary" style="margin-top: 10px;">手动总结记忆</button>
+    </div>
+  </div>
+  <div id="reading-library-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header"> <span>我的书库</span>
+        <div class="header-actions"> <span class="action-btn" id="import-new-book-btn-header" title="导入新书"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg> </span> <span class="action-btn" id="close-reading-library-btn-header" title="关闭"> <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg> </span> </div>
+      </div>
+      <div id="reading-library-search-container"> <input type="search" id="reading-library-search-input" placeholder="搜索书名..."> </div>
+      <div class="modal-body" style="padding: 0; flex-grow: 1; overflow-y: auto;">
+        <div id="reading-library-list"> </div>
+      </div>
+    </div>
+  </div>
+  <div id="product-category-manager-modal" class="modal">
+    <div class="modal-content" style="height: 60%;">
+      <div class="modal-header"> <span>管理商品分类</span> </div>
+      <div class="modal-body">
+        <div class="form-group"> <label>新建分类</label>
+          <div style="display: flex; gap: 10px;"> <input type="text" id="new-product-category-name-input" placeholder="输入分类名..." style="flex-grow: 1;"> <button id="add-new-product-category-btn" class="form-button" style="width: auto; margin-top: 0; padding: 0 15px;"data-lang-key="add">添加</button> </div>
+        </div>
+        <hr style="opacity: 0.2;">
+        <div id="existing-product-categories-list" style="display: flex; flex-direction: column; gap: 10px;"> </div>
+      </div>
+      <div class="modal-footer"> <button class="save" id="close-product-category-manager-btn" style="width: 100%;"data-lang-key="done">完成</button> </div>
+    </div>
+  </div>
+  <div id="variation-selection-modal" class="modal">
+    <div class="modal-content" style="width: 320px; height: auto;">
+      <div class="modal-header" style="padding-bottom: 0;"> </div>
+      <div class="modal-body">
+        <div id="variation-product-info" style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 15px;"> <img id="variation-product-image" style="width: 80px; height: 80px; border-radius: 6px; object-fit: cover;">
+          <div>
+            <p id="variation-product-name" style="font-weight: 500; margin: 0;"></p>
+            <p id="variation-selected-price" style="color: #ff5722; font-weight: bold; font-size: 18px; margin: 8px 0 0;"></p>
+          </div>
+        </div>
+        <div class="form-group"> <label>选择款式</label>
+          <div id="variation-options-container" style="display: flex; flex-wrap: wrap; gap: 8px;"> </div>
+        </div>
+        <div class="form-group"> <label>购买数量</label>
+          <div class="quantity-control" style="justify-content: flex-start;"> <button class="quantity-btn" id="variation-decrease-qty">-</button> <span class="quantity-display" id="variation-quantity-display">1</span> <button class="quantity-btn" id="variation-increase-qty">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-variation-selection-btn"data-lang-key="cancel">取消</button> <button class="save" id="confirm-variation-selection-btn">加入购物车</button> </div>
+    </div>
+  </div>
+  <div id="shopping-settings-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header"> <span>购物中心生成设置</span> </div>
+      <div class="modal-body">
+        <div class="form-group douban-settings-item"> <label for="shopping-category-count-input"> 生成分类数量 <p style="font-size: 12px; font-weight: normal; color: #999; margin-top: 5px;"> 设置AI一次性生成多少个商品分类。 </p> </label>
+          <div class="douban-settings-controls"> <input type="number" id="shopping-category-count-input" min="1" max="10" value="3"> <span>个</span> </div>
+        </div>
+        <div class="form-group douban-settings-item"> <label for="shopping-product-count-input"> 每个分类商品数量 <p style="font-size: 12px; font-weight: normal; color: #999; margin-top: 5px;"> 设置每个分类下生成多少个商品。 </p> </label>
+          <div class="douban-settings-controls"> <input type="number" id="shopping-product-count-input" min="2" max="10" value="8"> <span>个</span> </div>
+        </div>
+      </div>
+      <div class="modal-footer"> <button class="cancel" id="cancel-shopping-settings-btn"data-lang-key="cancel">取消</button> <button class="save" id="save-shopping-settings-btn"data-lang-key="save">保存</button> </div>
+    </div>
+  </div>
+  <div id="sticker-binding-modal" class="modal">
+    <div class="modal-content" style="height: 70%;">
+      <div class="modal-header">
+        <span>绑定分类到聊天</span>
+      </div>
+      <div class="modal-body" id="sticker-binding-chat-list" style="padding: 0;">
+        <!-- 聊天列表将在此处动态渲染 -->
+      </div>
+      <div class="modal-footer">
+        <button class="cancel" id="cancel-sticker-binding-btn"data-lang-key="cancel">取消</button>
+        <button class="save" id="save-sticker-binding-btn"data-lang-key="save">保存</button>
+      </div>
+    </div>
+  </div>
+<!-- ▼▼▼ NovelAI 生成设置弹窗 ▼▼▼ -->
+<div id="novelai-settings-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px; width: 90%; max-height: 85vh; overflow-y: auto;">
+        <div class="modal-header">
+            <span>NovelAI 生成设置</span>
+            <span class="close" id="close-novelai-settings" style="cursor: pointer; float: right; font-size: 28px; font-weight: bold;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+           <div class="settings-section" style="background-color: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+    <div style="font-weight: 600; margin-bottom: 10px; color: #333;">🎨 风格预设与绑定</div>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <select id="nai-preset-select" class="settings-select" style="flex-grow: 1; border: 1px solid #ccc; padding: 8px; border-radius: 6px;">
+            <option value="">-- 当前临时设置 --</option>
+        </select>
+    </div>
+    
+    <div style="display: flex; gap: 8px; align-items: center; justify-content: flex-end;">
+    <button id="save-nai-preset-btn" class="settings-mini-btn">新增</button>
+    
+    <button id="update-nai-preset-btn" class="settings-mini-btn" style="display:none;">更新</button>
+    
+    <button id="bind-nai-preset-btn" class="settings-mini-btn" style="display:none; background-color: #e3f2fd; color: #1976d2; border-color: #bbdefb;">🔗绑定</button>
+    
+    <button id="delete-nai-preset-btn" class="settings-mini-btn" style="color: #ff3b30; border-color: #ff3b30; display:none;">删除</button>
+</div>
+    
+    <p style="font-size: 12px; color: #888; margin-top: 8px; margin-bottom: 0;">* 绑定后，该角色生图时将强制使用此预设。</p>
+</div>
+            <div class="form-group">
+                <label style="color: #333;">图像尺寸（oplus可无限出小图）</label>
+                <select id="nai-resolution" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                    <optgroup label="小">
+                        <option value="512x768">纵向 (512x768)</option>
+                        <option value="768x512">横向 (768x512)</option>
+                        <option value="640x640">正方形 (640x640)</option>
+                    </optgroup>
+                    <optgroup label="正常">
+                        <option value="832x1216">竖图 (832x1216)</option>
+                        <option value="1216x832">横图 (1216x832)</option>
+                        <option value="1024x1024" selected>方图 (1024x1024)</option>
+                    </optgroup>
+                    <optgroup label="壁纸">
+                        <option value="1088x1920">纵向 (1088x1920)</option>
+                        <option value="1920x1088">风景 (1920x1088)</option>
+                    </optgroup>
+                </select>
+                <small style="color: #666;">建议使用官方支持的标准尺寸以获得最佳效果</small>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">采样步数 (Steps)</label>
+                <input type="number" id="nai-steps" value="28" min="1" max="50" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                <small style="color: #666;">推荐值: 28 (值越高质量越好但耗时越长)</small>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">提示词相关性 (CFG Scale)</label>
+                <input type="number" id="nai-cfg-scale" value="5" min="1" max="20" step="0.5" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                <small style="color: #666;">推荐值: 5 (控制图像与提示词的相关程度)</small>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">采样器 (Sampler)</label>
+                <select id="nai-sampler" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                    <option value="k_euler">Euler</option>
+                    <option value="k_euler_ancestral" selected>Euler Ancestral</option>
+                    <option value="k_dpmpp_2s_ancestral">DPM++ 2S Ancestral</option>
+                    <option value="k_dpmpp_2m">DPM++ 2M</option>
+                    <option value="k_dpmpp_sde">DPM++ SDE</option>
+                    <option value="ddim">DDIM</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">随机种子 (Seed)</label>
+                <input type="number" id="nai-seed" value="-1" min="-1" max="9999999999" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                <small style="color: #666;">-1 表示随机，固定种子可复现相同图像</small>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">负面提示词预设 (UC Preset)</label>
+                <select id="nai-uc-preset" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                    <option value="0">Preset 0 - Heavy</option>
+                    <option value="1" selected>Preset 1 - Light</option>
+                    <option value="2">Preset 2 - Human Focus</option>
+                    <option value="3">Preset 3 - None</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">质量标签</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="nai-quality-toggle" checked style="width: auto;">
+                    <span style="color: #666; font-size: 14px;">自动添加质量提升标签</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">SMEA (提升细节)</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="nai-smea" checked style="width: auto;">
+                    <span style="color: #666; font-size: 14px;">启用SMEA增强</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">SMEA DYN (动态优化)</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="nai-smea-dyn" style="width: auto;">
+                    <span style="color: #666; font-size: 14px;">启用动态SMEA</span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">默认正面提示词</label>
+                <textarea id="nai-default-positive" rows="3" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px; resize: vertical;" placeholder="masterpiece, best quality, 1girl, beautiful...">masterpiece, best quality, 1girl, beautiful, detailed face, detailed eyes, long hair, anime style</textarea>
+                <small style="color: #666;">此提示词将在生成时自动使用（如果测试弹窗中未填写）</small>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">默认负面提示词</label>
+                <textarea id="nai-default-negative" rows="3" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px; resize: vertical;" placeholder="lowres, bad anatomy, bad hands, text, error...">lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry</textarea>
+            </div>
+
+            <div class="form-group" style="border-top: 1px solid #ddd; padding-top: 15px; margin-top: 15px;">
+                <label style="color: #333;">🌐 CORS 代理设置</label>
+                <select id="nai-cors-proxy" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                    <option value="">❌ 直连（无代理）</option>
+                    <option value="https://corsproxy.io/?" selected>✅ corsproxy.io（推荐）</option>
+                    <option value="https://api.allorigins.win/raw?url=">allorigins.win</option>
+                    <option value="https://cors-anywhere.herokuapp.com/">cors-anywhere（需激活）</option>
+                    <option value="custom">🔧 自定义代理</option>
+                </select>
+                <small style="color: #e74c3c; display: block; margin-top: 8px;">
+                    ⚠️ 本地运行会遇到CORS跨域问题，需使用代理。推荐使用 corsproxy.io
+                </small>
+            </div>
+
+            <div id="nai-custom-proxy-group" class="form-group" style="display: none;">
+                <label style="color: #333;">自定义代理地址</label>
+                <input type="text" id="nai-custom-proxy-url" placeholder="https://your-proxy.com/?" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 8px; width: 100%; border-radius: 4px;">
+                <small style="color: #666;">代理URL应以 / 或 ? 结尾，例如：https://proxy.com/?</small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="reset-nai-settings-btn" class="form-button form-button-secondary" style="margin-right: 10px;">恢复默认</button>
+            <button id="save-nai-settings-btn" class="form-button form-button-secondary"data-lang-key="save">保存设置</button>
+        </div>
+    </div>
+</div>
+<!-- ▲▲▲ NovelAI 生成设置弹窗结束 ▲▲▲ -->
+
+<!-- ▼▼▼ NovelAI 测试生成弹窗 ▼▼▼ -->
+<div id="novelai-test-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <span>🖼️ NovelAI 测试生成</span>
+            <span class="close" id="close-novelai-test" style="cursor: pointer; float: right; font-size: 28px; font-weight: bold;">&times;</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            <div class="form-group">
+                <label style="color: #333;">正面提示词（此处提示词仅用于该弹窗测试）</label>
+                <textarea id="nai-test-prompt" rows="4" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 10px; width: 100%; border-radius: 4px; resize: vertical;" placeholder="1girl, solo, long hair, blue eyes, smile...">1girl, solo, long hair, blue eyes, smile, outdoors, cherry blossoms, spring</textarea>
+            </div>
+
+            <div class="form-group">
+                <label style="color: #333;">负面提示词（可选，留空使用默认）</label>
+                <textarea id="nai-test-negative" rows="3" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 10px; width: 100%; border-radius: 4px; resize: vertical;" placeholder="留空将使用设置中的默认负面提示词"></textarea>
+            </div>
+
+            <div style="text-align: center; margin: 20px 0;">
+                <button id="nai-generate-btn" style="background-color: #007bff; color: white; border: none; padding: 12px 30px; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                    生成图像
+                </button>
+            </div>
+
+            <div id="nai-test-status" style="text-align: center; color: #666; margin: 15px 0; display: none;">
+                正在生成中，请稍候...
+            </div>
+
+            <div id="nai-test-result" style="display: none; margin-top: 20px;">
+                <div style="font-weight: bold; color: #333; margin-bottom: 10px;">生成结果：</div>
+                <div style="text-align: center; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                    <img id="nai-result-image" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                </div>
+                <div style="margin-top: 10px; text-align: center;">
+                    <button id="nai-download-btn" class="form-button-secondary" style="margin: 0;">下载图像</button>
+                </div>
+            </div>
+
+            <div id="nai-test-error" style="display: none; margin-top: 15px; padding: 12px; background: #f8d7da; color: #721c24; border-radius: 6px; border: 1px solid #f5c6cb;"></div>
+        </div>
+        <div class="modal-footer">
+            <button id="close-nai-test-btn" class="form-button">关闭</button>
+        </div>
+    </div>
+</div>
+<!-- ▲▲▲ NovelAI 测试生成弹窗结束 ▲▲▲ -->
+
+<!-- ▼▼▼ 角色专属NAI出图设置弹窗 ▼▼▼ -->
+<div id="character-nai-prompts-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>角色专属NAI提示词配置</span>
+            <span class="close" id="close-character-nai-prompts" style="cursor: pointer; float: right; font-size: 28px; font-weight: bold;">&times;</span>
+        </div>
+        <div class="modal-body">
+            <p style="font-size: 13px; color: #666; margin-bottom: 20px; background-color: #f0f8ff; padding: 12px; border-radius: 6px; border-left: 3px solid #007bff;">
+                💡 这里配置的提示词仅用于当前角色的NAI出图，不影响其他角色或系统设置
+            </p>
+            
+            <div class="form-group">
+                <label for="character-nai-positive" style="color: #333; font-weight: 600;">
+                    正面提示词 (Positive Prompt)
+                </label>
+                <textarea id="character-nai-positive" rows="4" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 10px; width: 100%; border-radius: 4px; resize: vertical; font-size: 13px;" placeholder="例如: masterpiece, best quality, 1girl, beautiful, detailed face, detailed eyes, long hair, anime style"></textarea>
+                <small style="display: block; color: #666; font-size: 12px; margin-top: 5px;">
+                    描述你希望生成的图像风格，可填入画师串
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label for="character-nai-negative" style="color: #333; font-weight: 600;">
+                    负面提示词 (Negative Prompt)
+                </label>
+                <textarea id="character-nai-negative" rows="4" style="background-color: #f8f9fa; color: #333; border: 1px solid #ccc; padding: 10px; width: 100%; border-radius: 4px; resize: vertical; font-size: 13px;" placeholder="例如: lowres, bad anatomy, bad hands, text, error, missing fingers"></textarea>
+                <small style="display: block; color: #666; font-size: 12px; margin-top: 5px;">
+                    描述你希望避免的元素
+                </small>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="reset-character-nai-prompts-btn" class="form-button form-button-secondary" style="margin-right: 10px;">清空配置</button>
+            <button id="save-character-nai-prompts-btn" class="form-button form-button-secondary"data-lang-key="save">保存</button>
+        </div>
+    </div>
+</div>
+<!-- ▲▲▲ 角色专属NAI出图设置弹窗结束 ▲▲▲ -->
+<div id="npc-group-manager-modal" class="modal">
+  <div class="modal-content" style="height: 60%;">
+    <div class="modal-header"> <span>管理NPC分组</span> </div>
+    <div class="modal-body">
+      <div class="form-group"> <label>新建分组</label>
+        <div style="display: flex; gap: 10px;"> <input type="text" id="new-npc-group-name-input" placeholder="输入分组名 (例如: 家人组, 朋友组)..." style="flex-grow: 1;"> <button id="add-new-npc-group-btn" class="form-button" style="width: auto; margin-top: 0; padding: 0 15px;"data-lang-key="add">添加</button> </div>
+      </div>
+      <hr style="opacity: 0.2;">
+      <div id="existing-npc-groups-list" style="display: flex; flex-direction: column; gap: 10px;"> </div>
+    </div>
+    <div class="modal-footer"> <button class="save" id="close-npc-group-manager-btn" style="width: 100%;"data-lang-key="done">完成</button> </div>
+  </div>
+</div>
+<div id="pin-modal-overlay" class="modal">
+    <div id="pin-modal-content" class="modal-content" style="width: 300px; height: auto;">
+        <div class="modal-header">
+            <span>功能激活</span>
+        </div>
+        <div class="modal-body" style="text-align: left;">
+            <p>此功能需要激活码 (PIN) 才能使用。</p>
+            
+            <div class="form-group">
+                <label for="pin-device-id-display">您的设备ID (请去尾巴镇角色卡中获取，还有解密没直接给网址，按照要求去搜索就好了，以下数字即为你的设备码)</label>
+                <input type="text" id="pin-device-id-display" readonly style="background: #eee; cursor: text; -webkit-user-select: text; user-select: text;">
+            </div>
+            
+            <div class="form-group">
+                <label for="pin-input">请输入激活码 (PIN)</label>
+                <input type="text" id="pin-input" placeholder="在此输入激活码...">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="cancel" id="pin-modal-cancel-btn">取消</button>
+            <button class="save" id="pin-modal-confirm-btn">确认激活</button>
+        </div>
+    </div>
+</div>
+<div id="quick-reply-modal" class="modal">
+    <div class="modal-content" style="height: 70%; position: relative;"> <div class="modal-header">
+            <span>快捷回复</span>
+            <div class="header-actions">
+                <button id="batch-quick-reply-btn" class="action-button" style="font-size: 14px; margin-right: 10px;">批量</button>
+                <button id="manage-quick-reply-categories-btn" class="action-button" style="font-size: 14px; margin-right: 10px;">分类</button>
+                <button id="add-quick-reply-btn" class="action-button" style="font-size: 26px; color: var(--accent-color); font-weight: 300; cursor: pointer; background: none; border: none; padding: 0 5px;">+</button>
+            </div>
+        </div>
+        
+        <div id="quick-reply-tabs" style="display: flex; overflow-x: auto; padding: 0 15px; flex-shrink: 0; border-bottom: 1px solid var(--border-color); background-color: var(--secondary-bg); -ms-overflow-style: none; scrollbar-width: none;">
+        </div>
+
+        <div class="modal-body" id="quick-reply-list" style="padding: 0; display: flex; flex-direction: column; padding-bottom: 60px;"> </div>
+
+        <div id="quick-reply-action-bar" style="display: none; position: absolute; bottom: 0; left: 0; width: 100%; padding: 10px 15px; background: rgba(255,255,255,0.95); border-top: 1px solid #eee; box-sizing: border-box; justify-content: space-between; align-items: center; z-index: 10;">
+            <label style="display: flex; align-items: center; gap: 5px;">
+                <input type="checkbox" id="select-all-quick-replies-checkbox"> 全选
+            </label>
+            <div style="display: flex; gap: 8px;">
+                <button id="move-selected-quick-replies-btn" class="settings-mini-btn" style="background-color: #ff9800; color: white; border: none;">移动 (0)</button>
+                <button id="delete-selected-quick-replies-btn" class="settings-mini-btn" style="background-color: #ff3b30; color: white; border: none;">删除 (0)</button>
+            </div>
+        </div>
+
+        <div class="modal-footer" id="quick-reply-normal-footer">
+            <button class="cancel" id="cancel-quick-reply-btn" style="width: 100%;">关闭</button>
+        </div>
+    </div>
+</div>
+<div id="quick-reply-category-manager-modal" class="modal">
+    <div class="modal-content" style="height: 60%;">
+        <div class="modal-header"> <span>管理回复分类</span> </div>
+        <div class="modal-body">
+            <div class="form-group"> <label>新建分类</label>
+                <div style="display: flex; gap: 10px;"> 
+                    <input type="text" id="new-quick-reply-category-name-input" placeholder="输入分类名..." style="flex-grow: 1;"> 
+                    <button id="add-new-quick-reply-category-btn" class="form-button" style="width: auto; margin-top: 0; padding: 0 15px;" data-lang-key="add">添加</button> 
+                </div>
+            </div>
+            <hr style="opacity: 0.2;">
+            <div id="existing-quick-reply-categories-list" style="display: flex; flex-direction: column; gap: 10px;"> 
+                </div>
+        </div>
+        <div class="modal-footer"> 
+            <button class="save" id="close-quick-reply-category-manager-btn" style="width: 100%;" data-lang-key="done">完成</button> 
+        </div>
+    </div>
+</div>
+<div id="char-music-restore-btn" style="display: none;">
+  <img src="https://static.eeo.cn/upload/images/20251114/78d48a9f1d73b2bc6003.png" alt="Restore Music" style="width: 100%; height: 100%; ">
+  </div>
+<div id="video-call-restore-btn" style="display: none;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7"></polygon>
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+    </svg>
+</div>
+<div id="voice-call-restore-btn" style="display: none;">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </svg>
+</div>
+<div id="char-music-player-modal" class="modal">
+        <div class="modal-content">
+          <button id="minimize-char-music-btn" class="char-player-minimize-btn" title="最小化">
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round">
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+</button>
+          <div class="char-player-body">
+            <div class="char-player-song-info">
+              <p id="char-music-player-title">歌曲名称</p>
+              <p id="char-music-artist">歌手</p>
+            </div>
+            <div id="char-vinyl-container"> <img id="char-music-cover" src=""> </div>
+            <div id="char-music-lyrics"> </div>
+            <div class="char-player-footer">
+              <div class="char-player-progress-bar-container"> <span id="char-music-current-time" class="time-display">0:00</span>
+                <div id="char-music-progress-bar" class="char-player-progress-bar">
+                  <div id="char-music-progress-fill"></div>
+                </div> <span id="char-music-total-time" class="time-display">0:00</span>
+              </div>
+              <div class="char-player-controls"> <button id="char-music-prev-btn" class="control-btn"> <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path>
+                  </svg> </button> <button id="char-music-play-pause-btn" class="control-btn play"> <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+                    <path d="M8 5v14l11-7z"></path>
+                  </svg> </button> <button id="char-music-next-btn" class="control-btn"> <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                    <path d="M16 6h2v12h-2zm-3.5 6l-8.5 6V6z"></path>
+                  </svg> </button> <button id="char-music-mode-btn" class="control-btn mode">顺序</button> </div>
+            </div>
+          </div> <button id="close-char-music-player-btn" class="char-player-close-btn">×</button>
+        </div>
+      </div>
+<!-- 新增：亲属卡赠送专属弹窗 -->
+<div id="kinship-creation-modal" class="modal">
+  <div class="modal-content" style="height: 70%; display: flex; flex-direction: column;">
+    <div class="modal-header">
+      <span>赠送亲属卡</span>
+    </div>
+    
+    <!-- 中间部分：分为上面的角色列表和下面的金额输入 -->
+    <div class="modal-body" style="padding: 0; flex-grow: 1; display: flex; flex-direction: column; overflow: hidden;">
+      
+      <!-- 提示语 -->
+      <div style="padding: 10px 15px; background-color: #f5f5f7; color: #666; font-size: 13px; border-bottom: 1px solid var(--border-color);">
+        请选择赠予对象 (单选)
+      </div>
+
+      <!-- 角色列表区域 (复用清理数据的样式) -->
+      <div id="kinship-char-list" style="flex-grow: 1; overflow-y: auto;">
+        <!-- JS 动态填充 -->
+      </div>
+
+      <!-- 金额输入区域 -->
+      <div style="padding: 20px; background-color: #fff; border-top: 1px solid var(--border-color); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 2;">
+        <div class="form-group" style="margin-bottom: 0;">
+          <label for="kinship-limit-input" style="font-weight: 600;">每月消费额度</label>
+          <div style="position: relative; display: flex; align-items: center;">
+             <span style="font-size: 20px; font-weight: bold; margin-right: 5px;">¥</span>
+             <input type="number" id="kinship-limit-input" value="5200" placeholder="请输入金额" 
+                    style="font-size: 24px; font-weight: bold; color: #ff1744; border: none; border-bottom: 1px solid #ddd; border-radius: 0; padding: 5px 0; background: transparent;">
+          </div>
+          <p style="font-size: 12px; color: #999; margin-top: 8px;">优先扣除亲属卡额度，超出部分由对方自付。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="cancel" id="cancel-kinship-creation-btn" data-lang-key="cancel">取消</button>
+      <button class="save" id="confirm-kinship-creation-btn" style="background: linear-gradient(135deg, #ff5252, #ff1744); border: none;">确认赠送</button>
+    </div>
+  </div>
+</div>
+<div id="inventory-modal" class="modal">
+    <div class="modal-content" style="height: 70%; background-color: #1c1c1e; color: #e0e0e0; border: 1px solid #333;">
+        <div class="modal-header" style="border-bottom: 1px solid #333; color: #d4af37;">
+            <span>我的藏品</span>
+            <span class="action-btn" onclick="closeInventoryModal()" style="font-size: 20px;">×</span>
+        </div>
+        <div class="modal-body" id="inventory-list" style="padding: 15px; overflow-y: auto;">
+            </div>
+    </div>
+</div>
+<div id="todo-editor-modal" class="modal">
+    <div class="modal-content" style="height: auto;">
+        <div class="modal-header">
+            <span id="todo-editor-title">添加事项</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>内容</label>
+                <input type="text" id="todo-content-input" placeholder="例如：记得吃药、下午开会">
+            </div>
+            <div class="form-group">
+                <label>类型/标签</label>
+                <div class="todo-type-selector" id="todo-type-options">
+                    <span class="todo-type-option active" data-value="日常" style="--tag-color: #8e8e93;">日常</span>
+                    <span class="todo-type-option" data-value="工作" style="--tag-color: #007aff;">工作</span>
+                    <span class="todo-type-option" data-value="重要" style="--tag-color: #ff3b30;">重要</span>
+                    <span class="todo-type-option" data-value="生活" style="--tag-color: #34c759;">生活</span>
+                    <span class="todo-type-option" data-value="约会" style="--tag-color: #af52de;">约会</span>
+                    <span class="todo-type-option" data-value="记账" style="--tag-color: #ffc107;">记账</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>日期</label>
+                <input type="date" id="todo-date-input">
+            </div>
+            <div class="form-group">
+                <label>具体时间 (可选)</label>
+                <input type="time" id="todo-time-input">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="cancel" id="cancel-todo-editor-btn">取消</button>
+            <button class="save" id="save-todo-btn">保存</button>
+        </div>
+    </div>
+</div>
+<div id="gr-settings-modal" class="modal">
+    <div class="modal-content" style="height: 85%; background-color: #FAFAF9;">
+        <div class="gr-header" style="background: transparent; padding: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <span class="gr-title" style="color: #1B4F3E;">作品设定</span>
+            <button id="gr-export-txt-btn" style="display: none; background: #1B4F3E; color: white; border: none; border-radius: 4px; padding: 6px 12px; font-size: 13px; cursor: pointer;">导出TXT</button>
+        </div>
+        <div class="modal-body" style="padding: 0 20px;">
+            <div class="gr-form-group">
+                <label>书名</label>
+                <input type="text" id="gr-story-title" class="gr-input" placeholder="请输入书名">
+            </div>
+            <div class="gr-form-group">
+    <label>宏大世界观 / IF线设定 (Macro World View)</label>
+    <textarea id="gr-macro-world-view" class="gr-input" rows="3" placeholder="在此输入核心设定。例如：'民国军阀背景，Char是少帅，User是进步学生'，或者 'ABO设定，Char是Enigma'。此设定优先级最高。"></textarea>
+</div>
+            <div class="gr-form-group">
+                <label>指定作者 (文风)</label>
+                <select id="gr-author-select" class="gr-select"></select>
+            </div>
+
+            <div class="gr-form-group">
+                <label>登场角色 (Chat/NPC/群聊)</label>
+                <div class="gr-checkbox-list" id="gr-char-list"></div>
+            </div>
+
+            <div class="gr-form-group">
+                <label>世界观 (World Book)</label>
+                <div class="gr-checkbox-list" id="gr-worldbook-list"></div>
+            </div>
+            
+             <div class="gr-form-group">
+                <label>我的身份 (User Persona)</label>
+                <select id="gr-user-persona-select" class="gr-select">
+                     <option value="">使用默认</option>
+                </select>
+            </div>
+
+            <div class="gr-form-group">
+                <label>单次生成字数 (Token)</label>
+                <input type="number" id="gr-output-length" class="gr-input" value="500">
+            </div>
+             <div class="gr-form-group">
+                <label>上下文引用条数 (History)</label>
+                <input type="number" id="gr-context-limit" class="gr-input" value="20">
+            </div>
+
+            <div class="gr-form-group">
+                <label style="display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+                    <span>💬 生成时开启读者评论</span>
+                    <input type="checkbox" id="gr-reader-comments-enabled" style="width: 44px; height: 24px; cursor: pointer;">
+                </label>
+                <div style="font-size: 12px; color: #999; margin-top: 5px;">续写或追更时，AI 会在部分段落后生成模拟读者评论，阅读时点击段尾气泡可查看</div>
+            </div>
+
+        </div>
+        <div class="modal-footer" style="border-top: 1px solid #E5E5E5;">
+            <button class="cancel" id="gr-cancel-settings-btn" style="color: #666;">取消</button>
+            <button class="save" id="gr-save-story-btn" style="background: #1B4F3E; border: none;">开始创作</button>
+        </div>
+    </div>
+</div>

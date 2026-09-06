@@ -1,0 +1,563 @@
+                <div id="ai-birthday-input-group" style="display: none; padding: 8px 0;">
+                    <label style="margin-bottom: 5px; display: block; font-size: 12px; color: var(--text-secondary);">设置角色出生日期，将根据当前时间自动计算岁数</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="number" id="ai-birthday-year" placeholder="年 (如:2000)" class="settings-num-input" style="flex: 1;">
+                        <input type="number" id="ai-birthday-month" placeholder="月" min="1" max="12" class="settings-num-input" style="flex: 1;">
+                        <input type="number" id="ai-birthday-day" placeholder="日" min="1" max="31" class="settings-num-input" style="flex: 1;">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-item-block" id="my-persona-group">
+                <label style="display: flex; justify-content: space-between; align-items: center;">
+                    我的人设 (My Persona)
+                    <button type="button" onclick="openFullscreenEditor('my-persona', '我的人设')" title="放大编辑" style="background: none; border: none; cursor: pointer; color: #888; padding: 4px; display: flex; align-items: center; justify-content: center;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                    </button>
+                </label>
+                <textarea id="my-persona" rows="3" class="settings-textarea" placeholder="输入你的角色设定..."></textarea>
+            </div>
+            
+            <div class="settings-item-block" id="proactive-reply-group">
+                <label>主动回复间隔</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">当距离AI上次回复超过N小时后，进入聊天会自动触发AI主动回复。输入0可关闭。</div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <input type="number" id="proactive-reply-hours-input" min="0" step="1" style="width:80px; text-align:center;" placeholder="12">
+                    <span>小时</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; height: 30px;">
+                    <label for="proactive-day-summary-toggle" style="line-height: 30px;">多日摘要压缩</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="proactive-day-summary-toggle" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="settings-desc" style="margin-top: 4px;">间隔超过48小时时，先生成一份逐日大纲再展开消息，避免间隔太久时AI偷懒把内容压缩成"仿佛只过了一小会儿"。关闭则直接按原来的方式生成。</div>
+                <button id="test-proactive-reply-btn" class="settings-full-btn" style="margin-top:10px;">🧪 立即测试(跳过等待,不影响正式设置)</button>
+            </div>
+            <div class="settings-item-block" id="send-translate-group">
+                <label>发送语言翻译</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">选择后，你打字发送的内容会先自动翻译成对应语言(母语级别的自然翻译)再发出去，角色看到的就是翻译后的内容。选"不翻译"就是照常发中文原文。</div>
+                <select id="send-translate-language-select">
+                    <option value="">不翻译(发送原文)</option>
+                    <option value="ja">日语</option>
+                    <option value="en">英语</option>
+                    <option value="ko">韩语</option>
+                    <option value="fr">法语</option>
+                    <option value="de">德语</option>
+                    <option value="es">西班牙语</option>
+                    <option value="ru">俄语</option>
+                    <option value="zh-TW">繁体中文</option>
+                </select>
+            </div>
+            <div class="settings-item-block" id="group-members-group">
+                <label>群成员管理</label>
+                <div id="group-members-settings" class="horizontal-scroll-list"></div> 
+                <button id="manage-members-btn" class="settings-full-btn">管理所有群成员</button>
+            </div>
+            <div class="settings-item-block" id="chat-banned-words-group">
+                <label>本聊天专属屏蔽词</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">这里加的词只对当前这个聊天生效，全局屏蔽词在主屏幕"屏蔽词"里管理。</div>
+                <button id="open-chat-banned-words-btn" class="settings-full-btn">管理本聊天屏蔽词</button>
+            </div>
+            <div class="settings-item-block" id="spectator-memory-settings-group" style="display: none;">
+                <label>旁观记忆设置</label>
+                <div class="settings-desc" style="margin-bottom: 8px;">选择在旁观剧情中保留与您有关的长期记忆的角色；未选中的角色不会带入与您的记忆，不会 @ 您。</div>
+                <button id="spectator-memory-settings-btn" class="settings-full-btn">设置哪些角色保留与用户的记忆</button>
+            </div>
+            
+            <div class="settings-item" id="switch-greeting-group" style="display: none;">
+                 <label>开场白</label>
+                 <div class="settings-right">
+                     <!-- 升级为实体按钮样式 -->
+                     <button id="switch-greeting-btn" class="settings-mini-btn">切换开场故事</button>
+                 </div>
+            </div>
+            
+            <div class="settings-item-block" id="world-book-link-group"> 
+                <label>关联世界书</label>
+                <div class="custom-multiselect" style="margin-top: 5px; position: relative;">
+                    <div class="select-box"> <span class="selected-options-text">-- 点击选择 --</span> <span class="arrow-down">▼</span> </div>
+                    <div id="world-book-checkboxes-container" class="checkboxes-container"> </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三组：模型与智能设置 -->
+        <div class="settings-section">
+            <!-- 单聊独立后台 -->
+            <div id="single-char-background-activity-group">
+                
+                <!-- 回复条数范围 (仅单聊) -->
+                <div class="settings-item" id="reply-count-range-group" style="display: none; flex-direction: row !important; justify-content: space-between !important; align-items: center !important;">
+                    <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                        <label style="margin-bottom: 2px;">回复条数范围</label>
+                        <div class="settings-desc">设置AI每次回复的消息条数</div>
+                    </div>
+                    <label class="toggle-switch" style="margin: 0;"> 
+                        <input type="checkbox" id="enable-reply-count-range-toggle"> 
+                        <span class="slider"></span> 
+                    </label>
+                </div>
+                
+                <div id="reply-count-range-config" style="display: none; padding: 0 16px 16px 16px;">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: #666;">条数范围:</span>
+                        <input type="number" id="min-reply-count-input" min="1" max="20" value="2" class="settings-num-input" style="width: 60px;">
+                        <span>-</span>
+                        <input type="number" id="max-reply-count-input" min="1" max="20" value="5" class="settings-num-input" style="width: 60px;">
+                        <span style="font-size: 13px; color: #666;">条</span>
+                    </div>
+                    <div style="font-size: 11px; color: #999; line-height: 1.5;">
+                        💡 AI会根据对话情境，在设定范围内自然地分成多条消息发送，让对话更生动。建议设置2-5条。
+                    </div>
+                </div>
+                
+                <!-- 注入最新心声 -->
+                <div class="settings-item" id="inject-thought-group" style="display: flex !important; justify-content: space-between !important; align-items: center !important; flex-direction: row !important;">
+                    <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                        <label style="margin-bottom: 2px;">注入最新心声</label>
+                        <div class="settings-desc">回复前注入上一轮的内心独白</div>
+                    </div>
+                    <label class="toggle-switch" style="margin: 0;"> 
+                        <input type="checkbox" id="inject-thought-toggle"> 
+                        <span class="slider"></span> 
+                    </label>
+                </div>
+                
+                <!-- 启用独立后台活动 -->
+                <div class="settings-item" style="display: flex !important; justify-content: space-between !important; align-items: center !important; flex-direction: row !important;">
+                     <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                        <label style="margin-bottom: 2px;">启用独立后台活动</label>
+                        <div class="settings-desc">允许角色在后台主动发消息</div>
+                    </div>
+                    <label class="toggle-switch" style="margin: 0;"> 
+                        <input type="checkbox" id="char-background-activity-switch"> 
+                        <span class="slider"></span> 
+                    </label>
+                </div>
+
+                <!-- 允许角色清空购物车 -->
+                <div class="settings-item" style="display: flex !important; justify-content: space-between !important; align-items: center !important; flex-direction: row !important;">
+                     <div style="flex: 1; padding-right: 10px; display: flex; flex-direction: column; align-items: flex-start;">
+                        <label style="margin-bottom: 2px;">允许自动清空购物车</label>
+                        <div class="settings-desc">角色可用自己的余额帮你清空购物车</div>
+                    </div>
+                    <label class="toggle-switch" style="margin: 0;"> 
+                        <input type="checkbox" id="char-auto-cart-clear-switch"> 
+                        <span class="slider"></span> 
+                    </label>
+                </div>
+                
+                <!-- 后台查看用户手机 -->
+                <div class="settings-item" style="display: flex !important; justify-content: space-between !important; align-items: center !important; flex-direction: row !important;">
+                    <label>后台查看用户手机</label>
+                    <select id="char-view-myphone-bg-select" style="width: auto; min-width: 100px; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--secondary-bg); color: var(--text-color);">
+                        <option value="null">跟随全局</option>
+                        <option value="true">开启</option>
+                        <option value="false">关闭</option>
+                    </select>
+                </div>
+                
+                <!-- 查看概率 -->
+                <div class="settings-item">
+                    <label>查看概率 (%)</label>
+                    <div class="settings-right">
+                        <input type="number" id="char-view-myphone-chance-input" min="0" max="100" placeholder="留空=使用全局" class="settings-num-input">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 群聊后台 -->
+            <div class="settings-item" id="group-background-activity-group">
+                 <div>
+                    <label>启用群内后台活动</label>
+                    <div class="settings-desc">允许AI在群内自由互动</div>
+                </div>
+                <label class="toggle-switch"> <input type="checkbox" id="group-background-activity-switch"> <span class="slider"></span> </label>
+            </div>
+
+            <!-- 冷却时间 -->
+            <div class="settings-item" id="ai-cooldown-group">
+                <label>独立行动冷却 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="ai-action-cooldown-input" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="ai-random-interval-min-group">
+                <label>随机间隔 - 最小 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="ai-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="ai-random-interval-max-group">
+                <label>随机间隔 - 最大 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="ai-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="group-cooldown-group">
+                <label>群聊行动冷却 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="group-action-cooldown-input" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="group-random-interval-min-group">
+                <label>随机间隔 - 最小 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="group-random-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item" id="group-random-interval-max-group">
+                <label>随机间隔 - 最大 (分钟)</label>
+                <div class="settings-right">
+                     <input type="number" id="group-random-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
+                </div>
+            </div>
+
+            <!-- 勿扰时间段（角色/群聊通用，不分开写了） -->
+            <div class="settings-item" id="chat-dnd-enabled-group">
+                <div>
+                    <label>勿扰时间段</label>
+                    <div class="settings-desc">开启后，这段时间内不会主动发后台消息（你主动找TA聊天不受影响）</div>
+                </div>
+                <label class="toggle-switch"> <input type="checkbox" id="chat-dnd-enabled-switch"> <span class="slider"></span> </label>
+            </div>
+            <div class="settings-item" id="chat-dnd-time-group">
+                <label>勿扰开始 ~ 结束</label>
+                <div class="settings-right" style="display:flex; align-items:center; gap:6px;">
+                     <input type="time" id="chat-dnd-start-input" value="23:00" class="settings-num-input" style="width:auto;">
+                     <span>~</span>
+                     <input type="time" id="chat-dnd-end-input" value="07:00" class="settings-num-input" style="width:auto;">
+                </div>
+            </div>
+
+            <!-- 记忆设置 -->
+            <div class="settings-item">
+                 <label>短期记忆条数</label>
+                 <div class="settings-right">
+                    <input type="number" id="max-memory" class="settings-num-input">
+                 </div>
+            </div>
+            <div class="settings-item">
+                 <label>挂载记忆条数</label>
+                 <div class="settings-right">
+                    <input type="number" id="linked-memory-count" class="settings-num-input">
+                 </div>
+            </div>
+            
+            <div class="settings-item">
+                 <div>
+                    <label>自动总结长期记忆</label>
+                    <div class="settings-desc">对话达到一定长度自动提炼</div>
+                </div>
+                <label class="toggle-switch"> <input type="checkbox" id="auto-memory-toggle"> <span class="slider"></span> </label>
+            </div>
+            <div class="settings-item">
+                 <label>自动总结间隔 (条)</label>
+                 <div class="settings-right">
+                    <input type="number" id="auto-memory-interval" class="settings-num-input">
+                 </div>
+            </div>
+            
+            <!-- 记忆模式选择器 -->
+            <div class="settings-item-block">
+                <label style="margin-bottom: 8px; display: block;">记忆模式</label>
+                <div class="memory-mode-selector" id="memory-mode-selector">
+                    <div class="memory-mode-option" data-mode="diary">
+                        <span class="mode-label">日记式</span>
+                        <span class="mode-desc">文字总结</span>
+                    </div>
+                    <div class="memory-mode-option" data-mode="structured">
+                        <span class="mode-label">结构化</span>
+                        <span class="mode-desc">表格压缩</span>
+                    </div>
+                    <div class="memory-mode-option" data-mode="vector">
+                        <span class="mode-label">向量记忆</span>
+                        <span class="mode-desc">智能检索</span>
+                    </div>
+                </div>
+                <div class="settings-desc" style="margin-top: 4px; font-size: 12px; color: #666;">三种模式互斥，同时只能启用一种。切换不会删除其他模式的数据。</div>
+            </div>
+
+            <!-- 日记模式子选项（仅日记模式显示） -->
+            <div class="settings-item" id="diary-mode-options" style="display:none;">
+                <div>
+                    <label>日记模式</label>
+                    <div class="settings-desc">手动总结将自动总结上次总结之后的所有消息</div>
+                </div>
+                <label class="toggle-switch"> <input type="checkbox" id="diary-mode-toggle"> <span class="slider"></span> </label>
+            </div>
+
+            <!-- 隐藏的兼容性开关 -->
+            <input type="checkbox" id="structured-memory-toggle" style="display:none;">
+
+            <!-- 手动总结按钮 -->
+            <div class="settings-item">
+                 <button id="manual-summary-btn" style="width: 100%; padding: 10px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                    手动总结
+                 </button>
+            </div>
+
+            <!-- 限制长期记忆读取数量 -->
+            <div class="settings-item-block" id="limit-memory-group">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; height: 30px;">
+                    <label for="limit-memory-toggle" style="line-height: 30px;">限制长期记忆读取数量</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="limit-memory-toggle">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="memory-limit-input-group" style="display: none; padding: 8px 0;">
+                    <label style="margin-right: 8px;">读取最近</label>
+                    <input type="number" id="memory-limit-count" min="1" max="1000" value="50" style="width: 80px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;">
+                    <label style="margin-left: 8px;">条记忆</label>
+                </div>
+                <div class="settings-desc" style="margin-top: 4px; font-size: 12px; color: #666;">仅在未开启结构化记忆时生效，默认读取全部</div>
+            </div>
+
+            <!-- 挂载聊天 -->
+            <div class="settings-item-block" id="linked-memory-group"> 
+                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; height: 30px;">
+                    <label for="link-memory-toggle" style="line-height: 30px;">挂载其他聊天记忆</label> 
+                    <!-- 修复：使用美化的 toggle-switch 结构替代原生 checkbox -->
+                    <label class="toggle-switch"> 
+                        <input type="checkbox" id="link-memory-toggle"> 
+                        <span class="slider"></span> 
+                    </label>
+                 </div>
+                 <div id="linked-memory-selection" style="display: none; position: relative;"> 
+                    <div class="custom-multiselect">
+                      <div class="select-box"> <span class="selected-options-text">-- 选择聊天 --</span> <span class="arrow-down">▼</span> </div>
+                      <div id="linked-chats-checkboxes-container" class="checkboxes-container" style="max-height: 150px;"> </div>
+                    </div>
+                 </div>
+            </div>
+            <div class="settings-item">
+    <div>
+       <label>显示隐藏层消息 (调试)</label>
+       <div class="settings-desc">显示系统提示、内心独白等隐藏内容以便编辑</div>
+   </div>
+   <label class="toggle-switch"> 
+       <input type="checkbox" id="show-hidden-msg-toggle"> 
+       <span class="slider"></span> 
+   </label>
+</div>
+
+            <!-- 角色知晓窥屏开关 -->
+            <div class="settings-item" id="phone-viewing-awareness-group" style="display: none;">
+    <div>
+       <label>角色知晓手机窥屏</label>
+       <div class="settings-desc">打开后，查看角色手机的行为会作为系统消息记录到聊天中</div>
+   </div>
+   <label class="toggle-switch"> 
+       <input type="checkbox" id="phone-viewing-awareness-toggle"> 
+       <span class="slider"></span> 
+   </label>
+</div>
+
+            <!-- 情侣空间提示词注入 -->
+            <div class="settings-item" id="couple-space-prompt-group" style="display: none;">
+                <div>
+                    <label>情侣空间基础感知</label>
+                    <div class="settings-desc">角色知道情侣空间的存在，能处理邀请</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="couple-space-prompt-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item" id="couple-space-content-group" style="display: none;">
+                <div>
+                    <label>情侣空间内容注入</label>
+                    <div class="settings-desc">日记等内容注入聊天上下文，角色可主动提及</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="couple-space-content-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item" id="couple-space-notify-group" style="display: none;">
+                <div>
+                    <label>后台更新弹窗提醒</label>
+                    <div class="settings-desc">角色在后台更新情侣空间内容时弹出提示</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="couple-space-notify-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <!-- Token 统计 -->
+            <div class="settings-section">
+                <div class="settings-item">
+                    <label>当前对话条数</label>
+                    <div class="settings-right">
+                        <span id="message-count-value" style="color: #8a8a8a;">计算中...</span>
+                    </div>
+                </div>
+                <div class="settings-item" id="token-detail-trigger" style="cursor: pointer;">
+                    <label style="cursor: pointer;">预估上下文 Token</label>
+                    <div class="settings-right" style="display: flex; align-items: center; gap: 4px;">
+                        <span id="token-count-value" style="color: #8a8a8a;">计算中...</span>
+                        <span style="font-size: 12px; color: #ccc;">▶</span>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>已排除消息数</label>
+                    <div class="settings-right">
+                        <span id="excluded-count-value" style="color: var(--accent-color);">计算中...</span>
+                    </div>
+                </div>
+                <div class="settings-item" style="justify-content: center;">
+                    <button id="batch-exclude-manage-btn" style="width: 100%; padding: 10px; background: var(--accent-color); color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                        批量管理排除消息 (省Token)
+                    </button>
+                </div>
+                <div class="settings-item" style="justify-content: center;">
+                    <button id="view-excluded-detail-btn" style="width: 100%; padding: 10px; background: var(--secondary-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; cursor: pointer;">
+                        查看排除详情
+                    </button>
+                </div>
+            </div>
+            
+            <!-- AI行为控制 (角色单独设置) -->
+            <div class="settings-item" id="ai-behavior-thoughts-item">
+                <div>
+                    <div style="font-weight: 500;">启用心声功能</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI会在每次回复后生成内心独白</div>
+                </div>
+                <select id="chat-enable-thoughts-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="settings-item" id="ai-behavior-qzone-item">
+                <div>
+                    <div style="font-weight: 500;">启用动态功能</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以主动发动态、评论、点赞</div>
+                </div>
+                <select id="chat-enable-qzone-actions-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+
+            <div class="settings-item" id="ai-behavior-forum-post-item">
+                <div>
+                    <div style="font-weight: 500;">启用论坛自主发帖</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在委屈/求助/想分享时去论坛发帖（复用豆瓣帖子库）</div>
+                </div>
+                <select id="chat-enable-forum-post-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="settings-item" id="ai-behavior-view-myphone-item">
+                <div>
+                    <div style="font-weight: 500;">查看User手机</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以主动查看你的手机APP，并给出感想</div>
+                </div>
+                <select id="chat-enable-view-myphone-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="settings-item" id="ai-behavior-cross-chat-item">
+                <div>
+                    <div style="font-weight: 500;">跨聊天消息</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">AI可以在群聊中给你发私信，或在私聊中给群聊发消息</div>
+                </div>
+                <select id="chat-enable-cross-chat-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="settings-item" id="ai-behavior-prompt-clear-memory-item">
+                <div>
+                    <div style="font-weight: 500;">清空聊天连带长期记忆</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">清空聊天记录时是否弹窗询问一并清除长期记忆</div>
+                </div>
+                <select id="chat-prompt-clear-memory-select" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--secondary-bg);">
+                    <option value="null">使用全局设置</option>
+                    <option value="true">开启</option>
+                    <option value="false">关闭</option>
+                </select>
+            </div>
+            
+            <div class="settings-item" id="ai-behavior-status-item">
+                <div style="font-size: 12px; color: #666; padding: 10px; background: #f5f5f5; border-radius: 6px; width: 100%;">
+                    💡 当前全局设置：心声功能 <span id="global-thoughts-status">关闭</span>，动态功能 <span id="global-qzone-status">关闭</span>，查看手机 <span id="global-view-myphone-status">关闭</span>，跨聊天消息 <span id="global-cross-chat-status">开启</span>
+                </div>
+            </div>
+        </div>
+
+<!-- 天气设置 (仅单聊显示) - UI 优化版 -->
+<div class="settings-section" id="weather-settings-section" style="display: none;">
+    <!-- 开关行 -->
+    <div class="settings-item">
+        <label>启用实时天气同步</label>
+        <label class="toggle-switch">
+            <input type="checkbox" id="enable-weather-switch">
+            <span class="slider"></span>
+        </label>
+    </div>
+    
+    <!-- 详情配置区域 (由JS控制显示/隐藏) -->
+    <div id="weather-config-container" style="display: none;">
+        
+        <!-- 我的位置 -->
+        <div class="settings-item-block">
+            <label style="font-weight: 500;">我的位置 (User)</label>
+            <div class="weather-input-group">
+                <input type="text" id="user-virtual-city" placeholder="虚拟名 (如: 龙城)" class="weather-input">
+                <input type="text" id="user-real-city-search" placeholder="真实城市 (拼音/英文)" class="weather-input">
+                <button id="user-city-search-btn" class="settings-mini-btn" style="margin-left: 0;">搜索</button>
+            </div>
+            <!-- 隐藏域 -->
+            <input type="hidden" id="user-city-lat">
+            <input type="hidden" id="user-city-lon">
+            <!-- 结果展示 -->
+            <div id="user-city-result" class="weather-result-text">未设置映射</div>
+        </div>
+
+        <!-- 对方位置 -->
+        <div class="settings-item-block" style="border-bottom: none;">
+            <label style="font-weight: 500;">对方位置 (Char)</label>
+            <div class="weather-input-group">
+                <input type="text" id="char-virtual-city" placeholder="虚拟名 (如: 哥谭)" class="weather-input">
+                <input type="text" id="char-real-city-search" placeholder="真实城市 (拼音/英文)" class="weather-input">
+                <button id="char-city-search-btn" class="settings-mini-btn" style="margin-left: 0;">搜索</button>
+            </div>
+            <!-- 隐藏域 -->
+            <input type="hidden" id="char-city-lat">
+            <input type="hidden" id="char-city-lon">
+            <!-- 结果展示 -->
+            <div id="char-city-result" class="weather-result-text">未设置映射</div>
+        </div>
+
+    </div>
+</div>
+
+        <!-- 视频通话优化设置 -->
+        <div class="settings-section" id="video-call-optimization-section">
+            <!-- 开关行 -->
+            <div class="settings-item">
+                <label>视频通话优化</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enable-video-optimization-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <!-- 详情配置区域 (由JS控制显示/隐藏) -->

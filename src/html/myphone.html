@@ -1,0 +1,573 @@
+                <div id="api-top-p-config" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+                    <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                        <input type="range" id="api-top-p-slider" min="0" max="1" step="0.05" value="1.0" style="flex-grow: 1 !important; width: auto !important;">
+                        <input type="number" id="api-top-p-input" class="settings-num-input" min="0" max="1" step="0.05" value="1.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
+                        <button id="reset-api-top-p-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                    </div>
+                </div>
+            </div>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="api-max-tokens-enabled" style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">最大回复长度 (Max Tokens)</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="api-max-tokens-enabled">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="api-max-tokens-config" style="display: none !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+                    <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                        <input type="range" id="api-max-tokens-slider" min="0" max="32768" step="1" value="0" style="flex-grow: 1 !important; width: auto !important;">
+                        <input type="number" id="api-max-tokens-input" class="settings-num-input" min="0" step="1" value="0" placeholder="0为不限制" style="width: 80px !important; text-align: center !important; flex: 0 0 auto !important;">
+                        <button id="reset-api-max-tokens-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                    </div>
+                </div>
+            </div>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="api-presence-penalty-enabled" style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">话题新鲜度 (Presence Penalty)</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="api-presence-penalty-enabled" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="api-presence-penalty-config" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+                    <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                        <input type="range" id="api-presence-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1 !important; width: auto !important;">
+                        <input type="number" id="api-presence-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
+                        <button id="reset-api-presence-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                    </div>
+                </div>
+            </div>
+             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: stretch !important; gap: 12px !important; width: 100% !important; box-sizing: border-box !important;">
+                <div style="display: flex !important; justify-content: space-between !important; align-items: center !important; width: 100% !important;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label for="api-frequency-penalty-enabled" style="margin: 0 !important; width: auto !important; flex: 1 1 auto !important;">重复惩罚 (Frequency Penalty)</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="api-frequency-penalty-enabled" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div id="api-frequency-penalty-config" style="display: flex !important; flex-direction: column !important; gap: 12px !important; width: 100% !important;">
+                    <div style="display: flex !important; align-items: center !important; gap: 10px !important; width: 100% !important;">
+                        <input type="range" id="api-frequency-penalty-slider" min="-2" max="2" step="0.1" value="0.0" style="flex-grow: 1 !important; width: auto !important;">
+                        <input type="number" id="api-frequency-penalty-input" class="settings-num-input" min="-2" max="2" step="0.1" value="0.0" style="width: 60px !important; text-align: center !important; flex: 0 0 auto !important;">
+                        <button id="reset-api-frequency-penalty-btn" class="settings-mini-btn" style="padding: 2px 8px !important; font-size: 12px !important; margin: 0 !important; min-width: auto !important; height: auto !important; flex: 0 0 auto !important;">重置</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 副 API 设置 -->
+        <div class="settings-header" data-lang-key="apiSecondarySettings">副 API (长记忆总结)</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                 <!-- 下拉框容器：flex-grow 占满左侧空间，内部左对齐 -->
+                 <div style="flex-grow: 1; display: flex; align-items: center; justify-content: flex-start; overflow: hidden;">
+                     <select id="secondary-api-preset-select" class="settings-select">
+                         <!-- JS 填充选项 -->
+                     </select>
+                 </div>
+                 
+                 <!-- 按钮组：固定在右侧 -->
+                 <div class="settings-right" style="flex-grow: 0; width: auto; margin-left: 10px;">
+                     <button id="save-secondary-api-preset-btn" class="settings-mini-btn">保存预设</button>
+                     <button id="delete-secondary-api-preset-btn" class="settings-mini-btn">删除预设</button>
+                 </div>
+            </div>
+            <div class="settings-item">
+                <label>反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="secondary-proxy-url" placeholder="留空使用主API">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="secondary-api-key" placeholder="可选">
+                </div>
+            </div>
+            <!-- 修改点：模型和拉取按钮在一行 -->
+            <div class="settings-item">
+                <label>模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="secondary-model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>拉取模型</label>
+                <div class="settings-right">
+                     <!-- 下拉框占据剩余空间 -->
+                    <select id="secondary-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <!-- 按钮放在旁边 -->
+                    <button id="fetch-secondary-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 后台活动 API 设置 -->
+        <div class="settings-header" data-lang-key="apiBackgroundSettings">后台活动 API 设置</div>
+        <div class="settings-section">
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    提示: 后台活动API用于角色自主行为。留空则使用主API。建议配置更便宜的模型以节省费用。
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiBackgroundProxyUrlLabel">反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="background-proxy-url" placeholder="留空使用主API">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiBackgroundKeyLabel">API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="background-api-key" placeholder="可选">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiBackgroundModelLabel">模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="background-model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiFetchBackgroundModelsBtn">拉取模型</label>
+                <div class="settings-right">
+                    <select id="background-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <button id="fetch-background-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 识图 API 设置 -->
+        <div class="settings-header" data-lang-key="apiVisionSettings">识图 API 设置</div>
+        <div class="settings-section">
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    提示: 识图API用于识别聊天中用户发送的图片、表情包等。留空则使用主API。建议配置支持视觉能力的模型。
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiVisionProxyUrlLabel">反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="vision-proxy-url" placeholder="留空使用主API">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiVisionKeyLabel">API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="vision-api-key" placeholder="可选">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiVisionModelLabel">模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="vision-model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiFetchVisionModelsBtn">拉取模型</label>
+                <div class="settings-right">
+                    <select id="vision-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <button id="fetch-vision-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 情侣空间 API 设置 -->
+        <div class="settings-header" data-lang-key="apiCoupleSpaceSettings">情侣空间 API 设置</div>
+        <div class="settings-section">
+            <div class="settings-tip-wrapper">
+                <div class="settings-tip-content">
+                    提示: 情侣空间API用于生成日记、相册、时光轴等情侣空间内容。留空则使用主API。建议配置更便宜的模型以节省费用。
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceProxyUrlLabel">反代地址</label>
+                <div class="settings-right">
+                    <input type="text" id="couplespace-proxy-url" placeholder="留空使用主API">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceKeyLabel">API Key</label>
+                <div class="settings-right">
+                    <input type="password" id="couplespace-api-key" placeholder="可选">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiCoupleSpaceModelLabel">模型（手写）</label>
+                <div class="settings-right">
+                    <input type="text" id="couplespace-model-input" placeholder="可手写模型名称或从下方拉取自动填入" style="flex-grow: 1;">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label data-lang-key="apiFetchCoupleSpaceModelsBtn">拉取模型</label>
+                <div class="settings-right">
+                    <select id="couplespace-model-select" class="settings-select" style="flex-grow: 1; width: auto;"></select>
+                    <button id="fetch-couplespace-models-btn" class="settings-mini-btn">拉取</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 识图Token优化 -->
+        <div class="settings-header">识图优化</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>识图Token优化</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="image-token-optimize-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-desc">
+                开启后，AI首次识别图片后，后续对话将用文字描述代替原图发送，大幅减少Token消耗。图片在聊天界面中仍正常显示。
+            </div>
+        </div>
+
+        <!-- 后台与自动化 -->
+        <div class="settings-header" data-lang-key="apiBgActivitySettings">后台活动</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>启用后台角色活动</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="background-activity-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item">
+                <label>间隔模式</label>
+                <div class="settings-right">
+                    <select id="background-interval-mode-select" class="settings-select">
+                        <option value="random">随机区间</option>
+                        <option value="fixed">固定间隔</option>
+                    </select>
+                </div>
+            </div>
+            <div id="background-interval-fixed-group" style="display:none;">
+                <div class="settings-item">
+                    <label>固定间隔 (秒)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-input" min="30" step="1" value="60" class="settings-num-input">
+                    </div>
+                </div>
+            </div>
+            <div id="background-interval-random-group">
+                <div class="settings-item">
+                    <label>随机间隔 - 最小 (分钟)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-min-input" min="1" step="1" value="10" class="settings-num-input">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>随机间隔 - 最大 (分钟)</label>
+                    <div class="settings-right">
+                        <input type="number" id="background-interval-max-input" min="1" step="1" value="25" class="settings-num-input">
+                    </div>
+                </div>
+            </div>
+            <script>
+              (function() {
+                function bindBackgroundIntervalModeToggle() {
+                  const modeSelect = document.getElementById('background-interval-mode-select');
+                  const fixedGroup = document.getElementById('background-interval-fixed-group');
+                  const randomGroup = document.getElementById('background-interval-random-group');
+                  if (!modeSelect || !fixedGroup || !randomGroup) return;
+                  modeSelect.addEventListener('change', () => {
+                    const isFixed = modeSelect.value === 'fixed';
+                    fixedGroup.style.display = isFixed ? '' : 'none';
+                    randomGroup.style.display = isFixed ? 'none' : '';
+                  });
+                }
+                if (document.readyState === 'loading') {
+                  document.addEventListener('DOMContentLoaded', bindBackgroundIntervalModeToggle);
+                } else {
+                  bindBackgroundIntervalModeToggle();
+                }
+              })();
+            </script>
+            <div class="settings-item">
+                <label>拉黑冷静期 (小时)</label>
+                <div class="settings-right">
+                    <input type="number" id="block-cooldown-input" min="0.1" step="0.1" value="1" class="settings-num-input">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>后台查看用户手机</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="global-enable-view-myphone-bg-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <div class="settings-item">
+                <label>查看概率 (%)</label>
+                <div class="settings-right">
+                    <input type="number" id="global-view-myphone-chance-input" min="0" max="100" placeholder="留空=AI自主决定" class="settings-num-input">
+                </div>
+            </div>
+        </div>
+        <div class="settings-desc">开启后台活动会增加 API 费用。间隔模式可选择“固定间隔”（每次等待相同秒数）或“随机区间”（每次在最小~最大分钟数之间重新随机等待时间）。后台查看手机：留空概率时AI自主决定，填写0-100则按概率触发。</div>
+
+        <!-- 语音设置 -->
+        <div class="settings-header" data-lang-key="apiTtsSettings">Minimax TTS 语音</div>
+        <div class="settings-section">
+            <div class="settings-item">
+                <label>Group ID</label>
+                <div class="settings-right">
+                     <input type="text" id="minimax-group-id" placeholder="输入 Group ID">
+                </div>
+            </div>
+            <div class="settings-item">
+                <label>API Key</label>
+                <div class="settings-right">
+                     <input type="password" id="minimax-api-key" placeholder="输入 API Key">
+                </div>
+            </div>
+            <!-- 分行 1: 模型 -->
+            <div class="settings-item">
+                <label>模型</label>
+                <div class="settings-right">
+                    <select id="minimax-model-select" class="settings-select">
+                        <!-- JS 会填充选项 -->
+                    </select>
+                </div>
+            </div>
+            <!-- 分行 2: 接口域名 (手动写死在这里，不再依赖 JS 动态插入) -->
+            <div class="settings-item">
+                <label>接口域名</label>
+                <div class="settings-right">
+                    <select id="minimax-domain-select" class="settings-select">
+                        <option value="https://api.minimax.chat">🇨🇳 国内 (api.minimax.chat)</option>
+                        <option value="https://api.minimaxi.chat">🌏 海外 (api.minimaxi.chat)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- 生图设置 (AI & NovelAI) -->
+        <div class="settings-header" data-lang-key="apiImageGenSettings">图像生成</div>
+        <div class="settings-section">
+            <!-- 通用生图 -->
+            <div class="settings-item">
+                <label>启用通用 AI 生图</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="enable-ai-drawing-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <!-- Pollinations 详情 (JS控制显示/隐藏) -->
+            <div id="pollinations-details" style="display:none; background-color: #f9f9f9; border-top: 0.5px solid #ebedf0;">
+                <div class="settings-item">
+                    <label>API Key</label>
+                    <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                             <input type="password" id="pollinations-api-key" placeholder="pk_ 或 sk_ 开头的密钥">
+                             <span id="pollinations-key-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>模型</label>
+                    <div class="settings-right">
+                         <select id="pollinations-model" class="settings-select">
+                            <option value="flux">Flux Schnell (快速)</option>
+                            <option value="gptimage">GPT Image 1 Mini</option>
+                            <option value="zimage">Z-Image Turbo (2x放大)</option>
+                            <option value="klein">FLUX.2 Klein 4B</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item" style="font-size:11px; color:#888; padding: 8px 15px;">
+                    💡 前往 <a href="https://enter.pollinations.ai/" target="_blank" style="color:#4a90d9;">enter.pollinations.ai</a> 获取免费 API Key
+                </div>
+            </div>
+            
+            <!-- NovelAI -->
+            <div class="settings-item">
+                <label>启用 NovelAI</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="novelai-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <!-- Google Imagen -->
+            <div class="settings-item">
+                <label>启用 Google Imagen</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="google-imagen-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            
+            <!-- Google Imagen 详情 (JS控制显示/隐藏) -->
+            <div id="google-imagen-details" style="display:none; background-color: #f9f9f9; border-top: 0.5px solid #ebedf0;">
+                <div class="settings-item">
+                    <label>API 地址</label>
+                    <div class="settings-right">
+                        <input type="text" id="google-imagen-endpoint" placeholder="https://generativelanguage.googleapis.com" style="width:100%; font-size:12px;">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>API Key</label>
+                    <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                             <input type="password" id="google-imagen-api-key" placeholder="AIzaSy...">
+                             <span id="google-imagen-key-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>模型</label>
+                    <div class="settings-right" style="display:flex; gap:6px; align-items:center;">
+                         <select id="google-imagen-model" class="settings-select" style="flex:1;">
+                            <option value="imagen-4.0-generate-001">Imagen 4 Standard</option>
+                            <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra</option>
+                            <option value="imagen-4.0-fast-generate-001">Imagen 4 Fast</option>
+                        </select>
+                        <button id="google-imagen-fetch-models-btn" class="settings-mini-btn" style="white-space:nowrap; padding:4px 8px; font-size:12px;">🔄 拉取</button>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>宽高比</label>
+                    <div class="settings-right">
+                         <select id="google-imagen-aspect-ratio" class="settings-select">
+                            <option value="1:1">1:1 (方形)</option>
+                            <option value="3:4">3:4 (竖屏)</option>
+                            <option value="4:3">4:3 (横屏)</option>
+                            <option value="9:16">9:16 (竖屏宽)</option>
+                            <option value="16:9">16:9 (横屏宽)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label style="font-size: 13px;">附加正面提示词</label>
+                    <div class="settings-right">
+                        <textarea id="google-imagen-positive" rows="2" placeholder="默认拼接到AI提示词后，如: masterpiece, best quality" style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px; font-size:12px; resize:vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label style="font-size: 13px;">附加负面提示词</label>
+                    <div class="settings-right">
+                        <textarea id="google-imagen-negative" rows="2" placeholder="仅对支持的中转API有效" style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px; font-size:12px; resize:vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="settings-item" style="justify-content: space-around;">
+                    <button id="google-imagen-test-btn" class="settings-mini-btn">🧪 测试生成</button>
+                </div>
+                <div id="google-imagen-test-result" style="display: none; padding: 10px 15px;">
+                    <div style="font-weight: bold; color: #333; margin-bottom: 10px;">生成结果：</div>
+                    <div style="text-align: center; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #e9ecef;">
+                        <img id="google-imagen-result-image" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+                </div>
+            </div>
+
+            <!-- NovelAI 详情 (JS控制显示/隐藏) -->
+            <div id="novelai-details" style="display:none; background-color: #f9f9f9; border-top: 0.5px solid #ebedf0;">
+                <div class="settings-item">
+                    <label>模型</label>
+                    <div class="settings-right">
+                         <select id="novelai-model" class="settings-select">
+                            <option value="nai-diffusion-4-curated-preview">V4.5 Curated</option>
+                            <option value="nai-diffusion-4-5-full">V4.5 Full</option>
+                            <option value="nai-diffusion-3">Anime V3</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>API Key</label>
+                    <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                             <input type="password" id="novelai-api-key" placeholder="pst-...">
+                             <span id="novelai-key-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item" style="justify-content: space-around;">
+                    <button id="novelai-settings-btn" class="settings-mini-btn">⚙️ 生成参数</button>
+                    <button id="novelai-test-btn" class="settings-mini-btn">🧪 测试生成</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 云服务与存储 -->
+        <!-- 云服务与存储 (灰条下沉版) -->
+        <div class="settings-header">云服务与存储</div>
+        <div class="settings-section">
+             
+             <!-- === ImgBB === -->
+             <!-- 1. 先放开关行 -->
+             <div class="settings-item">
+                <label>ImgBB 图床</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="imgbb-enable-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <!-- 2. 再放详情容器 (灰条移入此处) -->
+            <div id="imgbb-settings-details" style="display:none;">
+                 <!-- 灰条被移到了这里 -->
+                 <div class="settings-tip-wrapper">
+                    <div class="settings-tip-content">
+                        开启后，本地图片将自动上传到 ImgBB 图床以减小体积。<br>
+                        ⚠️ 图片将上传到公共互联网，请勿上传私密照片！<br>
+                        🔗 <a href="https://api.imgbb.com/" target="_blank">点击此处注册并获取 API Key</a>
+                    </div>
+                </div>
+                
+                 <div class="settings-item">
+                    <label>API Key</label>
+                     <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                            <input type="password" id="imgbb-api-key" placeholder="输入 ImgBB Key">
+                            <span id="imgbb-key-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span>
+                        </div>
+                     </div>
+                 </div>
+            </div>
+
+            <!-- === Catbox === -->
+             <!-- 1. 开关 -->
+             <div class="settings-item">
+                <label>Catbox 托管</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="catbox-enable-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <!-- 2. 详情容器 (灰条移入此处) -->
+            <div id="catbox-settings-details" style="display:none;">
+                 <!-- 灰条被移到了这里 -->
+                 <div class="settings-tip-wrapper">
+                    <div class="settings-tip-content">
+                        开启后，歌曲文件将上传到 Catbox.moe 托管。<br>
+                        🔗 <a href="https://catbox.moe/user/manage.php" target="_blank">登录 Catbox 查看 User Hash</a>
+                    </div>
+                </div>
+
+                 <div class="settings-item">
+                    <label>User Hash</label>
+                     <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                            <input type="password" id="catbox-userhash" placeholder="输入 User Hash">
+                            <span id="catbox-key-toggle" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); cursor: pointer;">🧐</span>
+                        </div>
+                     </div>
+                 </div>
+            </div>
+
+             <!-- === GitHub === -->
+             <!-- 1. 开关 -->
+             <div class="settings-item">
+                <label>GitHub 云备份</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="github-enable-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+            <!-- 2. 详情容器 (灰条移入此处) -->

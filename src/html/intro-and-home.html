@@ -1,0 +1,553 @@
+  <div id="intro-screen">
+    <div class="intro-egg-container">
+        <div class="intro-wing left-wing">
+            <svg viewBox="0 0 100 100" fill="white">
+                <path d="M100,50 Q80,20 40,10 Q10,20 0,50 Q20,80 60,80 Q90,70 100,50 Z" />
+            </svg>
+        </div>
+        <div class="intro-egg">
+            <div class="egg-pattern">
+                <svg viewBox="0 0 24 24" fill="#ffb7c5" style="width: 40px; height: 40px; opacity: 0.5;">
+                    <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                </svg>
+            </div>
+        </div>
+        <div class="intro-wing right-wing">
+            <svg viewBox="0 0 100 100" fill="white">
+                <path d="M0,50 Q20,20 60,10 Q90,20 100,50 Q80,80 40,80 Q10,70 0,50 Z" />
+            </svg>
+        </div>
+    </div>
+    <div class="intro-text">Tap to Start</div>
+  </div>
+
+  <div id="ephone-auth-screen" class="hidden">
+    <div class="ephone-auth-container">
+      <!-- 装饰元素 -->
+      <div class="shugo-chara-decoration deco-heart">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </div>
+      <div class="shugo-chara-decoration deco-spade">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C9 2 7 4.3 7 6.5C7 8.2 8.2 9.6 9.6 10C7.2 11.2 3 14.5 3 18.5C3 21.5 5.5 22 7 22C8.2 22 9.2 21.2 9.2 20.5C9.2 19.5 8.2 19 7.2 19C6.8 19 6.5 19.2 6.5 19.5C6.8 18.2 8.2 17 9.5 17C11 17 11.5 18 11.5 20V22H12.5V20C12.5 18 13 17 14.5 17C15.8 17 17.2 18.2 17.5 19.5C17.5 19.2 17.2 19 16.8 19C15.8 19 14.8 19.5 14.8 20.5C14.8 21.2 15.8 22 17 22C18.5 22 21 21.5 21 18.5C21 14.5 16.8 11.2 14.4 10C15.8 9.6 17 8.2 17 6.5C17 4.3 15 2 12 2Z"/></svg>
+      </div>
+      <div class="shugo-chara-decoration deco-clover">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16.5 9c-.4 0-.7.1-1.1.2C16.2 8.1 16.5 6.9 16.5 5.5 16.5 2.5 14.5 0 12 0S7.5 2.5 7.5 5.5c0 1.4.3 2.6 1.1 3.7C8.2 9.1 7.9 9 7.5 9 4.5 9 2 11.5 2 14.5c0 2.6 1.8 4.7 4.2 5.3C6.1 19.9 6 20 6 20.2v3.8h12v-3.8c0-.2-.1-.3-.2-.4 2.4-.6 4.2-2.7 4.2-5.3C22 11.5 19.5 9 16.5 9z"/></svg>
+      </div>
+      <div class="shugo-chara-decoration deco-diamond">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L2 12l10 10 10-10L12 2z"/></svg>
+      </div>
+      
+      <div class="ephone-auth-logo">
+        <svg viewBox="0 0 24 24" fill="currentColor" style="width: 100%; height: 100%;">
+            <path d="M12 1C8.676 1 6 3.676 6 7v3H4v12h16V10h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v3H8V7c0-2.276 1.724-4 4-4zm0 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/>
+        </svg>
+      </div>
+      <h2 class="ephone-auth-title">Unlock My Heart</h2>
+      <p class="ephone-auth-subtitle">Unlock with your Password!</p>
+      <div class="ephone-auth-form">
+        <input type="text" id="ephone-account" placeholder="Account" autocomplete="username">
+        <input type="password" id="ephone-password" placeholder="Password" autocomplete="current-password">
+        <button id="ephone-login-btn">Unlock!</button>
+      </div>
+      <div id="ephone-auth-error" class="ephone-auth-error"></div>
+      <div class="ephone-auth-help">
+        <p>遇到登录问题？请查看 <a href="https://discord.com/channels/1379304008157499423/1417316084465270854/1463764186139197563" target="_blank">帮助文档</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="phone-screen">
+    <div id="status-bar"> <span id="status-bar-time">12:00</span>
+      <div id="status-bar-battery" class="battery-container"> <span class="battery-text">--%</span>
+        <div class="battery-icon">
+          <div class="battery-level"></div>
+        </div>
+      </div>
+    </div>
+    <div id="lock-screen">
+        <div id="lock-screen-content">
+            <div class="lock-icon">🔓</div>
+            <div class="lock-time-container">
+                <div id="lock-date">1月1日 星期一</div>
+                <div id="lock-time">12:00</div>
+            </div>
+            
+            <div id="lock-password-area" style="display: none;">
+                <div class="lock-instruction">输入密码</div>
+                <div class="lock-dots">
+                    <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+                </div>
+                <div class="lock-keypad">
+                    <div class="key" data-num="1">1</div>
+                    <div class="key" data-num="2">2<br><span>ABC</span></div>
+                    <div class="key" data-num="3">3<br><span>DEF</span></div>
+                    <div class="key" data-num="4">4<br><span>GHI</span></div>
+                    <div class="key" data-num="5">5<br><span>JKL</span></div>
+                    <div class="key" data-num="6">6<br><span>MNO</span></div>
+                    <div class="key" data-num="7">7<br><span>PQRS</span></div>
+                    <div class="key" data-num="8">8<br><span>TUV</span></div>
+                    <div class="key" data-num="9">9<br><span>WXYZ</span></div>
+                    <div class="key empty"></div>
+                    <div class="key" data-num="0">0</div>
+                    <div class="key delete" data-action="delete">⌫</div>
+                </div>
+                <div class="lock-cancel-btn">取消</div>
+            </div>
+            
+            <div id="lock-swipe-area">
+                <div class="swipe-bar"></div>
+            </div>
+        </div>
+    </div>
+    <div id="notification-bar"><img id="notification-avatar" src="">
+      <div id="notification-content">
+        <div class="name"></div>
+        <div class="message"></div>
+      </div>
+    </div>
+<div id="dynamic-island-content">
+  <img id="island-album-art" src="">
+  <div id="island-lyric-container">
+    <span id="island-lyric-text"></span>
+  </div>
+</div>
+
+    <div id="home-screen" class="screen active">
+      <div id="home-screen-pages-container">
+        <div id="home-screen-pages">
+          <div class="home-screen-page">
+            <div id="main-content-area">
+              <div id="profile-widget"> <img id="profile-banner-img" src="https://i.imgur.com/1n3a43H.jpeg" class="editable-image">
+                <div class="profile-avatar-container"> <img id="profile-avatar-img" src="https://i.postimg.cc/y8xWzCqj/anime-boy.jpg" class="editable-image"> </div>
+                <div class="profile-info">
+                  <p id="profile-username" class="editable-text" onclick="editBubbleText('profile-username')">@ insonneve 🪦</p>
+                  <p id="profile-sub-username" class="editable-text" onclick="editBubbleText('profile-sub-username')">@ insonneve</p>
+                  <p id="profile-bio" class="editable-text" onclick="editBubbleText('profile-bio')">你好像过得很好 迫不及待的抹去我存在的痕迹</p>
+                  <p id="profile-location" class="editable-text" onclick="editBubbleText('profile-location')"> <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5-2.5-1.12 2.5-2.5 2.5z"></path>
+                    </svg> <span>北海道</span> </p>
+                </div>
+              </div>
+              <div id="desktop-layout">
+                <div id="desktop-widget-column">
+                  <div class="desktop-widget text-only">
+                    <p id="widget-text-1" class="editable-text" onclick="editBubbleText('widget-text-1')">Be fearless in pursuit of happiness</p>
+                  </div>
+                  <div class="desktop-widget icon-left"> <img id="widget-avatar-1" src="https://i.imgur.com/1n3a43H.jpeg" class="editable-image"> <span id="widget-text-2" class="editable-text" onclick="editBubbleText('widget-text-2')">Dare to be different</span> </div>
+                  <div class="desktop-widget icon-right"> <span id="widget-text-3" class="editable-text" onclick="editBubbleText('widget-text-3')">* Keep your spirit free</span> <img id="widget-avatar-2" src="https://i.imgur.com/5A0tE9a.jpeg" class="editable-image"> </div>
+                </div>
+                <div id="desktop-app-container">
+                  <div class="desktop-app-icon" onclick="showScreen('chat-list-screen')">
+                    <div class="icon-bg-desktop"><img id="icon-img-qq" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="QQ"></div> <span class="label"data-lang-key="homeAppQQ">QQ</span>
+                  </div>
+                  <div class="desktop-app-icon" onclick="showScreen('world-book-screen')">
+                    <div class="icon-bg-desktop"><img id="icon-img-world-book" src="https://i.postimg.cc/HWf1JKzn/IMG-6435.jpg" alt="世界书"></div> <span class="label"data-lang-key="homeAppWorldBook">世界书</span>
+                  </div>
+                  <div class="desktop-app-icon" onclick="showScreen('wallpaper-screen')">
+                    <div class="icon-bg-desktop"><img id="icon-img-wallpaper" src="https://i.postimg.cc/T1j03pQr/IMG-6440.jpg" alt="外观设置"></div> <span class="label"data-lang-key="homeAppAppearance">外观设置</span>
+                  </div>
+                  <div class="desktop-app-icon" onclick="openRenderingRulesScreen()">
+                    <div class="icon-bg-desktop"><img id="icon-img-renderer" src="https://s3plus.meituan.net/opapisdk/op_ticket_885190757_1756312261242_qdqqd_g0eriz.jpeg" alt="渲染器"></div> <span class="label"data-lang-key="homeAppRenderer">渲染器</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="home-screen-page">
+            <div class="polaroid-widget-container">
+              <div class="polaroid-photos">
+                <div class="polaroid-photo" style="transform: rotate(-6deg);" onclick="handleWidgetImageChange('polaroid-img-1')"> <img id="polaroid-img-1" src="https://i.imgur.com/Bv63o3h.jpg" alt="Photo 1"> </div>
+                <div class="polaroid-photo" style="transform: rotate(2deg);" onclick="handleWidgetImageChange('polaroid-img-2')"> <img id="polaroid-img-2" src="https://i.imgur.com/GzPzBfF.jpg" alt="Photo 2"> </div>
+                <div class="polaroid-photo" style="transform: rotate(5deg);" onclick="handleWidgetImageChange('polaroid-img-3')"> <img id="polaroid-img-3" src="https://i.imgur.com/Wp72cEM.jpg" alt="Photo 3"> </div>
+              </div>
+            </div>
+            <div id="page-2-app-container">
+              <div class="left-column-stack">
+        <!-- 原来的大组件 -->
+        <div class="large-widget" onclick="handleWidgetImageChange('large-widget-img')"> 
+            <img class="large-widget-img" id="large-widget-img" src="https://i.imgur.com/Bv63o3h.jpg" alt="Colorful Widget"> 
+        </div>
+        
+        <!-- 新增：左侧 App 网格 -->
+        <div class="left-app-grid">
+            <!-- 支付宝图标 -->
+            <div class="desktop-app-icon" onclick="openAlipayScreen()">
+    <div class="icon-bg-desktop">
+        <img id="icon-img-alipay" src="https://i.postimg.cc/SK31X0Bb/IMG_2231.png" alt="支付宝">
+    </div> 
+    <span class="label">支付宝</span>
+</div>
+
+<div class="desktop-app-icon" onclick="openAuctionScreen()">
+    <div class="icon-bg-desktop"> 
+        <img id="icon-img-auction" 
+             src="https://i.postimg.cc/Hs7BLh76/alipay.png" 
+             alt="黑市">
+    </div>
+    <span class="label">黑市</span>
+</div>
+<div class="desktop-app-icon" onclick="openGreenRiverScreen()">
+    <div class="icon-bg-desktop"> 
+        <img id="icon-img-green-river" 
+             src="https://i.postimg.cc/0j55Pj1L/green-river-icon.png" 
+             alt="绿江">
+    </div>
+    <span class="label">绿江</span>
+</div>
+<div class="desktop-app-icon" onclick="openEmailApp()">
+    <div class="icon-bg-desktop"> 
+        <img id="icon-img-mail" src="https://i.postimg.cc/PfR7f37x/mail.png" alt="Mail">
+    </div>
+    <span class="label">邮箱</span>
+</div>
+            <!-- 未来可以在这里加更多 App -->
+        </div>
+    </div>
+              <div class="right-column-stack">
+    
+    <div class="app-subgrid">
+        <div class="small-widget" onclick="openPresetScreen()">
+            <div class="small-widget-icon-wrapper"> 
+                <img class="small-widget-img" id="icon-img-preset" src="https://i.postimg.cc/nMbyyt1t/D7CD735A73F5FD1D7B8407E0EB8BBAC0.png" alt="预设"> 
+            </div> 
+            <span class="small-widget-label" data-lang-key="homeAppPreset">预设</span>
+        </div>
+        <div class="small-widget" onclick="showScreen('tutorial-screen')">
+            <div class="small-widget-icon-wrapper"> 
+                <img class="small-widget-img" id="icon-img-tutorial" src="https://i.postimg.cc/d10GjC4g/IMG-7302.jpg" alt="教程"> 
+            </div> 
+            <span class="small-widget-label" data-lang-key="homeAppTutorial">教程</span>
+        </div>
+        <div class="small-widget" onclick="openWerewolfLobby('global')">
+            <div class="small-widget-icon-wrapper"> 
+                <img class="small-widget-img" id="icon-img-werewolf" src="https://i.postimg.cc/k401K5g7/IMG-7304.jpg" alt="狼人杀"> 
+            </div> 
+            <span class="small-widget-label" data-lang-key="homeAppWerewolf">狼人杀</span>
+        </div>
+        <div class="small-widget" onclick="showScreen('x-social-screen')">
+            <div class="small-widget-icon-wrapper"> 
+                <img class="small-widget-img" id="icon-img-x" src="https://i.postimg.cc/Y9d3BztC/1.png" alt="X"> 
+            </div> 
+            <span class="small-widget-label" data-lang-key="homeAppX">X</span>
+        </div>
+    </div>
+
+    <div class="vinyl-transparent-widget">
+                      <div class="vinyl-disc-bg">
+                          <img id="vinyl-img" 
+                               src="https://i.postimg.cc/y8xWzCqj/anime-boy.jpg" 
+                               class="vinyl-cover editable-image" 
+                               onclick="handleWidgetImageChange('vinyl-img')">
+                      </div>
+                      <div class="vinyl-arm-wrapper">
+                          <svg width="50" height="120" viewBox="0 0 50 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="35" cy="15" r="12" fill="white" stroke="#ddd" stroke-width="2"/>
+                              <path d="M35 15 L40 80 L25 90" stroke="#ddd" stroke-width="6" stroke-linecap="round" fill="none"/>
+                              <path d="M35 15 L40 80 L25 90" stroke="white" stroke-width="3" stroke-linecap="round" fill="none"/>
+                              <rect x="18" y="88" width="14" height="22" rx="5" fill="white" stroke="#ddd" stroke-width="2"/>
+                              <circle cx="25" cy="102" r="2" fill="#ccc"/>
+                              <circle cx="25" cy="96" r="2" fill="#ccc"/>
+                          </svg>
+                      </div>
+                  </div> </div> </div> </div>
+          <div class="home-screen-page">
+            <div id="page-3-content">
+              <!-- 顶部个人资料小组件 -->
+              <div class="p3-profile-widget">
+                <div class="p3-profile-left">
+                  <div class="p3-name-tag">
+                    <span id="p3-profile-name" class="editable-text" onclick="editBubbleText('p3-profile-name')">Mochi</span>
+                  </div>
+                  <div class="p3-avatar-wrapper">
+                    <img id="p3-avatar-img" src="https://i.imgur.com/Bv63o3h.jpg" class="editable-image" onclick="handleWidgetImageChange('p3-avatar-img')">
+                  </div>
+                  <div class="p3-profile-title">
+                    <span id="p3-profile-title-text" class="editable-text" onclick="editBubbleText('p3-profile-title-text')">星屑收集者</span>
+                  </div>
+                </div>
+                <div class="p3-profile-right">
+                  <p class="p3-deco-line">
+                    <span id="p3-deco-line-1" class="editable-text" onclick="editBubbleText('p3-deco-line-1')">✦.⁺ 月が静かに歌っている ✦.°</span>
+                  </p>
+                  <div class="p3-dotted-divider"></div>
+                  <p class="p3-deco-line">
+                    <span id="p3-deco-line-2" class="editable-text" onclick="editBubbleText('p3-deco-line-2')">今天也要元气满满地摸鱼🐟✨</span>
+                  </p>
+                  <div class="p3-dotted-divider"></div>
+                  <p class="p3-deco-line p3-studio-line">
+                    <span id="p3-deco-line-3" class="editable-text" onclick="editBubbleText('p3-deco-line-3')">✕✕ ✕⸳ Neko_lab ⸳✕ ✕✕</span>
+                  </p>
+                </div>
+              </div>
+
+              <!-- 左右分栏：纪念日 + 微博小组件 -->
+              <div class="p3-split-row">
+                <!-- 左：纪念日组件 -->
+                <div class="p3-anniversary-widget">
+                  <div class="anni-day-counter">
+                    <span id="p3-day-count" class="anni-day-count-auto" title="根据下方日期自动计算">128</span>
+                    <span class="anni-day-unit">天</span>
+                  </div>
+                  <div class="anni-photos">
+                    <div class="anni-photo" onclick="handleWidgetImageChange('p3-circle-img-left')">
+                      <img id="p3-circle-img-left" src="https://i.imgur.com/Bv63o3h.jpg" class="editable-image">
+                    </div>
+                    <div class="anni-photo" onclick="handleWidgetImageChange('p3-circle-img-right')">
+                      <img id="p3-circle-img-right" src="https://i.imgur.com/GzPzBfF.jpg" class="editable-image">
+                    </div>
+                  </div>
+                  <div class="anni-caption">
+                    <span id="p3-circle-caption" class="editable-text" onclick="editBubbleText('p3-circle-caption')">with kitty🐱</span>
+                  </div>
+                  <div class="anni-date">
+                    <span id="p3-circle-date" class="editable-text" onclick="editBubbleText('p3-circle-date')">2025.10.08</span>
+                  </div>
+                </div>
+                <!-- 右：微博/小红书帖子组件 -->
+                <div class="p3-weibo-widget">
+                  <div class="weibo-header">
+                    <img id="p3-weibo-avatar" src="https://i.imgur.com/Bv63o3h.jpg" class="weibo-avatar editable-image" onclick="handleWidgetImageChange('p3-weibo-avatar')">
+                    <div class="weibo-user-info">
+                      <span id="p3-weibo-username" class="editable-text" onclick="editBubbleText('p3-weibo-username')">MochiDiary</span>
+                      <span id="p3-weibo-date" class="weibo-post-date editable-text" onclick="editBubbleText('p3-weibo-date')">02-10</span>
+                    </div>
+                  </div>
+                  <div class="weibo-body">
+                    <p id="p3-weibo-text" class="editable-text" onclick="editBubbleText('p3-weibo-text')">· 窗外の「薄暮色Twilight」<br>· 藏在云层背后的金色边<br>· 好多的故事像蒲公英飘散<br>· 闭上眼の刹那..<br>· 都化成了一首温柔的晚安曲.</p>
+                  </div>
+                  <div class="weibo-footer">
+                    <span id="p3-weibo-device" class="editable-text" onclick="editBubbleText('p3-weibo-device')">来自 iPhone 15 Pro Max</span>
+                  </div>
+                  <div class="weibo-image" onclick="handleWidgetImageChange('p3-weibo-img')">
+                    <img id="p3-weibo-img" src="https://i.imgur.com/5A0tE9a.jpeg" class="editable-image">
+                  </div>
+                </div>
+              </div>
+
+              <!-- 第三页 App 网格 - 两行四列 -->
+              <div id="page-3-app-grid">
+                <!-- 第一行 -->
+                <div class="desktop-app-icon" onclick="openMyphoneScreen()">
+                  <div class="icon-bg-desktop">
+                    <img id="icon-img-myphone" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="Myphone">
+                  </div>
+                  <span class="label">Myphone</span>
+                </div>
+                <div class="desktop-app-icon" onclick="openDrawAndGuess()">
+                  <div class="icon-bg-desktop">
+                    <img id="icon-img-draw-guess" src="https://i.postimg.cc/k5dG3B4p/draw-guess-icon.png" alt="你画我猜">
+                  </div>
+                  <span class="label">你画我猜</span>
+                </div>
+                <div class="desktop-app-icon" onclick="openCharacterGeneratorScreen()">
+                  <div class="icon-bg-desktop">
+                    <img id="icon-img-char-generator" src="https://i.postimg.cc/nzGYM8qb/character-gen.jpg" alt="角色生成">
+                  </div>
+                  <span class="label">角色生成</span>
+                </div>
+                <div class="desktop-app-icon" onclick="showScreen('online-app-screen')">
+                  <div class="icon-bg-desktop">
+                    <img id="icon-img-online-app" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="联机">
+                  </div>
+                  <span class="label">联机</span>
+                </div>
+                <!-- 第二行 -->
+                <div class="desktop-app-icon">
+                  <div class="icon-bg-desktop"><img id="icon-img-forum" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="论坛"></div>
+                  <span class="label">论坛</span>
+                </div>
+                <div class="desktop-app-icon" onclick="openPeriodTracker()">
+                  <div class="icon-bg-desktop"><img id="icon-img-period-tracker" src="https://i.postimg.cc/RVGt0yMN/calendar-pink.png" alt="月经记录"></div>
+                  <span class="label">月经记录</span>
+                </div>
+                <div class="desktop-app-icon" onclick="openFocusTimer()">
+                  <div class="icon-bg-desktop"><img id="icon-img-focus-timer" src="https://i.postimg.cc/Kz8d9YJy/tomato-timer.png" alt="番茄钟"></div>
+                  <span class="label">番茄钟</span>
+                </div>
+                <div class="desktop-app-icon" onclick="openCoupleSpace()">
+                  <div class="icon-bg-desktop"><img id="icon-img-new-world" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="情侣空间"></div>
+                  <span class="label">情侣空间</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 新增第四页 -->
+          <div class="home-screen-page">
+            <div id="page-4-app-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 20px; width: 100%; box-sizing: border-box; align-items: start; justify-items: center;">
+              <div class="desktop-app-icon" onclick="showScreen('thought-chain-screen')">
+                <div class="icon-bg-desktop"><img id="icon-img-thought-chain" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="思维链"></div>
+                <span class="label">思维链</span>
+              </div>
+              <div class="desktop-app-icon" onclick="openMcpScreen()">
+                <div class="icon-bg-desktop"><img id="icon-img-mcp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='22' fill='%2323272f'/%3E%3Cpath d='M26 62V38l22 13 22-13v24' fill='none' stroke='%23f5f6f7' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='26' cy='34' r='6' fill='%2359c3ff'/%3E%3Ccircle cx='48' cy='51' r='6' fill='%2368d391'/%3E%3Ccircle cx='70' cy='34' r='6' fill='%23ffcb6b'/%3E%3C/svg%3E" alt="MCP"></div>
+                <span class="label">MCP</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('account-vault-screen')">
+                <div class="icon-bg-desktop"><img id="icon-img-account-vault" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="账号管理"></div>
+                <span class="label">账号管理</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('alt-persona-screen')">
+                <div class="icon-bg-desktop"><img id="icon-img-alt-persona" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="小号"></div>
+                <span class="label">小号</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('sms-app-screen')">
+                <div class="icon-bg-desktop"><img id="icon-img-sms" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="短信"></div>
+                <span class="label">短信</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('prank-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">😈</div>
+                <span class="label">用TA的手机</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('theater-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🎭</div>
+                <span class="label">小剧场</span>
+              </div>
+              <div class="desktop-app-icon" onclick="openKkCheckin()">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🕵️</div>
+                <span class="label">查岗</span>
+              </div>
+              <div class="desktop-app-icon" onclick="showScreen('status-bar-app-screen')">
+                <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">📊</div>
+                <span class="label">状态栏</span>
+              </div>
+              <div class="desktop-app-icon" onclick="openBannedWordsScreen('global')">
+                    <div class="icon-bg-desktop" style="display:flex; align-items:center; justify-content:center; font-size:28px;">🚫</div> <span class="label">屏蔽词</span>
+                  </div>
+              <div class="desktop-app-icon" onclick="openForumApp()">
+                <div class="icon-bg-desktop" style="background:#111; display:flex; align-items:center; justify-content:center;"><span style="color:#fff; font-size:22px; font-weight:600;">论</span></div>
+                <span class="label">论坛</span>
+              </div>
+            </div>
+          </div>
+        </div> </div>
+      <div id="home-screen-pagination">
+        <div class="pagination-dot active"></div>
+        <div class="pagination-dot"></div>
+        <div class="pagination-dot"></div>
+        <div class="pagination-dot"></div>
+      </div>
+      <div id="desktop-dock">
+        <div class="desktop-app-icon" onclick="showScreen('api-settings-screen')">
+          <div class="icon-bg-desktop"><img id="icon-img-api-settings" src="https://i.postimg.cc/MK8rJ8t7/IMG-6438.jpg" alt="API设置"></div> <span class="label"data-lang-key="homeAppApiSettings">API设置</span>
+        </div>
+        <div class="desktop-app-icon" onclick="showScreen('font-settings-screen')">
+          <div class="icon-bg-desktop"><img id="icon-img-font" src="https://i.postimg.cc/pXxk1JXk/IMG-6442.jpg" alt="字体"></div> <span class="label"data-lang-key="homeAppFont">字体</span>
+        </div>
+        <div class="desktop-app-icon" onclick="openCharacterSelector()">
+          <div class="icon-bg-desktop"><img id="icon-img-char-phone" src="https://i.postimg.cc/pXj9h20L/IMG-7275.jpg" alt="Cphone"></div> <span class="label"data-lang-key="homeAppCPhone">Cphone</span>
+        </div>
+        <div class="desktop-app-icon" onclick="showScreen('douban-screen')">
+          <div class="icon-bg-desktop"><img id="icon-img-douban" src="https://i.postimg.cc/Pq2xJN1g/IMG-7301.jpg" alt="豆瓣"></div> <span class="label"data-lang-key="homeAppDouban">豆瓣</span>
+        </div>
+      </div>
+    </div>
+    <!-- 月经记录屏幕 -->
+    <div id="period-tracker-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>月经记录</span>
+        <span style="width: 30px;"></span>
+      </div>
+      <div class="period-nav">
+        <button class="period-nav-btn active" data-view="calendar" onclick="switchPeriodView('calendar')">日历</button>
+        <button class="period-nav-btn" data-view="history" onclick="switchPeriodView('history')">历史</button>
+        <button class="period-nav-btn" data-view="report" onclick="switchPeriodView('report')">报告</button>
+        <button class="period-nav-btn" data-view="settings" onclick="switchPeriodView('settings')">设置</button>
+      </div>
+      <div id="period-calendar-view" class="period-view">
+        <div id="period-calendar-content"></div>
+      </div>
+      <div id="period-history-view" class="period-view" style="display: none;">
+        <div id="period-history-content"></div>
+      </div>
+      <div id="period-report-view" class="period-view" style="display: none;">
+        <div id="period-report-content"></div>
+      </div>
+      <div id="period-settings-view" class="period-view" style="display: none;">
+        <div id="period-settings-content"></div>
+      </div>
+    </div>
+
+    <!-- 月经记录 - 添加记录弹窗 -->
+    <div id="period-add-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>记录经期</span>
+          <span class="close-btn" onclick="hidePeriodAddModal()">×</span>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <div class="period-form-group">
+            <label>开始日期</label>
+            <input type="date" id="period-start-date" class="period-input">
+          </div>
+          <div class="period-form-group">
+            <label>结束日期（可选）</label>
+            <input type="date" id="period-end-date" class="period-input">
+          </div>
+          <div class="period-form-group">
+            <label>流量</label>
+            <select id="period-flow" class="period-input">
+              <option value="light">少量</option>
+              <option value="medium" selected>中等</option>
+              <option value="heavy">较多</option>
+            </select>
+          </div>
+          <div class="period-form-group">
+            <label>症状（可选）</label>
+            <input type="text" id="period-symptoms" class="period-input" placeholder="如：痛经、腰酸...">
+          </div>
+          <div class="period-form-group">
+            <label>心情</label>
+            <select id="period-mood" class="period-input">
+              <option value="great">很好</option>
+              <option value="good">不错</option>
+              <option value="normal" selected>一般</option>
+              <option value="bad">不好</option>
+              <option value="terrible">很差</option>
+            </select>
+          </div>
+          <div class="period-form-group">
+            <label>备注（可选）</label>
+            <textarea id="period-notes" class="period-input" rows="3" placeholder="其他想记录的..."></textarea>
+          </div>
+          <div class="period-form-group">
+            <label>痛经程度 (0-10分)</label>
+            <input type="range" id="period-pain-level" class="period-slider" min="0" max="10" value="0" oninput="updatePainLevelDisplay(this.value)">
+            <div style="text-align: center; margin-top: 5px; color: #FF9EAA; font-weight: 600;">
+              <span id="pain-level-display">0</span> / 10
+            </div>
+          </div>
+          <div class="period-form-group">
+            <label>PMS症状（可多选）</label>
+            <div class="pms-checkboxes">
+              <label><input type="checkbox" class="pms-checkbox" value="胸痛"> 胸痛</label>
+              <label><input type="checkbox" class="pms-checkbox" value="腹胀"> 腹胀</label>
+              <label><input type="checkbox" class="pms-checkbox" value="易怒"> 易怒</label>
+              <label><input type="checkbox" class="pms-checkbox" value="失眠"> 失眠</label>
+              <label><input type="checkbox" class="pms-checkbox" value="头痛"> 头痛</label>
+              <label><input type="checkbox" class="pms-checkbox" value="疲劳"> 疲劳</label>
+              <label><input type="checkbox" class="pms-checkbox" value="食欲增加"> 食欲增加</label>
+              <label><input type="checkbox" class="pms-checkbox" value="水肿"> 水肿</label>
+              <label><input type="checkbox" class="pms-checkbox" value="长痘"> 长痘</label>
+            </div>
+            <input type="text" id="period-pms-custom" class="period-input" placeholder="其他症状（用逗号分隔）" style="margin-top: 8px;">
+          </div>
+          <div class="period-form-group">
+            <label>用品更换次数</label>
+            <input type="text" id="period-product-changes" class="period-input" placeholder="例如：5次/天">
+          </div>
+          <div class="period-form-group">
+            <label>睡眠质量</label>
+            <input type="range" id="period-sleep-quality" class="period-slider" min="1" max="5" value="3" oninput="updateStarDisplay(this.value)">
+            <div id="sleep-stars-display" style="text-align: center; margin-top: 5px; font-size: 20px;">⭐⭐⭐☆☆</div>
+          </div>
+          <div class="period-form-group">
+            <label>运动时长（分钟）</label>
+            <input type="number" id="period-exercise-duration" class="period-input" placeholder="例如：30" min="0">
+          </div>
+          <button class="period-btn-primary" onclick="savePeriodRecord()">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 月经记录 - 详情弹窗 -->
