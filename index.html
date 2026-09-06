@@ -75,7 +75,8 @@
   <script src="modules/ai-response.js?v=0.0.45" defer></script>
   <script src="modules/ai-group.js?v=0.0.39" defer></script>
   <!-- 第五层：功能模块 -->
-  <script src="modules/music-player.js?v=0.0.36" defer></script>
+  <script src="modules/music-player.js?v=0.0.37" defer></script>
+  <script src="modules/music-online-services.js?v=0.0.1" defer></script>
   <script src="modules/qzone.js?v=0.0.36" defer></script>
   <script src="modules/sticker-manager.js?v=0.0.36" defer></script>
   <script src="modules/memory-summary.js?v=0.0.36" defer></script>
@@ -158,6 +159,13 @@
   <script src="modules/hijack-scenes.js?v=0.0.1" defer></script>
   <script src="modules/disguise-manager.js?v=0.0.1" defer></script>
   <script src="modules/battery-reminder.js?v=0.0.1" defer></script>
+  <!-- MCP 功能中心（从 xinyuan 移植） -->
+  <script src="modules/mcp/manager.js?v=0.0.1" defer></script>
+  <!-- 回复守护/后台保活（从 xinyuan 移植） -->
+  <script src="modules/keep-alive/audio-session.js?v=0.0.1" defer></script>
+  <script src="modules/keep-alive/pip-waiting.js?v=0.0.1" defer></script>
+  <script src="modules/reply-task-store.js?v=0.0.1" defer></script>
+  <script src="modules/keep-alive/reply-guardian.js?v=0.0.1" defer></script>
   
   <!-- 保活音频播放器样式（从内联 style 拆分） -->
   <link rel="stylesheet" href="css/keep-alive-player.css?v=0.0.36">
@@ -167,6 +175,10 @@
   <link rel="stylesheet" href="css/clean-api-settings.css?v=0.0.36">
   <link rel="stylesheet" href="css/couple-invite.css?v=0.0.36">
   <link rel="stylesheet" href="css/floating-ball.css?v=0.0.36">
+  <!-- MCP 功能中心样式（从 xinyuan 移植） -->
+  <link rel="stylesheet" href="css/mcp/app.css?v=0.0.1">
+  <!-- 思维链高级设置样式（从 xinyuan 移植） -->
+  <link rel="stylesheet" href="css/thought-chain-extra.css?v=0.0.1">
 </head>
 <body>
   <div id="intro-screen">
@@ -548,6 +560,10 @@
               <div class="desktop-app-icon" onclick="showScreen('thought-chain-screen')">
                 <div class="icon-bg-desktop"><img id="icon-img-thought-chain" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="思维链"></div>
                 <span class="label">思维链</span>
+              </div>
+              <div class="desktop-app-icon" onclick="openMcpScreen()">
+                <div class="icon-bg-desktop"><img id="icon-img-mcp" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'%3E%3Crect width='96' height='96' rx='22' fill='%2323272f'/%3E%3Cpath d='M26 62V38l22 13 22-13v24' fill='none' stroke='%23f5f6f7' stroke-width='7' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='26' cy='34' r='6' fill='%2359c3ff'/%3E%3Ccircle cx='48' cy='51' r='6' fill='%2368d391'/%3E%3Ccircle cx='70' cy='34' r='6' fill='%23ffcb6b'/%3E%3C/svg%3E" alt="MCP"></div>
+                <span class="label">MCP</span>
               </div>
               <div class="desktop-app-icon" onclick="showScreen('account-vault-screen')">
                 <div class="icon-bg-desktop"><img id="icon-img-account-vault" src="https://i.postimg.cc/MTC3Tkw8/IMG-6436.jpg" alt="账号管理"></div>
@@ -2910,6 +2926,38 @@
         <!-- 后台保活 -->
         <div class="settings-header">后台保活</div>
         <div class="settings-section">
+            <!-- 回复守护/回复恢复（从 xinyuan 移植） -->
+            <div class="settings-item reply-guardian-setting-row">
+                <label>
+                    <span style="display: block;">回复守护</span>
+                    <span class="reply-guardian-setting-note">保存回复任务并在页面被暂停或重载后提供恢复。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="reply-guardian-enabled-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item reply-guardian-setting-row">
+                <label>
+                    <span style="display: block;">回复完成通知</span>
+                    <span class="reply-guardian-setting-note">仅在已开启系统通知且已授权时发送，不会额外索取权限。</span>
+                </label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="reply-guardian-notification-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="settings-item reply-guardian-diagnostic-row">
+                <div class="reply-guardian-diagnostic-copy">
+                    <label>当前保护能力</label>
+                    <span id="reply-guardian-capability-summary">检测中...</span>
+                    <span id="reply-guardian-task-summary">暂无待恢复回复</span>
+                </div>
+                <button id="reply-guardian-refresh-btn" class="settings-mini-btn" type="button">重新检测</button>
+            </div>
+
             <div class="settings-item" style="display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 12px !important;">
                 <label>
                     <span style="display: block;">无声智能保活 (双平台适配)</span>
@@ -3697,6 +3745,21 @@
       <div id="chat-messages">
         <div id="typing-indicator">对方正在输入...</div>
       </div>
+      <!-- 回复守护banner（从 xinyuan 移植） -->
+      <div id="reply-guardian-banner" class="reply-guardian-banner" hidden aria-live="polite">
+        <div class="reply-guardian-banner-main">
+          <span class="reply-guardian-dot" aria-hidden="true"></span>
+          <div class="reply-guardian-copy">
+            <span id="reply-guardian-banner-title">回复守护中</span>
+            <span id="reply-guardian-banner-detail">任务已保存，可以暂时切换应用</span>
+          </div>
+        </div>
+        <div class="reply-guardian-actions">
+          <button id="reply-guardian-pip-btn" type="button" hidden>小窗</button>
+          <button id="reply-guardian-retry-btn" type="button" hidden>继续</button>
+          <button id="reply-guardian-dismiss-btn" type="button" hidden>忽略</button>
+        </div>
+      </div>
       <button id="return-to-latest-btn" style="display: none; position: absolute; bottom: 160px; right: 20px; z-index: 100; background-color: white; color: #333; border: none; border-radius: 50%; width: 40px; height: 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; padding: 0; text-align: center;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: middle; margin-top: 2px;">
           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -3974,6 +4037,7 @@
           
           <div>
             <span class="panel-btn" id="playlist-manager-btn">歌单</span>
+            <span class="panel-btn" id="music-account-btn">音乐账号</span>
             <span class="panel-btn" id="cleanup-songs-btn">清理</span> 
             <span class="panel-btn" id="add-song-upload-btn">上传</span> 
             <span class="panel-btn" id="add-song-search-btn" data-lang-key="search">搜索</span>
@@ -4492,6 +4556,7 @@
         <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
         <span>思维链管理</span>
         <div class="header-actions">
+          <button id="tc-organize-btn" type="button" class="action-btn" style="border:none;background:none;">编排</button>
           <span class="action-btn" id="add-thought-chain-btn" title="添加条目">+</span>
         </div>
       </div>
@@ -4517,12 +4582,16 @@
                  <select id="thought-chain-preset-select" class="settings-select" style="flex-grow: 1; width: auto; min-width: 0;">
                      <option value="current">当前配置 (未保存)</option>
                  </select>
+                 <span id="thought-chain-unsaved-indicator" class="thought-chain-unsaved-indicator" hidden>未保存修改</span>
              </div>
              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 100%;">
                  <button id="new-thought-chain-preset-btn" class="settings-mini-btn">新建</button>
+                 <button id="duplicate-thought-chain-preset-btn" class="settings-mini-btn" type="button">复制预设</button>
+                 <button id="rename-thought-chain-preset-btn" class="settings-mini-btn" type="button">重命名</button>
                  <button id="import-thought-chain-preset-btn" class="settings-mini-btn">导入</button>
                  <button id="export-thought-chain-preset-btn" class="settings-mini-btn">导出</button>
                  <button id="save-thought-chain-preset-btn" class="settings-mini-btn">保存</button>
+                 <button id="revert-thought-chain-preset-btn" class="settings-mini-btn" type="button">撤销修改</button>
                  <button id="delete-thought-chain-preset-btn" class="settings-mini-btn" style="color: #ff3b30; border-color: rgba(255,59,48,0.3);">删除</button>
                  <input type="file" id="import-thought-chain-preset-file" accept=".json" style="display: none;">
              </div>
@@ -4533,10 +4602,81 @@
           </button>
         </div>
 
+        <!-- 内容识别设置（从 xinyuan 移植） -->
+        <div class="settings-item">
+          <div>
+            <div style="font-weight: 500;">提取思考内容</div>
+            <div class="settings-desc thought-chain-inline-desc">关闭后不拆分思考块，完整回复交给原正文解析</div>
+          </div>
+          <label class="toggle-switch">
+            <input type="checkbox" id="thought-chain-extraction-switch" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div id="thought-chain-extraction-settings" class="thought-chain-advanced-settings" style="padding: 0 15px 15px;">
+          <label>提取方式
+            <select id="thought-chain-extraction-mode">
+              <option value="tags">开始 / 结束标记</option>
+              <option value="regex">正则表达式</option>
+            </select>
+          </label>
+          <div id="thought-chain-tag-settings" class="thought-chain-field-grid">
+            <label>开始标记<input type="text" id="thought-chain-start-marker" value="&lt;thinking&gt;"></label>
+            <label>结束标记<input type="text" id="thought-chain-end-marker" value="&lt;/thinking&gt;"></label>
+          </div>
+          <label id="thought-chain-regex-setting" hidden>正则表达式
+            <input type="text" id="thought-chain-extraction-regex" placeholder="例如：&lt;thinking&gt;([\s\S]*?)&lt;/thinking&gt;">
+          </label>
+          <div class="thought-chain-check-grid">
+            <label><input type="checkbox" id="thought-chain-ignore-case-switch" checked> 忽略大小写</label>
+            <label><input type="checkbox" id="thought-chain-remove-from-body-switch" checked> 从正文移除</label>
+            <label><input type="checkbox" id="thought-chain-allow-missing-start-switch" checked> 兼容缺少开始标记</label>
+            <label><input type="checkbox" id="thought-chain-extract-all-switch"> 提取全部匹配</label>
+          </div>
+          <div class="thought-chain-test-actions">
+            <button id="thought-chain-preview-btn" class="settings-mini-btn">最终注入预览</button>
+            <button id="thought-chain-parser-test-btn" class="settings-mini-btn">测试提取规则</button>
+          </div>
+        </div>
+
         <!-- 条目列表 -->
         <div id="thought-chain-list" style="padding: 0 15px 40px; display: flex; flex-direction: column; gap: 12px;">
           <!-- 动态渲染的条目 -->
         </div>
+      </div>
+    </div>
+    <!-- MCP 功能中心屏幕（从 xinyuan 移植） -->
+    <div id="mcp-screen" class="screen mcp-screen">
+      <div class="header mcp-header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>MCP 连接</span>
+        <button type="button" class="mcp-header-add" id="mcp-add-connection-btn" aria-label="添加连接" title="添加连接">+</button>
+      </div>
+      <div class="mcp-summary" aria-live="polite">
+        <div>
+          <strong id="mcp-summary-title">尚未连接</strong>
+          <span id="mcp-summary-detail">不会预装服务，由你连接自己的 MCP</span>
+        </div>
+        <span class="mcp-summary-dot" id="mcp-summary-dot"></span>
+      </div>
+      <div class="mcp-tabs" role="tablist" aria-label="MCP 页面">
+        <button type="button" class="mcp-tab active" data-mcp-tab="connections" role="tab" aria-selected="true">连接</button>
+        <button type="button" class="mcp-tab" data-mcp-tab="capabilities" role="tab" aria-selected="false">能力</button>
+        <button type="button" class="mcp-tab" data-mcp-tab="activity" role="tab" aria-selected="false">活动</button>
+        <button type="button" class="mcp-tab" data-mcp-tab="settings" role="tab" aria-selected="false">设置</button>
+      </div>
+      <div class="mcp-scroll" id="mcp-content"></div>
+      <input id="mcp-import-input" type="file" accept="application/json,.json" hidden>
+      <div class="mcp-sheet-backdrop" id="mcp-sheet-backdrop" aria-hidden="true">
+        <section class="mcp-sheet" role="dialog" aria-modal="true" aria-labelledby="mcp-sheet-title">
+          <div class="mcp-sheet-header">
+            <button type="button" class="mcp-sheet-close" id="mcp-sheet-close" aria-label="关闭">×</button>
+            <strong id="mcp-sheet-title"></strong>
+            <span class="mcp-sheet-header-spacer"></span>
+          </div>
+          <div class="mcp-sheet-body" id="mcp-sheet-body"></div>
+          <div class="mcp-sheet-actions" id="mcp-sheet-actions"></div>
+        </section>
       </div>
     </div>
     <!-- 账号管理（顶号功能）屏幕 -->
@@ -4979,10 +5119,41 @@
               <span class="slider"></span>
             </label>
           </div>
+          <div class="form-group" style="display: flex; gap: 15px;">
+            <div style="flex: 1;">
+              <label>聊天深度</label>
+              <input type="number" id="tc-depth-input" placeholder="留空则不限制" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box;">
+            </div>
+            <div style="flex: 1;">
+              <label>顺序</label>
+              <input type="number" id="tc-order-input" placeholder="数字越小越靠前" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box;">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>备注 <span style="font-size: 12px; color: #999; font-weight: normal;">(仅供自己查看，不会注入)</span></label>
+            <input type="text" id="tc-note-input" placeholder="给这个条目做个备注...">
+          </div>
         </div>
         <div class="modal-footer">
           <button class="cancel" id="tc-cancel-btn">取消</button>
           <button class="save" id="tc-save-btn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 思维链工具（测试提取规则，从 xinyuan 移植） -->
+    <div id="thought-chain-tools-modal" class="modal">
+      <div class="modal-content thought-chain-tools-modal-content">
+        <div class="modal-header">
+          <span id="thought-chain-tools-title">思维链工具</span>
+        </div>
+        <div class="modal-body thought-chain-tools-body">
+          <textarea id="thought-chain-test-input" class="thought-chain-tools-input" placeholder="测试提取规则时，在这里粘贴一段模型返回内容"></textarea>
+          <pre id="thought-chain-tools-output" class="thought-chain-tools-output"></pre>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="thought-chain-tools-close-btn">关闭</button>
+          <button class="save" id="thought-chain-tools-run-btn">运行测试</button>
         </div>
       </div>
     </div>
@@ -8444,6 +8615,45 @@
       <div class="modal-header"> <span>搜索结果</span> <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px;"> <input type="checkbox" id="select-all-music-search"> 全选 </label> </div>
       <div class="modal-body" id="search-results-list" style="padding: 0;"> </div>
       <div class="modal-footer"> <button class="cancel" id="cancel-music-search-btn"data-lang-key="cancel">取消</button> <button class="save" id="add-selected-music-btn"data-lang-key="add">添加选中</button> </div>
+    </div>
+  </div>
+  <div id="music-account-modal" class="modal">
+    <div class="modal-content music-account-content">
+      <div class="modal-header">
+        <span>音乐账号</span>
+        <button id="close-music-account-btn" class="music-account-close" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="modal-body music-account-body">
+        <section class="music-account-card">
+          <div class="music-account-platform-row">
+            <div>
+              <div class="music-account-platform-name">网易云音乐</div>
+              <div id="netease-account-status" class="music-account-status">正在检查登录状态…</div>
+            </div>
+            <button id="netease-login-btn" class="music-account-primary-btn" type="button">扫码登录</button>
+            <button id="netease-logout-btn" class="music-account-secondary-btn" type="button" hidden>退出</button>
+          </div>
+          <div id="netease-profile" class="music-account-profile" hidden>
+            <img id="netease-profile-avatar" alt="网易云头像">
+            <span id="netease-profile-name"></span>
+          </div>
+          <div id="netease-qr-area" class="music-account-qr-area" hidden>
+            <img id="netease-qr-image" alt="网易云扫码登录二维码">
+            <div id="netease-qr-message">请使用网易云音乐 App 扫码并确认</div>
+            <a id="netease-qr-link" target="_blank" rel="noopener noreferrer">在网易云音乐中打开</a>
+          </div>
+          <p class="music-account-safety">扫码会话由当前公共节点处理。该节点能够接触你的登录会话；本页不会要求账号、密码或短信验证码，也不会把登录会话发送给搜索节点。</p>
+        </section>
+        <section id="netease-playlists-section" class="music-account-card" hidden>
+          <div class="music-account-section-title">我的网易云歌单</div>
+          <div id="netease-playlists-loading" class="music-account-status">正在读取歌单…</div>
+          <div id="netease-playlists-list" class="music-account-playlists"></div>
+        </section>
+        <section class="music-account-card music-account-availability">
+          <div class="music-account-section-title">无需登录也能听</div>
+          <p>网易云、QQ 音乐和酷狗均可直接搜索播放。其他平台只有在公共登录服务真实可用时才会显示登录入口。</p>
+        </section>
+      </div>
     </div>
   </div>
   <div id="cleaned-songs-modal" class="modal">
