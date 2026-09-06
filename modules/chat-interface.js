@@ -1,4 +1,51 @@
 // ============================================================
+
+  // 参考并改写自 yxlforever/YYY：
+  // https://github.com/yxlforever/YYY/commit/ece2d6bec633ced55c89af3871f96c97ebf3aa7e
+  // 用途：切换聊天/离开聊天后让旧异步渲染失效，并断开已离屏媒体 DOM 的资源引用。
+  // 不删除 chat.history，不改变消息窗口数量、历史加载、通知或任何聊天数据。
+  let chatRenderVersion = 0;
+  const pendingChatImageLoads = new WeakMap();
+
+  function waitForChatImage(img) {
+    return new Promise(resolve => {
+      let settled = false;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        pendingChatImageLoads.delete(img);
+        if (img.onload === settle) img.onload = null;
+        if (img.onerror === settle) img.onerror = null;
+        resolve();
+      };
+      pendingChatImageLoads.set(img, settle);
+      img.onload = settle;
+      img.onerror = settle;
+    });
+  }
+
+  function disposeChatMessageDom() {
+    chatRenderVersion++;
+    const messagesContainer = document.getElementById('chat-messages');
+    if (!messagesContainer) return;
+    messagesContainer.querySelectorAll('img, video, audio').forEach(media => {
+      // 先结束仍在等待的图片加载 Promise，避免已移除节点被旧渲染闭包长期引用。
+      const settlePendingLoad = pendingChatImageLoads.get(media);
+      if (typeof settlePendingLoad === 'function') {
+        settlePendingLoad();
+      }
+      media.onload = null;
+      media.onerror = null;
+      if (media.tagName !== 'IMG') {
+        try { media.pause(); } catch (error) { }
+        media.removeAttribute('src');
+        try { if (media.load) media.load(); } catch (error) { }
+      } else {
+        media.removeAttribute('src');
+      }
+    });
+    messagesContainer.replaceChildren();
+  }
 // chat-interface.js
 // 聊天界面模块：renderChatInterface、loadMoreMessages、
 // scrollToOriginalMessage、createMessageElement、prependMessage、
@@ -102,7 +149,8 @@
     if (!chat) return;
 
     const messagesContainer = document.getElementById('chat-messages');
-    messagesContainer.innerHTML = '';
+    disposeChatMessageDom();
+    const renderVersion = chatRenderVersion;
     showLoader(messagesContainer, 'center'); // 临时显示加载
 
     // 寻找目标消息索引
@@ -146,20 +194,30 @@
         lastTimestamp = msg.timestamp;
       }
       const messageEl = await createMessageElement(msg, chat, true);
+
+      if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) return;
       if (messageEl) {
         fragment.appendChild(messageEl);
       }
     }
 
+    if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) return;
     messagesContainer.appendChild(fragment);
 
     // 滚动定位到目标消息
     setTimeout(() => {
-      scrollToOriginalMessage(targetTimestamp);
+      if (renderVersion === chatRenderVersion && state.activeChatId === chatId) {
+        scrollToOriginalMessage(targetTimestamp);
+      }
     }, 100);
   }
 
   async function renderChatInterface(chatId) {
+    if (window.ReplyGuardian && typeof window.ReplyGuardian.renderChatBanner === 'function') {
+      window.ReplyGuardian.renderChatBanner(chatId).catch(error => {
+        console.warn('[回复守护] 更新聊天状态条失败:', error);
+      });
+    }
     state.isViewingHistoryMode = false;
     state.historyCenterTimestamp = null;
     const returnBtn = document.getElementById('return-to-latest-btn');
@@ -169,15 +227,6 @@
     cleanupWaimaiTimers();
     const chat = state.chats[chatId];
     if (!chat) return;
-    if (chat.isGroup && typeof checkAndDecayChat === 'function') {
-      checkAndDecayChat(chat);
-    }
-    if (typeof checkAndTriggerProactiveReply === 'function') {
-      // 注意：这里必须延后到下一个事件循环再触发，因为本函数后面还会把
-      // chat-header-title 的文字设回聊天名字，如果同步触发，"对方正在输入..."
-      // 会在设置的瞬间就被这里后面的代码覆盖掉，导致用户完全看不到这个状态
-      setTimeout(() => checkAndTriggerProactiveReply(chat), 0);
-    }
 
     exitSelectionMode();
 
@@ -322,7 +371,8 @@
       }
     }
 
-    messagesContainer.innerHTML = '';
+    disposeChatMessageDom();
+    const renderVersion = chatRenderVersion;
     const history = chat.history;
     currentRenderedCount = 0;
     const renderWindow = state.globalSettings.chatRenderWindow || 50;
@@ -369,24 +419,29 @@
 
       if (!img.complete) {
 
-        imageLoadPromises.push(new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        }));
+        imageLoadPromises.push(waitForChatImage(img));
       }
     });
 
 
     Promise.all(imageLoadPromises).then(() => {
 
+      if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) return;
+
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
       console.log('所有初始图片加载完成，已滚动到底部。');
     }).catch(err => {
 
+      if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) return;
+
       console.error("等待图片加载时出错:", err);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     });
-    setTimeout(() => messagesContainer.scrollTop = messagesContainer.scrollHeight, 0);
+    setTimeout(() => {
+      if (renderVersion === chatRenderVersion && state.activeChatId === chatId) {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+      }
+    }, 0);
   }
 
 
@@ -398,6 +453,8 @@
 
     const messagesContainer = document.getElementById('chat-messages');
     const chat = state.chats[state.activeChatId];
+    const chatId = state.activeChatId;
+    const renderVersion = chatRenderVersion;
     if (!chat) {
       isLoadingMoreMessages = false;
       return;
@@ -414,6 +471,11 @@
 
 
     await new Promise(resolve => setTimeout(resolve, 100));
+
+    if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) {
+      isLoadingMoreMessages = false;
+      return;
+    }
 
 
     const totalMessages = chat.history.length;
@@ -433,6 +495,10 @@
     const messageElements = [];
     for (const msg of messagesToPrepend) {
       const el = await createMessageElement(msg, chat);
+      if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) {
+        isLoadingMoreMessages = false;
+        return;
+      }
       messageElements.push(el);
     }
 
@@ -467,6 +533,10 @@
 
 
 
+    if (renderVersion !== chatRenderVersion || state.activeChatId !== chatId) {
+      isLoadingMoreMessages = false;
+      return;
+    }
     hideLoader(messagesContainer);
     messagesContainer.prepend(fragment);
 
@@ -507,9 +577,9 @@
     if (msg.role === 'assistant' && msg.type !== 'recalled_message' && msg.type !== 'post_deleted_notice' &&
       msg.type !== 'narration' && msg.type !== 'pat_message' && !msg.type?.startsWith('waimai_') &&
       msg.type !== 'red_packet' && msg.type !== 'transfer' && msg.type !== 'poll' && msg.type !== 'gift' &&
-      msg.type !== 'kinship_request' && msg.type !== 'synth_music' && msg.type !== 'naiimag' && msg.type !== 'realimag' && msg.type !== 'googleimag' &&
+      msg.type !== 'kinship_request' && msg.type !== 'synth_music' && msg.type !== 'naiimag' && msg.type !== 'realimag' && msg.type !== 'googleimag' && msg.type !== 'openaiimag' &&
       msg.type !== 'ai_image' && msg.type !== 'user_photo' && msg.type !== 'couple_invite' && msg.type !== 'couple_invite_response' &&
-      msg.type !== 'thought_chain_block') {
+      msg.type !== 'thought_chain_block' && msg.type !== 'mcp_activity') {
       const contentStr = String(msg.content || '').trim().toLowerCase();
       if (contentStr === '' || contentStr === 'undefined') {
         console.log('[QQ Undefined过滤] 已过滤空消息或undefined消息:', msg);
@@ -608,44 +678,8 @@
                   || chat.members.find(m => m.groupNickname === msg.senderName);
       const senderNameDiv = document.createElement('div');
       senderNameDiv.className = 'sender-name';
-      if (member && typeof getGroupBadge === 'function') {
-        const badge = getGroupBadge({
-          points: member.levelPoints || 0,
-          title: member.groupTitle || '',
-          isOwner: member.id === chat.ownerId,
-          isAdmin: !!member.isAdmin,
-          customColor: member.titleColor || '',
-        });
-        const tag = document.createElement('span');
-        tag.className = 'group-level-title-tag ' + badge.tierClass;
-        if (badge.style) tag.setAttribute('style', badge.style);
-        tag.textContent = badge.text;
-        senderNameDiv.appendChild(tag);
-      }
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
-      senderNameDiv.appendChild(nameSpan);
+      senderNameDiv.textContent = member ? member.groupNickname : (msg.senderName || '未知成员');
       wrapper.appendChild(senderNameDiv);
-    }
-    if (chat.isGroup && isUser && typeof getGroupBadge === 'function') {
-      const userSenderDiv = document.createElement('div');
-      userSenderDiv.className = 'sender-name user-sender-name';
-      const badge = getGroupBadge({
-        points: chat.settings.myLevelPoints || 0,
-        title: chat.settings.myGroupTitle || '',
-        isOwner: chat.ownerId === 'user',
-        isAdmin: !!chat.settings.isUserAdmin,
-        customColor: chat.settings.myTitleColor || '',
-      });
-      const tag = document.createElement('span');
-      tag.className = 'group-level-title-tag ' + badge.tierClass;
-      if (badge.style) tag.setAttribute('style', badge.style);
-      tag.textContent = badge.text;
-      userSenderDiv.appendChild(tag);
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = chat.settings.myNickname || '我';
-      userSenderDiv.appendChild(nameSpan);
-      wrapper.appendChild(userSenderDiv);
     }
 
     const bubble = document.createElement('div');
@@ -707,10 +741,13 @@
 
     let rawContent = msg.content;
 
-    if (typeof rawContent === 'string' && rawContent.trim().startsWith('<') && rawContent.trim().endsWith('>')) {
+    if (msg.type === 'mcp_activity' && window.mcpManager && typeof window.mcpManager.renderMessageCard === 'function') {
+      bubble.classList.add('is-card-like', 'is-mcp-activity');
+      contentHtml = window.mcpManager.renderMessageCard(msg);
+    } else if (typeof rawContent === 'string' && rawContent.trim().startsWith('<') && rawContent.trim().endsWith('>')) {
       contentHtml = rawContent;
       bubble.classList.add('is-raw-html');
-    } else if (msg.type === 'offline_text' || msg.type === 'share_link' || msg.type === 'share_card' || msg.type === 'location_share' || msg.type === 'ai_image' || msg.type === 'user_photo' || msg.type === 'voice_message' || msg.type === 'transfer' || msg.type === 'waimai_request' || msg.type === 'waimai_order' || msg.type === 'red_packet' || msg.type === 'poll' || msg.type === 'gift' || msg.type === 'realimag' || msg.type === 'naiimag' || msg.type === 'googleimag' || msg.type === 'kinship_request' || msg.type === 'forwarded_email' || msg.type === 'reddit_share' || msg.type === 'playlist_share' || msg.type === 'couple_invite' || msg.type === 'couple_invite_response' || msg.type === 'forum_post_share') {
+    } else if (msg.type === 'offline_text' || msg.type === 'share_link' || msg.type === 'share_card' || msg.type === 'location_share' || msg.type === 'ai_image' || msg.type === 'user_photo' || msg.type === 'voice_message' || msg.type === 'transfer' || msg.type === 'waimai_request' || msg.type === 'waimai_order' || msg.type === 'red_packet' || msg.type === 'poll' || msg.type === 'gift' || msg.type === 'realimag' || msg.type === 'naiimag' || msg.type === 'googleimag' || msg.type === 'openaiimag' || msg.type === 'kinship_request' || msg.type === 'forwarded_email' || msg.type === 'reddit_share' || msg.type === 'playlist_share' || msg.type === 'couple_invite' || msg.type === 'couple_invite_response') {
 
       if (msg.type === 'offline_text') {
 
@@ -785,22 +822,6 @@
                 </div>
             </div>
         `;
-      } else if (msg.type === 'forum_post_share') {
-        bubble.classList.add('is-card-like', 'is-forum-post-share');
-        const d = msg.forumPostSnapshot || {};
-        const previewText = (d.content || '').length > 80 ? d.content.slice(0, 80) + '...' : (d.content || '');
-        contentHtml = `
-    ${msg.comment ? `<div class="forum-share-comment">${escapeHTML(msg.comment)}</div>` : ''}
-    <div class="forum-share-card" data-forum-post-id="${msg.forumPostId}">
-        <div class="forum-share-card-header">
-                    ${d.avatar ? `<img src="${d.avatar}" class="forum-share-card-avatar">` : ''}
-                    <span class="forum-share-card-name">${escapeHTML(d.authorName || '未知用户')}</span>
-                    ${d.boardName ? `<span class="forum-share-card-board">· ${escapeHTML(d.boardName)}</span>` : ''}
-                </div>
-                <div class="forum-share-card-content">${escapeHTML(previewText)}</div>
-                <div class="forum-share-card-footer"><span>📌 论坛帖子 · 点击查看</span></div>
-            </div>
-        `;
       } else if (msg.type === 'reddit_share') {
         bubble.classList.add('is-card-like', 'is-reddit-card'); // 确保添加这些类名
         const data = msg.redditData;
@@ -860,7 +881,7 @@
         bubble.classList.add('is-realimag', 'is-card-like');
         contentHtml = `
                         <div class="nai-image-wrapper">
-                            <img src="${msg.imageUrl}" class="realimag-image" alt="NovelAI图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'NovelAI生成'}">
+                            <img src="${escapeHTML(msg.imageUrl || '')}" class="realimag-image" alt="NovelAI图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${escapeHTML(msg.fullPrompt || msg.prompt || 'NovelAI生成')}">
                             
                             <div class="bubble-image-controls"> 
                                 <button class="nai-save-local-btn" title="下载图片">
@@ -892,7 +913,7 @@
         bubble.classList.add('is-realimag', 'is-card-like');
         contentHtml = `
                         <div class="nai-image-wrapper">
-                            <img src="${msg.imageUrl}" class="realimag-image" alt="Google Imagen图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${msg.fullPrompt || msg.prompt || 'Google Imagen生成'}">
+                            <img src="${escapeHTML(msg.imageUrl || '')}" class="realimag-image" alt="Google Imagen图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${escapeHTML(msg.fullPrompt || msg.prompt || 'Google Imagen生成')}">
                             
                             <div class="bubble-image-controls"> 
                                 <button class="nai-save-local-btn" title="下载图片">
@@ -907,6 +928,41 @@
                                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
                                         <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
                                         <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></line>
+                                    </svg>
+                                </button>
+                                <button class="nai-regenerate-btn" title="重新生成">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+      } else if (msg.type === 'openaiimag') {
+        bubble.classList.add('is-realimag', 'is-card-like');
+        contentHtml = `
+                        <div class="nai-image-wrapper">
+                            <img src="${escapeHTML(msg.imageUrl || '')}" class="realimag-image" alt="GPT 图片分享" loading="lazy" onerror="this.src='https://i.postimg.cc/KYr2qRCK/1.jpg'; this.alt='图片加载失败';" title="${escapeHTML(msg.fullPrompt || msg.prompt || 'GPT 图片生成')}">
+                            <div class="bubble-image-controls">
+                                <button class="nai-save-local-btn" title="下载图片">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="7 10 12 15 17 10"></polyline>
+                                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                                    </svg>
+                                </button>
+                                <button class="nai-upload-imgbb-btn" title="上传图床" style="display:none;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        <polyline points="17 8 12 3 7 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></line>
+                                    </svg>
+                                </button>
+                                <button class="nai-regenerate-btn" title="重新生成">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M20 11A8.1 8.1 0 0 0 4.5 9M4 5v4h4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+                                        <path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
                                     </svg>
                                 </button>
                             </div>
@@ -1302,7 +1358,12 @@
                 <span style="opacity: 0.6; font-size: 11px;">深度思考</span>
             </summary>
             <div class="thought-chain-content">
-                ${parseMarkdown(processMentions(String(msg.content), chat)).replace(/\n/g, '<br>')}
+                ${parseMarkdown(processMentions(
+                  typeof ThoughtChainManager !== 'undefined'
+                    ? ThoughtChainManager.escapeHtml(String(msg.content))
+                    : String(msg.content).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'),
+                  chat
+                )).replace(/\n/g, '<br>')}
             </div>
         </details>
       `;
@@ -1378,11 +1439,7 @@
                     ${contentHtml}
                 </div>
             `;
-    if (isUser && msg.originalContent) {
-      bubble.dataset.sendTranslateOriginal = msg.originalContent;
-      bubble.dataset.showingSendTranslateOriginal = 'false';
-    }
-    if ((msg.type === 'naiimag' || msg.type === 'googleimag') && msg.imageUrl && msg.imageUrl.startsWith('data:image')) {
+    if ((msg.type === 'naiimag' || msg.type === 'googleimag' || msg.type === 'openaiimag') && msg.imageUrl && msg.imageUrl.startsWith('data:image')) {
       if (state.apiConfig.imgbbEnable && state.apiConfig.imgbbApiKey) {
 
         const uploadBtn = bubble.querySelector('.nai-upload-imgbb-btn');
@@ -1468,8 +1525,15 @@
 
     const messagesContainer = document.getElementById('chat-messages');
     const typingIndicator = document.getElementById('typing-indicator');
+    const renderVersion = chatRenderVersion;
 
-    const lastMessage = chat.history.filter(m => !m.isHidden).pop();
+    let lastMessage = null;
+    for (let index = chat.history.length - 1; index >= 0; index--) {
+      if (!chat.history[index].isHidden) {
+        lastMessage = chat.history[index];
+        break;
+      }
+    }
 
 
     if (lastMessage && (msg.timestamp - lastMessage.timestamp > 600000)) {
@@ -1485,6 +1549,9 @@
       playNotificationSound();
     }
 
+    // 消息仍保存在原聊天中、通知仍照常播放；只阻止旧聊天 DOM 写入当前聊天页面。
+    if (!messagesContainer || !typingIndicator || renderVersion !== chatRenderVersion || state.activeChatId !== chat.id) return;
+
     if (!isInitialLoad) {
       messageEl.classList.add('animate-in');
       if (state.activeChatId === chat.id) {
@@ -1495,7 +1562,7 @@
     messagesContainer.insertBefore(messageEl, typingIndicator);
 
     const scrollToBottom = () => {
-      if (!isInitialLoad) {
+      if (!isInitialLoad && renderVersion === chatRenderVersion && state.activeChatId === chat.id) {
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
       }
     };
@@ -1507,10 +1574,7 @@
       const imageLoadPromises = [];
       images.forEach(img => {
         if (!img.complete) {
-          imageLoadPromises.push(new Promise(resolve => {
-            img.onload = resolve;
-            img.onerror = resolve;
-          }));
+          imageLoadPromises.push(waitForChatImage(img));
         }
       });
 
@@ -1533,6 +1597,20 @@
       for (let i = 0; i < itemsToRemove; i++) {
         // 确保不删除 load-more-btn
         if (!bubbles[i].id && !bubbles[i].classList.contains('load-more-btn')) {
+          bubbles[i].querySelectorAll('img').forEach(img => {
+            const settlePendingLoad = pendingChatImageLoads.get(img);
+            if (typeof settlePendingLoad === 'function') {
+              settlePendingLoad();
+            }
+            img.onload = null;
+            img.onerror = null;
+            img.removeAttribute('src');
+          });
+          bubbles[i].querySelectorAll('video, audio').forEach(media => {
+            try { media.pause(); } catch (error) { }
+            media.removeAttribute('src');
+            try { if (media.load) media.load(); } catch (error) { }
+          });
           bubbles[i].remove();
           // 同时修正 currentRenderedCount，防止加载逻辑错乱
           // (这一步取决于你的 loadMoreMessages 逻辑，通常不需要手动减，因为它是基于 slice 计算的)
@@ -1622,10 +1700,6 @@
 
     document.getElementById('send-poll-btn').style.display = isGroup ? 'flex' : 'none';
     document.body.classList.remove('chat-actions-expanded');
-
-    if (typeof checkAndTriggerProactiveReply === 'function') {
-      checkAndTriggerProactiveReply(chat);
-    }
   }
 
 
@@ -1659,10 +1733,13 @@
   }
 
   // ========== 全局暴露 ==========
+  window.openChat = openChat;
   window.renderChatInterface = renderChatInterface;
   window.renderChatContext = renderChatContext;
   window.loadMoreMessages = loadMoreMessages;
   window.scrollToOriginalMessage = scrollToOriginalMessage;
+  window.disposeChatMessageDom = disposeChatMessageDom;
+  window.setAvatarActingState = setAvatarActingState;
 
   // ========== 从 script.js 迁移：openChatSettings ==========
   function openChatSettings() {

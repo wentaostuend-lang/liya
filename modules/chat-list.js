@@ -52,6 +52,9 @@
     // 离开聊天界面时停止聊天语音条TTS（通话TTS在独立播放器上，不受影响）
     if (currentActiveScreen && currentActiveScreen.id === 'chat-interface-screen' && screenId !== 'chat-interface-screen' && screenId !== 'voice-call-screen' && screenId !== 'video-call-screen') {
       if (typeof stopChatMessageTtsOnly === 'function') stopChatMessageTtsOnly();
+      // 配合 chat-interface.js 中参考并改写自 yxlforever/YYY 的离屏资源释放：
+      // https://github.com/yxlforever/YYY/commit/ece2d6bec633ced55c89af3871f96c97ebf3aa7e
+      if (typeof window.disposeChatMessageDom === 'function') window.disposeChatMessageDom();
     }
 
     if (screenId === 'chat-list-screen') {
@@ -68,11 +71,6 @@
       }
     }
     if (screenId === 'wallpaper-screen') window.renderWallpaperScreenProxy();
-    if (screenId === 'account-vault-screen' && typeof window.renderAccountVaultScreen === 'function') window.renderAccountVaultScreen();
-    if (screenId === 'alt-persona-screen' && typeof window.renderAltPersonaScreen === 'function') window.renderAltPersonaScreen();
-    if (screenId === 'alt-persona-detail-screen' && typeof window.renderAltPersonaDetailScreen === 'function') window.renderAltPersonaDetailScreen();
-    if (screenId === 'sms-app-screen' && typeof window.renderSmsAppScreen === 'function') window.renderSmsAppScreen();
-    if (screenId === 'sms-thread-screen' && typeof window.renderSmsThreadScreen === 'function') window.renderSmsThreadScreen();
     if (screenId === 'world-book-screen') window.renderWorldBookScreenProxy();
     if (screenId === 'x-social-screen') window.renderXSocialScreenProxy();
     if (screenId === 'douban-screen') renderDoubanScreen();
@@ -198,8 +196,6 @@
     const allChats = Object.values(state.chats).filter(chat => {
       // 过滤掉联机好友（已迁移到独立的连接APP）
       if (chat.isOnlineFriend || chat.isGroupChat) return false;
-      // 过滤掉小号马甲聊天（只在"小号"App里通过专门入口进入，不出现在主聊天列表）
-      if (chat.isAltPersonaChat) return false;
       return true;
     }).sort((a, b) => {
       const pinDiff = (b.isPinned || false) - (a.isPinned || false);
@@ -383,7 +379,13 @@
   function createChatListItem(chat) {
 
     try {
-      const lastMsgObj = chat.history.filter(msg => !msg.isHidden).slice(-1)[0] || {};
+      let lastMsgObj = {};
+      for (let index = chat.history.length - 1; index >= 0; index--) {
+        if (!chat.history[index].isHidden) {
+          lastMsgObj = chat.history[index];
+          break;
+        }
+      }
       let lastMsgDisplay;
 
       if (!chat.isGroup && chat.relationship?.status === 'pending_user_approval') {
@@ -395,7 +397,7 @@
           lastMsgDisplay = `[系统消息] ${lastMsgObj.content}`;
         } else if (lastMsgObj.type === 'transfer') {
           lastMsgDisplay = '[转账]';
-        } else if (lastMsgObj.type === 'ai_image' || lastMsgObj.type === 'user_photo' || lastMsgObj.type === 'naiimag' || lastMsgObj.type === 'googleimag') {
+        } else if (lastMsgObj.type === 'ai_image' || lastMsgObj.type === 'user_photo' || lastMsgObj.type === 'naiimag' || lastMsgObj.type === 'googleimag' || lastMsgObj.type === 'openaiimag') {
           lastMsgDisplay = '[照片]';
         } else if (lastMsgObj.type === 'voice_message') {
           lastMsgDisplay = '[语音]';
@@ -467,10 +469,11 @@
         });
       }
 
-      const infoEl = item.querySelector('.info');
-      if (infoEl) {
-        infoEl.addEventListener('click', () => openChat(chat.id));
-      }
+      // 点击聊天列表项进入聊天
+      item.addEventListener('click', (e) => {
+        // 如果点击在头像上双击区域，避免阻碍
+        openChat(chat.id);
+      });
 
       addLongPressListener(item, async (e) => {
         const action = await showChatListActions(chat);
