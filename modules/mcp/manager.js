@@ -753,6 +753,7 @@
   }
 
   async function rpc(connection, method, params, options) {
+    options = options || {};
     const requestId = options && options.notification ? undefined : uid('rpc');
     const body = {
       jsonrpc: '2.0',
@@ -761,6 +762,12 @@
       ...(params !== undefined ? { params } : {})
     };
     const controller = new AbortController();
+    const externalSignal = options.signal;
+    const abortFromExternal = () => controller.abort();
+    if (externalSignal) {
+      if (externalSignal.aborted) controller.abort();
+      else externalSignal.addEventListener('abort', abortFromExternal, { once: true });
+    }
     const timeout = setTimeout(() => controller.abort(), state.settings.timeoutMs || 20000);
     let response;
     try {
@@ -772,6 +779,7 @@
         cache: 'no-store'
       });
     } catch (error) {
+      if (error.name === 'AbortError' && externalSignal && externalSignal.aborted) throw error;
       if (error.name === 'AbortError') throw new Error(`连接超时（${Math.round((state.settings.timeoutMs || 20000) / 1000)} 秒）`);
       if (/Failed to fetch|NetworkError|Load failed/i.test(error.message)) {
         throw new Error('浏览器无法访问该端点。请检查 HTTPS、CORS、局域网权限和桥接器运行状态。');
@@ -779,6 +787,7 @@
       throw error;
     } finally {
       clearTimeout(timeout);
+      if (externalSignal) externalSignal.removeEventListener('abort', abortFromExternal);
     }
     if (method === 'initialize') {
       const sessionId = response.headers.get('Mcp-Session-Id');
@@ -804,13 +813,13 @@
     return payload.result;
   }
 
-  async function initializeConnection(connection) {
+  async function initializeConnection(connection, options) {
     if (!connection.endpoint) throw new Error('请先填写 MCP 端点。');
     const result = await rpc(connection, 'initialize', {
       protocolVersion: '2025-06-18',
       capabilities: {},
       clientInfo: { name: 'EPhone MCP', version: '0.0.36' }
-    });
+    }, options);
     if (!result || !result.protocolVersion) throw new Error('服务器没有返回有效的初始化结果。');
     connection.protocolVersion = result.protocolVersion;
     connection.serverInfo = result.serverInfo || {};
@@ -819,11 +828,14 @@
       sessionId: connection.sessionId || '',
       protocolVersion: connection.protocolVersion
     });
-    await rpc(connection, 'notifications/initialized', undefined, { notification: true });
+    await rpc(connection, 'notifications/initialized', undefined, {
+      notification: true,
+      signal: options && options.signal
+    });
     return result;
   }
 
-  async function discoverCapabilities(connection) {
+  async function discoverCapabilities(connection, options) {
     const capabilities = { tools: [], resources: [], prompts: [] };
     const mapping = [
       ['tools', 'tools/list'],
@@ -833,7 +845,7 @@
     for (const [key, method] of mapping) {
       if (connection.serverCapabilities && !connection.serverCapabilities[key]) continue;
       try {
-        const result = await rpc(connection, method, {});
+        const result = await rpc(connection, method, {}, options);
         capabilities[key] = result && Array.isArray(result[key]) ? result[key] : [];
       } catch (error) {
         console.warn(`[MCP] ${method} 失败:`, error);
@@ -1013,6 +1025,284 @@
     return truncate(JSON.stringify(result), 180) || '工具已完成';
   }
 
+  function getChatMcpSettings(chat) {
+    const saved = chat && chat.settings && chat.settings.mcp;
+    return {
+      enabled: false,
+      mode: 'auto',
+      allowedConnections: [],
+      allowedTools: {},
+      confirmWrites: true,
+      showActivityCards: true,
+      maxCallsPerTurn: 5,
+      ...(saved && typeof saved === 'object' ? saved : {})
+    };
+  }
+
+  function renderPermissionEditor(container, target) {
+    if (!container) return;
+    const settings = getChatMcpSettings(target);
+    const connectionsHtml = state.connections.map(connection => {
+      const tools = connection.capabilities && Array.isArray(connection.capabilities.tools)
+        ? connection.capabilities.tools
+        : [];
+      const connectionChecked = settings.allowedConnections.includes(connection.id);
+      const selectedTools = settings.allowedTools && settings.allowedTools[connection.id];
+      const toolsHtml = tools.length
+        ? tools.map(tool => {
+            const checked = !Array.isArray(selectedTools) || selectedTools.includes(tool.name);
+            return `<label class="mcp-permission-tool"><input type="checkbox" data-mcp-permission-tool="${escapeHtml(tool.name)}" ${checked ? 'checked' : ''}> <span>${escapeHtml(tool.title || tool.name)}</span></label>`;
+          }).join('')
+        : '<div class="settings-desc">尚未发现工具，请先到 MCP 页面测试连接。</div>';
+      return `
+        <div class="mcp-permission-connection" data-mcp-permission-connection="${escapeHtml(connection.id)}">
+          <label class="mcp-permission-connection-head">
+            <input type="checkbox" data-mcp-permission-connection-toggle ${connectionChecked ? 'checked' : ''}>
+            <strong>${escapeHtml(connection.name)}</strong>
+            <span class="mcp-status-tag ${statusClass(connection)}">${statusLabel(connection)}</span>
+          </label>
+          <div class="mcp-permission-tools" ${connectionChecked ? '' : 'hidden'}>${toolsHtml}</div>
+        </div>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="settings-item" style="display:flex;justify-content:space-between;align-items:center;">
+        <div><label>允许角色使用 MCP</label><div class="settings-desc">角色可在聊天中自动调用已授权工具</div></div>
+        <label class="toggle-switch"><input type="checkbox" data-mcp-permission-enabled ${settings.enabled ? 'checked' : ''}><span class="slider"></span></label>
+      </div>
+      <div data-mcp-permission-options ${settings.enabled ? '' : 'hidden'}>
+        <div class="settings-item">
+          <label>调用方式</label>
+          <select class="settings-select" data-mcp-permission-mode>
+            <option value="auto" ${settings.mode === 'auto' ? 'selected' : ''}>自动判断</option>
+            <option value="explicit" ${settings.mode === 'explicit' ? 'selected' : ''}>仅明确提到 MCP 时</option>
+          </select>
+        </div>
+        <div class="settings-item" style="display:flex;justify-content:space-between;align-items:center;">
+          <div><label>危险操作前确认</label><div class="settings-desc">修改、删除、发送或执行类工具会先询问</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-mcp-permission-confirm ${settings.confirmWrites !== false ? 'checked' : ''}><span class="slider"></span></label>
+        </div>
+        <div class="settings-item" style="display:flex;justify-content:space-between;align-items:center;">
+          <div><label>显示调用状态卡</label><div class="settings-desc">在聊天中显示正在调用和完成状态</div></div>
+          <label class="toggle-switch"><input type="checkbox" data-mcp-permission-cards ${settings.showActivityCards !== false ? 'checked' : ''}><span class="slider"></span></label>
+        </div>
+        <div class="settings-item">
+          <label>每轮最多调用</label>
+          <input class="settings-num-input" type="number" min="1" max="10" value="${Math.min(10, Math.max(1, Number(settings.maxCallsPerTurn) || 5))}" data-mcp-permission-max>
+        </div>
+        <div class="settings-item-block">
+          <label>允许的连接与工具</label>
+          <div class="settings-desc" style="margin-bottom:8px;">新连接不会自动授权给此角色。</div>
+          <div class="mcp-permission-list">${connectionsHtml || '<div class="settings-desc">尚未添加 MCP 连接。</div>'}</div>
+        </div>
+      </div>`;
+    container.onchange = event => {
+      if (event.target.matches('[data-mcp-permission-enabled]')) {
+        container.querySelector('[data-mcp-permission-options]').hidden = !event.target.checked;
+      }
+      if (event.target.matches('[data-mcp-permission-connection-toggle]')) {
+        const row = event.target.closest('[data-mcp-permission-connection]');
+        const tools = row && row.querySelector('.mcp-permission-tools');
+        if (tools) tools.hidden = !event.target.checked;
+      }
+    };
+  }
+
+  function readPermissionEditor(container) {
+    if (!container) return getChatMcpSettings(null);
+    const allowedConnections = [];
+    const allowedTools = {};
+    container.querySelectorAll('[data-mcp-permission-connection]').forEach(row => {
+      const connectionId = row.dataset.mcpPermissionConnection;
+      const toggle = row.querySelector('[data-mcp-permission-connection-toggle]');
+      if (!toggle || !toggle.checked) return;
+      allowedConnections.push(connectionId);
+      allowedTools[connectionId] = Array.from(row.querySelectorAll('[data-mcp-permission-tool]:checked'))
+        .map(input => input.dataset.mcpPermissionTool);
+    });
+    return {
+      enabled: !!container.querySelector('[data-mcp-permission-enabled]')?.checked,
+      mode: container.querySelector('[data-mcp-permission-mode]')?.value || 'auto',
+      allowedConnections,
+      allowedTools,
+      confirmWrites: !!container.querySelector('[data-mcp-permission-confirm]')?.checked,
+      showActivityCards: !!container.querySelector('[data-mcp-permission-cards]')?.checked,
+      maxCallsPerTurn: Math.min(10, Math.max(1, Number(container.querySelector('[data-mcp-permission-max]')?.value) || 5))
+    };
+  }
+
+  function isToolAllowed(settings, connectionId, toolName) {
+    if (!settings.enabled || !Array.isArray(settings.allowedConnections)) return false;
+    if (!settings.allowedConnections.includes(connectionId)) return false;
+    const configured = settings.allowedTools && settings.allowedTools[connectionId];
+    return !Array.isArray(configured) || configured.includes(toolName);
+  }
+
+  function explicitToolMatches(text, connection, tool) {
+    const normalized = String(text || '').toLocaleLowerCase();
+    if (!normalized) return false;
+    const names = [
+      connection && connection.name,
+      tool && tool.name,
+      tool && tool.title
+    ].filter(Boolean).map(value => String(value).toLocaleLowerCase());
+    return names.some(name => normalized.includes(name));
+  }
+
+  function getToolsForChat(chat, options) {
+    const directive = options && options.directive;
+    const userText = options && options.userText;
+    const requestedConnectionId = directive && directive.connectionId;
+    const requestedToolName = directive && directive.toolName;
+    const subjects = chat && chat.isGroup
+      ? (chat.members || []).map(member => ({
+          actorId: member.id,
+          actorName: member.groupNickname || member.originalName || '群成员',
+          settings: getChatMcpSettings(window.state && window.state.chats[member.id] || { settings: { mcp: member.mcp } })
+        }))
+      : [{
+          actorId: chat && chat.id,
+          actorName: chat && chat.name || '当前角色',
+          settings: getChatMcpSettings(chat)
+        }];
+
+    const entries = [];
+    subjects.forEach(subject => {
+      const settings = subject.settings;
+      if (!settings.enabled) return;
+      collectCapabilities()
+        .filter(entry => entry.kind === 'tools')
+        .filter(({ connection, item }) => {
+          if (!connection.enabled || !isToolAllowed(settings, connection.id, item.name)) return false;
+          if (requestedConnectionId && connection.id !== requestedConnectionId) return false;
+          if (requestedToolName && item.name !== requestedToolName) return false;
+          if (settings.mode === 'selected' && !directive) return false;
+          if (settings.mode === 'explicit' && !directive && !explicitToolMatches(userText, connection, item)) return false;
+          return true;
+        })
+        .forEach(({ connection, item }) => entries.push({
+          actorId: subject.actorId,
+          actorName: subject.actorName,
+          connectionId: connection.id,
+          connectionName: connection.name,
+          toolName: item.name,
+          title: item.title || item.name,
+          description: `${chat && chat.isGroup ? `仅供群成员“${subject.actorName}”使用。` : ''}${item.description || `${connection.name} 提供的 MCP 工具`}`,
+          inputSchema: item.inputSchema || { type: 'object', properties: {} },
+          annotations: item.annotations || {},
+          permissionSettings: settings
+        }));
+    });
+    return entries;
+  }
+
+  function toolNeedsConfirmation(tool, settings) {
+    if (!settings.confirmWrites) return false;
+    const annotations = tool && tool.annotations || {};
+    if (annotations.readOnlyHint === true) return false;
+    if (annotations.destructiveHint === true || annotations.readOnlyHint === false) return true;
+    return /(?:delete|remove|destroy|write|update|create|send|post|publish|execute|run|pay|purchase|删除|移除|修改|创建|发送|发布|执行|付款|购买)/i
+      .test(`${tool && tool.toolName || ''} ${tool && tool.title || ''}`);
+  }
+
+  function normalizeToolResult(result, tool, maxLength) {
+    const normalized = {
+      ok: !(result && result.isError),
+      connectionName: tool.connectionName,
+      toolName: tool.toolName,
+      text: '',
+      structuredData: result && result.structuredContent !== undefined ? result.structuredContent : null,
+      truncated: false
+    };
+    if (result && Array.isArray(result.content)) {
+      normalized.text = result.content
+        .filter(item => item && item.type === 'text' && typeof item.text === 'string')
+        .map(item => item.text)
+        .join('\n');
+    }
+    if (!normalized.text) normalized.text = resultSummary(result);
+    const serialized = JSON.stringify({
+      ...normalized,
+      rawContent: normalized.structuredData == null ? result && result.content : undefined
+    });
+    const limit = Math.max(2000, Number(maxLength) || 20000);
+    if (serialized.length <= limit) return JSON.parse(serialized);
+    normalized.truncated = true;
+    normalized.text = truncate(normalized.text, Math.max(500, limit - 500));
+    if (normalized.structuredData != null) {
+      normalized.structuredData = truncate(JSON.stringify(normalized.structuredData), Math.max(500, limit - normalized.text.length - 500));
+    }
+    return normalized;
+  }
+
+  async function executeToolForChat(options) {
+    const chat = options && options.chat;
+    const connectionId = options && options.connectionId;
+    const toolName = options && options.toolName;
+    const args = options && options.arguments || {};
+    const connection = getConnection(connectionId);
+    const tool = getToolsForChat(chat, {
+      directive: { connectionId, toolName },
+      userText: options && options.userText
+    }).find(item =>
+      item.connectionId === connectionId &&
+      item.toolName === toolName &&
+      (!options.actorId || item.actorId === options.actorId)
+    );
+    const settings = tool && tool.permissionSettings || getChatMcpSettings(chat);
+    if (!chat || !connection || !tool || !isToolAllowed(settings, connectionId, toolName)) {
+      throw new Error('该角色没有使用此 MCP 工具的权限。');
+    }
+    if (!connection.enabled) throw new Error('MCP 连接已停用。');
+
+    if (toolNeedsConfirmation(tool, settings)) {
+      const confirmed = await showCustomConfirm(
+        '确认 MCP 操作',
+        `“${escapeHtml(tool.actorName || chat.name || '当前角色')}”想要调用“${escapeHtml(connection.name)} · ${escapeHtml(tool.title)}”。此工具可能会修改外部数据。`,
+        { confirmText: '允许调用' }
+      );
+      if (!confirmed) throw new Error('用户拒绝了此次 MCP 工具调用。');
+    }
+
+    const activity = await logActivity({
+      connection,
+      status: 'running',
+      title: chat.isGroup ? `${tool.actorName} · ${tool.title}` : tool.title,
+      summary: `正在调用 ${connection.name} · ${tool.toolName}`,
+      request: args,
+      toolName: tool.toolName,
+      chatId: settings.showActivityCards === false ? null : chat.id
+    });
+    await appendActivityToChat(activity, connection, 'running');
+
+    try {
+      if (connection.status !== 'online' || !connection.protocolVersion || !connection.sessionId) {
+        await initializeConnection(connection, { signal: options && options.signal });
+        await discoverCapabilities(connection, { signal: options && options.signal });
+      }
+      const result = await rpc(connection, 'tools/call', {
+        name: tool.toolName,
+        arguments: args
+      }, { signal: options && options.signal });
+      activity.status = result && result.isError ? 'failed' : 'success';
+      activity.summary = resultSummary(result);
+      activity.result = result;
+      activity.error = result && result.isError ? activity.summary : undefined;
+      await logActivity(activity);
+      await appendActivityToChat(activity, connection, activity.status, result);
+      await persistConnection({ ...connection, status: 'online', lastError: '', updatedAt: Date.now() });
+      if (result && result.isError) throw new Error(activity.summary);
+      return normalizeToolResult(result, tool, options && options.maxResultLength);
+    } catch (error) {
+      activity.status = error && error.name === 'AbortError' ? 'cancelled' : 'failed';
+      activity.summary = error && error.name === 'AbortError' ? '工具调用已取消' : (error.message || String(error));
+      activity.error = activity.summary;
+      await logActivity(activity);
+      await appendActivityToChat(activity, connection, activity.status);
+      await persistConnection({ ...connection, status: 'error', lastError: activity.summary, updatedAt: Date.now() });
+      throw error;
+    }
+  }
+
   async function appendActivityToChat(activity, connection, status, result) {
     if (!state.settings.showChatCards || !activity.chatId || !window.state) return;
     const chat = window.state.chats[activity.chatId];
@@ -1042,6 +1332,7 @@
       type: 'mcp_activity',
       content: activity.summary || activity.title,
       mcpActivity: cardData,
+      isHidden: true,
       timestamp: Date.now()
     };
     chat.history.push(message);
@@ -1494,6 +1785,11 @@
     open: openMcpScreen,
     renderMessageCard,
     callTool: invokeTool,
+    executeTool: executeToolForChat,
+    getToolsForChat,
+    getChatSettings: getChatMcpSettings,
+    renderPermissionEditor,
+    readPermissionEditor,
     getConnections: () => state.connections.map(item => ({ ...item, secret: undefined, sessionId: undefined })),
     getEnabledTools: () => collectCapabilities().filter(item => item.kind === 'tools')
   };
