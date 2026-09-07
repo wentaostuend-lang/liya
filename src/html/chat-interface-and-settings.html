@@ -257,101 +257,223 @@
       </div>
     </div>
     <!-- 思维链/预设配置屏幕 -->
-    <div id="thought-chain-screen" class="screen ios-settings-screen">
-      <div class="header">
-        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
-        <span>思维链管理</span>
-        <div class="header-actions">
-          <button id="tc-organize-btn" type="button" class="action-btn" style="border:none;background:none;">编排</button>
-          <span class="action-btn" id="add-thought-chain-btn" title="添加条目">+</span>
+    <style>
+      #thought-chain-screen { background: #fff; color: #303136; }
+      #thought-chain-screen .thought-chain-scroll { background: #fff; padding: 22px 16px 44px; }
+      .tc-page-header { display:flex; flex-direction:column; gap:12px; padding:16px 20px 18px; background:#fff; border-bottom:1px solid #dedfe3; }
+      .tc-header-nav { display:flex; justify-content:space-between; align-items:center; width:100%; }
+      .tc-header-content { display:flex; flex-direction:column; gap:3px; }
+      .tc-page-header h1 { margin:3px 0 2px; font:600 clamp(24px,6.5vw,32px)/1.15 Georgia,serif; letter-spacing:-.03em; }
+      .tc-page-header p { margin:2px 0 0; color:#777b85; font-size:13px; letter-spacing:.02em; line-height:1.45; }
+      .tc-page-code,.tc-kicker { display:block; color:#8b8294; font:10px/1.2 ui-monospace,SFMono-Regular,monospace; letter-spacing:.13em; }
+      .tc-back-btn,.tc-header-actions button { border:0; background:transparent; color:#464951; cursor:pointer; min-width:34px; min-height:34px; font-size:20px; display:inline-flex; align-items:center; justify-content:center; padding:0; }
+      .tc-header-actions { display:flex; align-items:center; gap:12px; }
+      .tc-header-actions #tc-organize-btn { border-bottom:1px solid #9a8fa3; font-size:13px; min-height:auto; min-width:auto; padding:2px 4px; }
+      .tc-header-actions #add-thought-chain-btn { font-size:22px; line-height:1; }
+      .tc-control-sheet { max-width:720px; margin:0 auto 18px; background:#fff; border:1px solid #dedfe3; border-top:3px solid #4e5159; }
+      .tc-enable-row,.tc-preset-row { padding:17px 16px; border-bottom:1px solid #e4e4e7; }
+      .tc-enable-row { display:flex; justify-content:space-between; gap:14px; align-items:center; }
+      .tc-enable-row strong,.tc-preset-label strong { display:block; margin-top:6px; font-size:15px; font-weight:600; }
+      .tc-enable-row small { display:block; margin-top:5px; color:#888b92; font-size:11px; line-height:1.5; }
+      .tc-switch { flex:0 0 auto; position:relative; width:42px; height:24px; }
+      .tc-switch input { opacity:0; width:0; height:0; }
+      .tc-switch span { position:absolute; inset:0; background:#c9cbd0; border-radius:20px; transition:.2s; }
+      .tc-switch span:before { content:''; position:absolute; width:18px; height:18px; top:3px; left:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 2px #999; }
+      .tc-switch input:checked + span { background:#777080; }.tc-switch input:checked + span:before { transform:translateX(18px); }
+      .tc-preset-row { padding:17px 16px; border-bottom:1px solid #e4e4e7; display:flex; flex-direction:column; gap:14px; }
+      .tc-preset-top-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .tc-preset-label { min-width:0; flex-shrink:0; }
+      .tc-preset-top-row select { flex:1; min-width:0; padding:8px 6px; border:0; border-bottom:1px solid #bfc1c7; background:#fff; color:#34363c; font-size:14px; text-align:right; text-align-last:right; }
+      .tc-preset-actions-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+      .tc-preset-actions-row > button { border:1px solid #85818b; background:#fff; padding:8px 14px; color:#4a4651; font-size:12px; white-space:nowrap; cursor:pointer; }
+      .tc-preset-more { position:relative; }
+      .tc-preset-more summary { cursor:pointer; color:#74727a; font-size:12px; list-style:none; padding:4px 0; }
+      .tc-preset-more summary::-webkit-details-marker { display:none; }
+      .tc-more-menu { position:absolute; z-index:5; right:0; top:24px; width:150px; padding:5px; background:#fff; border:1px solid #d7d7db; box-shadow:4px 5px 0 #f0eef1; }.tc-more-menu button { display:block; width:100%; padding:9px 8px; text-align:left; border:0; background:#fff; color:#45464c; font-size:12px; cursor:pointer; }.tc-more-menu button:hover { background:#f3f2f4; }.tc-danger-action { color:#a35c68 !important; }
+      .thought-chain-list { max-width:720px; margin:0 auto; display:flex; flex-direction:column; gap:10px; }.tc-module { display:grid; grid-template-columns:38px 1fr auto; gap:12px; align-items:start; padding:16px 12px 16px 0; background:#fff; border:1px solid #dedfe3; border-left:3px solid #b7b1c0; transition:border-color .15s ease, box-shadow .15s ease; }.tc-module:nth-child(odd) { transform:translateX(5px); }.tc-module.tc-position-head { border-left-color:#8b8494; }.tc-module.tc-position-bottom { border-left-color:#c29aa7; }.tc-module.is-disabled { opacity:.6; }.tc-module.is-dragging { opacity:.35; }.tc-module.drop-before { border-top:2px solid #777080; }.tc-module.drop-after { border-bottom:2px solid #777080; }
+      .is-browsing .tc-module { cursor:pointer; }
+      .is-browsing .tc-module:hover { border-color:#bbb7c3; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+      .tc-module-index { padding-top:2px; text-align:center; color:#918b98; font:11px ui-monospace,monospace; }.tc-module-main { min-width:0; }.tc-module-topline { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }.tc-module-topline h3 { margin:0; font-size:16px; font-weight:600; line-height:1.25; }.tc-core-label { padding:2px 5px; border:1px solid #a7a0ad; color:#777080; font:9px ui-monospace,monospace; letter-spacing:.08em; }.tc-module-state { margin-left:auto; color:#85868d; font-size:10px; }.tc-module-state i { display:inline-block; width:5px; height:5px; margin-right:4px; border-radius:50%; background:#7f9b8f; vertical-align:middle; }.is-disabled .tc-module-state i { background:#b5b5b8; }.tc-module-summary { margin:9px 0 11px; color:#5d6068; font-size:12px; line-height:1.65; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; word-break:break-word; }.tc-module-meta { display:flex; gap:10px; flex-wrap:wrap; color:#8d8790; font:10px ui-monospace,monospace; letter-spacing:.06em; }.tc-module-more { position:relative; cursor:default; }.tc-module-more summary { width:28px; height:28px; text-align:center; color:#77747b; cursor:pointer; letter-spacing:2px; list-style:none; }.tc-module-more summary::-webkit-details-marker { display:none; }.tc-module-more .tc-more-menu { top:27px; cursor:default; }.tc-drag-handle { color:#9994a1; cursor:grab; font-size:13px; padding-top:3px; writing-mode:vertical-rl; }.tc-item-select { margin-top:5px; accent-color:#777080; }.is-organizing .tc-module { grid-template-columns:20px 18px 1fr auto; cursor:default; }.is-organizing .tc-module-index { grid-column:1; }.is-organizing .tc-drag-handle { grid-column:2; }.is-organizing .tc-item-select { grid-column:2; grid-row:2; }.is-organizing .tc-module-main { grid-column:3; }.is-organizing .tc-module-more { grid-column:4; }.tc-organize-toolbar { display:grid; grid-template-columns:1fr auto; gap:11px; align-items:center; padding:14px 12px; background:#ecebef; border-left:3px solid #777080; }.tc-toolbar-heading strong { display:block; margin-top:4px; font-size:14px; }.tc-select-all { grid-column:2; font-size:12px; }.tc-batch-actions { grid-column:1 / -1; display:flex; gap:5px; overflow:auto; }.tc-batch-actions button,.tc-done-btn { flex:1; min-height:32px; border:1px solid #b9b6be; background:#fff; color:#4d4b52; font-size:11px; white-space:nowrap; }.tc-done-btn { padding:0 13px; border-color:#777080; }.tc-empty { padding:42px 18px; background:#fff; border:1px dashed #bcb9c1; text-align:center; }.tc-empty-index { color:#a39daa; font:12px monospace; }.tc-empty p { color:#777980; font-size:13px; }.tc-add-empty { border:0; border-bottom:1px solid #777080; background:none; padding:6px; color:#5d5864; }
+      .tc-reset-btn { width:100%; padding:12px; border:0; border-top:1px solid #e4e4e7; background:#fff; color:#9a6570; font-size:12px; cursor:pointer; }
+      .tc-add-entry { display:flex; align-items:center; gap:12px; width:calc(100% - 5px); margin:4px 0 0 5px; padding:15px 16px; border:1px dashed #bcb9c1; background:transparent; color:#66636d; text-align:left; cursor:pointer; }.tc-add-entry > span:first-child { color:#928a99; font-size:22px; line-height:1; }.tc-add-entry strong,.tc-add-entry small { display:block; }.tc-add-entry strong { font-size:13px; font-weight:600; }.tc-add-entry small { margin-top:4px; color:#9998a0; font-size:10px; }
+      #thought-chain-screen .thought-chain-compatibility-heading,#thought-chain-screen .thought-chain-advanced-settings,#thought-chain-screen .thought-chain-settings-card > .settings-item:not(.thought-chain-compatibility-heading) { font-size:12px; }
+      #thought-chain-screen .thought-chain-settings-card { margin:0; border:0; box-shadow:none; }
+      @media (max-width:430px) { .tc-page-header { padding:14px 14px 16px; }.thought-chain-scroll { padding-left:10px !important; padding-right:10px !important; }.tc-control-sheet { margin-bottom:14px; }.tc-module { grid-template-columns:29px 1fr auto; gap:8px; padding-right:8px; }.is-organizing .tc-module { grid-template-columns:18px 17px 1fr auto; }.tc-module-topline h3 { font-size:15px; }.tc-module-state { margin-left:0; }.tc-module-summary { font-size:11px; }.tc-preset-actions-row > button { padding:7px 10px; } }
+      #thought-chain-editor-modal .modal-content { max-width:520px; height:min(88%, 720px) !important; }
+      #thought-chain-editor-modal .modal-body { overflow-y:auto; padding:18px; }
+      #thought-chain-editor-modal textarea#tc-content-input { min-height:190px; resize:vertical; line-height:1.65; }
+      #thought-chain-editor-modal .tc-editor-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      #thought-chain-editor-modal select,#thought-chain-editor-modal input,#thought-chain-editor-modal textarea { box-sizing:border-box; width:100%; }
+      @media (max-width:430px) { #thought-chain-editor-modal .modal-content { width:calc(100% - 20px); height:92% !important; }.tc-editor-grid { grid-template-columns:1fr !important; gap:10px !important; }#thought-chain-editor-modal textarea#tc-content-input { min-height:230px; } }
+
+      /* 思维链弹窗：沿用编排册的纸张、编号与细线语汇 */
+      #thought-chain-editor-modal,
+      #thought-chain-tools-modal { background:rgba(35,34,40,.34); padding:16px; box-sizing:border-box; }
+      #thought-chain-screen ~ #thought-chain-editor-modal,
+      #thought-chain-screen ~ #thought-chain-tools-modal { background:rgba(35,34,40,.34); padding:16px; box-sizing:border-box; }
+      #thought-chain-editor-modal .modal-content,
+      #thought-chain-tools-modal .modal-content { width:min(calc(100% - 32px), 500px); max-height:92vh; overflow:hidden; border:1px solid #d8d6dc; border-top:3px solid #4e5159; border-radius:0; background:#fff; box-shadow:8px 10px 0 rgba(72,68,78,.12); margin:0 auto; }
+      #thought-chain-editor-modal .modal-header,
+      #thought-chain-tools-modal .modal-header { position:relative; min-height:64px; padding:17px 20px 13px; border-bottom:1px solid #dedfe3; background:#fbfbfa; }
+      #thought-chain-editor-modal .modal-header:before,
+      #thought-chain-tools-modal .modal-header:before { content:'THOUGHT CHAIN / ENTRY'; display:block; margin-bottom:7px; color:#958c9d; font:9px ui-monospace,monospace; letter-spacing:.14em; }
+      #thought-chain-tools-modal .modal-header:before { content:'THOUGHT CHAIN / TOOL'; }
+      #thought-chain-editor-modal .modal-header span,
+      #thought-chain-tools-modal .modal-header span { color:#36373d; font-size:18px; font-weight:600; letter-spacing:.01em; }
+      #thought-chain-editor-modal .modal-body { gap:14px !important; background:#fff; }
+      #thought-chain-editor-modal .form-group { margin:0; }
+      #thought-chain-editor-modal .form-group > label,
+      #thought-chain-editor-modal .tc-editor-grid label { display:block; margin-bottom:6px; color:#6d6b73; font:10px ui-monospace,monospace; letter-spacing:.08em; }
+      #thought-chain-editor-modal input:not([type='checkbox']),
+      #thought-chain-editor-modal select,
+      #thought-chain-editor-modal textarea { border:1px solid #d5d4d9 !important; border-radius:0 !important; background:#fdfdfc !important; color:#383a40 !important; padding:10px !important; outline:none; }
+      #thought-chain-editor-modal input:not([type='checkbox']):focus,
+      #thought-chain-editor-modal select:focus,
+      #thought-chain-editor-modal textarea:focus { border-color:#8d8496 !important; box-shadow:2px 2px 0 #ece8ed; }
+      #thought-chain-editor-modal #tc-content-input { flex:1 1 auto; min-height:210px; font:12px/1.7 ui-monospace,SFMono-Regular,monospace; }
+      #thought-chain-editor-modal .settings-desc { margin-top:7px; color:#92919a; font-size:10px; line-height:1.5; }
+      #thought-chain-editor-modal .form-group:has(#tc-enabled-switch) { display:flex !important; align-items:center; justify-content:space-between; padding-top:12px; border-top:1px solid #e4e3e7; }
+      #thought-chain-editor-modal .form-group:has(#tc-enabled-switch) > label { margin:0; }
+      #thought-chain-editor-modal .modal-footer,
+      #thought-chain-tools-modal .modal-footer { gap:8px; padding:12px 18px 16px; border-top:1px solid #dedfe3; background:#fbfbfa; }
+      #thought-chain-editor-modal .modal-footer button,
+      #thought-chain-tools-modal .modal-footer button { min-height:38px; border-radius:0; font-size:12px; }
+      #thought-chain-editor-modal .modal-footer .cancel,
+      #thought-chain-tools-modal .modal-footer .cancel { border:1px solid #c7c5cb; background:#fff; color:#65636b; }
+      #thought-chain-editor-modal .modal-footer .save,
+      #thought-chain-tools-modal .modal-footer .save { border:1px solid #5f5967; background:#5f5967; color:#fff; }
+      #thought-chain-tools-modal .modal-content { width:min(100%, 620px); height:min(78%, 680px); }
+      #thought-chain-tools-modal .modal-body { gap:12px; padding:16px 18px; background:#f8f8f7; }
+      #thought-chain-tools-modal .thought-chain-tools-input,
+      #thought-chain-tools-modal .thought-chain-tools-output { border:1px solid #d5d4d9; border-radius:0; background:#fff; color:#46464d; font:12px/1.65 ui-monospace,SFMono-Regular,monospace; box-shadow:none; }
+      #thought-chain-tools-modal .thought-chain-tools-input { padding:12px; }
+      #thought-chain-tools-modal .thought-chain-tools-output { padding:14px; }
+      #thought-chain-screen .tc-module-more[open] { z-index:8; }
+      #thought-chain-screen .tc-module-more[open] > .tc-more-menu { border-top:2px solid #777080; box-shadow:5px 6px 0 #efedf0; }
+      #thought-chain-screen .tc-module-more .tc-more-menu button { min-height:34px; border-bottom:1px solid #f0eff1; }
+      #thought-chain-screen .tc-module-more .tc-more-menu button:last-of-type { border-bottom:0; }
+      #thought-chain-screen .tc-protected-note { display:block; margin:4px 4px 2px; padding:10px 8px 7px; border-top:1px solid #e5e2e7; color:#9a96a0; font:10px/1.35 ui-monospace,SFMono-Regular,monospace; letter-spacing:.04em; white-space:nowrap; }
+      #thought-chain-screen .tc-protected-note:before { content:'CORE / PROTECTED'; display:block; margin-bottom:3px; color:#8d8294; font-size:9px; letter-spacing:.1em; }
+      body.tc-modal-context #custom-modal-overlay { background:rgba(35,34,40,.34); }
+      body.tc-modal-context #custom-modal { width:min(calc(100% - 24px), 430px); border:1px solid #d8d6dc; border-top:3px solid #4e5159; border-radius:0; background:#fff; box-shadow:8px 10px 0 rgba(72,68,78,.12); }
+      body.tc-modal-context #custom-modal-title { padding:18px 20px 8px; border-bottom:1px solid #dedfe3; background:#fbfbfa; color:#36373d; font:600 18px/1.3 Georgia,serif; }
+      body.tc-modal-context #custom-modal-title:before { content:'THOUGHT CHAIN / CONFIRM'; display:block; margin-bottom:7px; color:#958c9d; font:9px/1 ui-monospace,monospace; letter-spacing:.14em; }
+      body.tc-modal-context #custom-modal-body { padding:18px 20px; color:#64636a; font-size:13px; line-height:1.7; }
+      body.tc-modal-context #custom-modal-body input,body.tc-modal-context #custom-modal-body textarea { width:100%; box-sizing:border-box; border:1px solid #d5d4d9; border-radius:0; background:#fdfdfc; color:#383a40; padding:10px; outline:none; }
+      body.tc-modal-context #custom-modal-body textarea { min-height:170px; resize:vertical; line-height:1.65; }
+      body.tc-modal-context #custom-modal .custom-modal-footer { gap:8px; padding:12px 18px 16px; border-top:1px solid #dedfe3; background:#fbfbfa; }
+      body.tc-modal-context #custom-modal .custom-modal-footer button { min-height:38px; border-radius:0; font-size:12px; }
+      body.tc-modal-context #custom-modal .custom-modal-footer button:first-child { border:1px solid #c7c5cb; background:#fff; color:#65636b; }
+      body.tc-modal-context #custom-modal .custom-modal-footer .confirm-btn { border:1px solid #5f5967; background:#5f5967; color:#fff; }
+      @media (max-width:430px) { #thought-chain-editor-modal,#thought-chain-tools-modal,#thought-chain-screen ~ #thought-chain-editor-modal,#thought-chain-screen ~ #thought-chain-tools-modal { padding:12px; }#thought-chain-editor-modal .modal-content,#thought-chain-tools-modal .modal-content { width:calc(100% - 24px); }#thought-chain-editor-modal .modal-header,#thought-chain-tools-modal .modal-header { padding:15px 16px 12px; }#thought-chain-editor-modal .modal-body { padding:15px; }#thought-chain-tools-modal .modal-body { padding:12px; }#thought-chain-tools-modal .modal-content { height:min(86%, 680px); } }
+    </style>
+    <div id="thought-chain-screen" class="screen ios-settings-screen thought-chain-screen">
+      <div class="tc-page-header">
+        <div class="tc-header-nav">
+          <button class="tc-back-btn" onclick="showScreen('home-screen')" aria-label="返回">←</button>
+          <div class="tc-header-actions">
+            <button id="tc-organize-btn" type="button">编排</button>
+            <button id="add-thought-chain-btn" type="button" aria-label="新增思考模块">＋</button>
+          </div>
+        </div>
+        <div class="tc-header-content">
+          <span class="tc-page-code">07 / PERSONAL ARCHIVE</span>
+          <h1>思绪编排</h1>
+          <p>自由组合，自由排序，写下角色如何思考。</p>
         </div>
       </div>
-      <div class="settings-container ios-scroll-container" style="background-color: #f5f5f7;">
-        
-        <!-- 全局开关与重置 -->
-        <div class="settings-section" style="margin: 15px; border-radius: 12px; overflow: hidden; background: white; flex-shrink: 0;">
-          <div class="settings-item" style="border-bottom: 1px solid #eee;">
+      <div class="settings-container ios-scroll-container thought-chain-scroll">
+        <div class="tc-control-sheet">
+          <div class="tc-enable-row"><div><span class="tc-kicker">THOUGHT CHAIN / MASTER SWITCH</span><strong>启用思绪编排</strong><small>关闭后不会向请求注入这些模块，当前内容仍会保留。</small></div><label class="tc-switch"><input type="checkbox" id="thought-chain-enable-switch" checked><span></span></label></div>
+          <div class="tc-preset-row">
+            <div class="tc-preset-top-row">
+              <div class="tc-preset-label">
+                <span class="tc-kicker">CURRENT PRESET</span>
+                <strong>当前预设</strong>
+                <span id="thought-chain-unsaved-indicator" class="thought-chain-unsaved-indicator" hidden>未保存修改</span>
+              </div>
+              <select id="thought-chain-preset-select"><option value="current">当前配置 (未保存)</option></select>
+            </div>
+            <div class="tc-preset-actions-row">
+              <button id="save-thought-chain-preset-btn" type="button">保存 / 另存</button>
+              <details class="tc-preset-more">
+                <summary>更多</summary>
+                <div class="tc-more-menu">
+                  <button id="new-thought-chain-preset-btn" type="button">新建预设</button>
+                  <button id="duplicate-thought-chain-preset-btn" type="button">复制预设</button>
+                  <button id="rename-thought-chain-preset-btn" type="button">重命名</button>
+                  <button id="import-thought-chain-preset-btn" type="button">导入</button>
+                  <button id="export-thought-chain-preset-btn" type="button">导出</button>
+                  <button id="revert-thought-chain-preset-btn" type="button">撤销修改</button>
+                  <button id="delete-thought-chain-preset-btn" type="button" class="tc-danger-action">删除预设</button>
+                </div>
+              </details>
+            </div>
+            <input type="file" id="import-thought-chain-preset-file" accept=".json" hidden>
+          </div>
+
+          <div class="settings-item thought-chain-compatibility-heading">
             <div>
-              <div style="font-weight: 500;">启用自定义思维链</div>
-              <div style="font-size: 12px; color: var(--text-secondary);">关闭后将不注入这里的思维链条目</div>
+              <div style="font-weight: 500;">手动兼容设置</div>
+            </div>
+          </div>
+          <div class="settings-item">
+            <div>
+              <div style="font-weight: 500;">发送底部 / Assistant 预填条目</div>
+              <div class="settings-desc thought-chain-inline-desc">关闭后保留条目，但不把底部条目追加到请求末尾</div>
             </div>
             <label class="toggle-switch">
-              <input type="checkbox" id="thought-chain-enable-switch" checked>
+              <input type="checkbox" id="thought-chain-prefill-switch" checked>
               <span class="slider"></span>
             </label>
           </div>
-          
-          <!-- 预设管理 -->
-          <div class="settings-item" style="border-bottom: 1px solid #eee; flex-wrap: wrap; gap: 10px; padding: 15px;">
-             <div style="display: flex; align-items: center; width: 100%; gap: 10px;">
-                 <label style="font-weight: 500; margin-bottom: 0; white-space: nowrap;">配置预设</label>
-                 <select id="thought-chain-preset-select" class="settings-select" style="flex-grow: 1; width: auto; min-width: 0;">
-                     <option value="current">当前配置 (未保存)</option>
-                 </select>
-                 <span id="thought-chain-unsaved-indicator" class="thought-chain-unsaved-indicator" hidden>未保存修改</span>
-             </div>
-             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 100%;">
-                 <button id="new-thought-chain-preset-btn" class="settings-mini-btn">新建</button>
-                 <button id="duplicate-thought-chain-preset-btn" class="settings-mini-btn" type="button">复制预设</button>
-                 <button id="rename-thought-chain-preset-btn" class="settings-mini-btn" type="button">重命名</button>
-                 <button id="import-thought-chain-preset-btn" class="settings-mini-btn">导入</button>
-                 <button id="export-thought-chain-preset-btn" class="settings-mini-btn">导出</button>
-                 <button id="save-thought-chain-preset-btn" class="settings-mini-btn">保存</button>
-                 <button id="revert-thought-chain-preset-btn" class="settings-mini-btn" type="button">撤销修改</button>
-                 <button id="delete-thought-chain-preset-btn" class="settings-mini-btn" style="color: #ff3b30; border-color: rgba(255,59,48,0.3);">删除</button>
-                 <input type="file" id="import-thought-chain-preset-file" accept=".json" style="display: none;">
-             </div>
+          <div class="settings-item">
+            <div>
+              <div style="font-weight: 500;">提取思考内容</div>
+              <div class="settings-desc thought-chain-inline-desc">关闭后不拆分思考块，完整回复交给原正文解析</div>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" id="thought-chain-extraction-switch" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div id="thought-chain-extraction-settings" class="thought-chain-advanced-settings">
+            <label>提取方式
+              <select id="thought-chain-extraction-mode">
+                <option value="tags">开始 / 结束标记</option>
+                <option value="regex">正则表达式</option>
+              </select>
+            </label>
+            <div id="thought-chain-tag-settings" class="thought-chain-field-grid">
+              <label>开始标记<input type="text" id="thought-chain-start-marker" value="&lt;thinking&gt;"></label>
+              <label>结束标记<input type="text" id="thought-chain-end-marker" value="&lt;/thinking&gt;"></label>
+            </div>
+            <label id="thought-chain-regex-setting" hidden>正则表达式
+              <input type="text" id="thought-chain-extraction-regex" placeholder="例如：&lt;thinking&gt;([\s\S]*?)&lt;/thinking&gt;">
+            </label>
+            <div class="thought-chain-check-grid">
+              <label><input type="checkbox" id="thought-chain-ignore-case-switch" checked> 忽略大小写</label>
+              <label><input type="checkbox" id="thought-chain-remove-from-body-switch" checked> 从正文移除</label>
+              <label><input type="checkbox" id="thought-chain-allow-missing-start-switch" checked> 兼容缺少开始标记</label>
+              <label><input type="checkbox" id="thought-chain-extract-all-switch"> 提取全部匹配</label>
+            </div>
+            <div class="thought-chain-test-actions">
+              <button id="thought-chain-preview-btn" class="settings-mini-btn">最终注入预览</button>
+              <button id="thought-chain-parser-test-btn" class="settings-mini-btn">测试提取规则</button>
+            </div>
           </div>
           
-          <button id="thought-chain-reset-btn" style="width: 100%; padding: 12px; background: none; border: none; color: #ff3b30; font-size: 15px; font-weight: 500; cursor: pointer;">
-            恢复默认条目
-          </button>
-        </div>
-
-        <!-- 内容识别设置（从 xinyuan 移植） -->
-        <div class="settings-item">
-          <div>
-            <div style="font-weight: 500;">提取思考内容</div>
-            <div class="settings-desc thought-chain-inline-desc">关闭后不拆分思考块，完整回复交给原正文解析</div>
-          </div>
-          <label class="toggle-switch">
-            <input type="checkbox" id="thought-chain-extraction-switch" checked>
-            <span class="slider"></span>
-          </label>
-        </div>
-        <div id="thought-chain-extraction-settings" class="thought-chain-advanced-settings" style="padding: 0 15px 15px;">
-          <label>提取方式
-            <select id="thought-chain-extraction-mode">
-              <option value="tags">开始 / 结束标记</option>
-              <option value="regex">正则表达式</option>
-            </select>
-          </label>
-          <div id="thought-chain-tag-settings" class="thought-chain-field-grid">
-            <label>开始标记<input type="text" id="thought-chain-start-marker" value="&lt;thinking&gt;"></label>
-            <label>结束标记<input type="text" id="thought-chain-end-marker" value="&lt;/thinking&gt;"></label>
-          </div>
-          <label id="thought-chain-regex-setting" hidden>正则表达式
-            <input type="text" id="thought-chain-extraction-regex" placeholder="例如：&lt;thinking&gt;([\s\S]*?)&lt;/thinking&gt;">
-          </label>
-          <div class="thought-chain-check-grid">
-            <label><input type="checkbox" id="thought-chain-ignore-case-switch" checked> 忽略大小写</label>
-            <label><input type="checkbox" id="thought-chain-remove-from-body-switch" checked> 从正文移除</label>
-            <label><input type="checkbox" id="thought-chain-allow-missing-start-switch" checked> 兼容缺少开始标记</label>
-            <label><input type="checkbox" id="thought-chain-extract-all-switch"> 提取全部匹配</label>
-          </div>
-          <div class="thought-chain-test-actions">
-            <button id="thought-chain-preview-btn" class="settings-mini-btn">最终注入预览</button>
-            <button id="thought-chain-parser-test-btn" class="settings-mini-btn">测试提取规则</button>
-          </div>
+          <button id="thought-chain-reset-btn" class="tc-reset-btn">恢复内置默认</button>
         </div>
 
         <!-- 条目列表 -->
-        <div id="thought-chain-list" style="padding: 0 15px 40px; display: flex; flex-direction: column; gap: 12px;">
+        <div id="thought-chain-list" class="thought-chain-list">
           <!-- 动态渲染的条目 -->
         </div>
       </div>
     </div>
-    <!-- MCP 功能中心屏幕（从 xinyuan 移植） -->
+
+    <!-- 思维链条目编辑弹窗 -->
     <div id="mcp-screen" class="screen mcp-screen">
       <div class="header mcp-header">
         <span class="back-btn" onclick="showScreen('home-screen')">‹</span>

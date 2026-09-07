@@ -225,7 +225,7 @@
 
     <!-- 思维链条目编辑弹窗 -->
     <div id="thought-chain-editor-modal" class="modal">
-      <div class="modal-content" style="height: 75%; max-width: 500px;">
+      <div class="modal-content" style="height: 75%; max-width: 500px; width: min(calc(100% - 32px), 500px);">
         <div class="modal-header">
           <span id="thought-chain-editor-title">编辑条目</span>
         </div>
@@ -234,26 +234,47 @@
             <label>条目名称</label>
             <input type="text" id="tc-name-input" placeholder="例如：潜台词感知">
           </div>
-          <div class="form-group" style="display: flex; gap: 15px;">
-            <div style="flex: 1;">
+          <div class="form-group tc-editor-grid">
+            <div>
               <label>注入位置</label>
               <select id="tc-position-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                 <option value="head">头部 (System)</option>
                 <option value="middle">中间 (System)</option>
                 <option value="bottom">底部 (AI Role - 触发器)</option>
+                <option value="before_history">聊天记录之前</option>
+                <option value="in_chat">聊天记录内部</option>
+                <option value="after_history">聊天记录之后</option>
               </select>
             </div>
-            <div style="flex: 1;">
+            <div>
               <label>发送身份</label>
               <select id="tc-role-select" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd;">
                 <option value="system">系统 (System)</option>
                 <option value="assistant">AI自己 (Assistant)</option>
                 <option value="user">用户 (User)</option>
               </select>
+              <div class="settings-desc thought-chain-inline-desc">“头部 / 中间”沿用原有合并到主提示词的逻辑；独立消息位置会按此身份发送</div>
             </div>
           </div>
+          <div class="form-group thought-chain-field-grid">
+            <label>聊天深度
+              <input type="number" id="tc-depth-input" min="0" value="0">
+            </label>
+            <label>同位置顺序
+              <input type="number" id="tc-order-input" value="0">
+            </label>
+          </div>
+          <div class="form-group">
+            <label>条目备注（不会发送给模型）</label>
+            <input type="text" id="tc-note-input" placeholder="可选">
+          </div>
           <div class="form-group" style="flex-grow: 1; display: flex; flex-direction: column;">
-            <label>内容文本 <span style="font-size: 12px; color: #999; font-weight: normal;">(支持 <code><变量名></code>)</span></label>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="margin-bottom: 0;">内容文本 <span style="font-size: 12px; color: #999; font-weight: normal;">(支持 <code>{{变量名}}</code>)</span></label>
+              <button type="button" onclick="openFullscreenEditor('tc-content-input', '条目内容文本')" title="放大编辑" style="background: none; border: none; cursor: pointer; color: #888; padding: 2px 4px; display: inline-flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+            </div>
             <textarea id="tc-content-input" style="flex-grow: 1; width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; resize: none; font-family: monospace; font-size: 14px; box-sizing: border-box;" placeholder="输入具体的提示词内容..."></textarea>
           </div>
           <div class="form-group" style="display: flex; justify-content: space-between; align-items: center;">
@@ -263,20 +284,6 @@
               <span class="slider"></span>
             </label>
           </div>
-          <div class="form-group" style="display: flex; gap: 15px;">
-            <div style="flex: 1;">
-              <label>聊天深度</label>
-              <input type="number" id="tc-depth-input" placeholder="留空则不限制" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box;">
-            </div>
-            <div style="flex: 1;">
-              <label>顺序</label>
-              <input type="number" id="tc-order-input" placeholder="数字越小越靠前" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box;">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>备注 <span style="font-size: 12px; color: #999; font-weight: normal;">(仅供自己查看，不会注入)</span></label>
-            <input type="text" id="tc-note-input" placeholder="给这个条目做个备注...">
-          </div>
         </div>
         <div class="modal-footer">
           <button class="cancel" id="tc-cancel-btn">取消</button>
@@ -285,7 +292,6 @@
       </div>
     </div>
 
-    <!-- 思维链工具（测试提取规则，从 xinyuan 移植） -->
     <div id="thought-chain-tools-modal" class="modal">
       <div class="modal-content thought-chain-tools-modal-content">
         <div class="modal-header">
