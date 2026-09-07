@@ -784,3 +784,50 @@
     padding-right: 7px;
   }
 }
+
+.mcp-permission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.mcp-permission-connection {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--secondary-bg);
+}
+
+.mcp-permission-connection-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.mcp-permission-connection-head strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.mcp-permission-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px 10px 30px;
+}
+
+.mcp-permission-tools[hidden],
+[data-mcp-permission-options][hidden] {
+  display: none !important;
+}
+
+.mcp-permission-tool {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 13px;
+  line-height: 1.4;
+}
