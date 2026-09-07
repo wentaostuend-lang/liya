@@ -3153,6 +3153,15 @@ window.initEventBindingsA = async function(state, db) {
       if (!state.activeChatId) return;
       const chat = state.chats[state.activeChatId];
       const isGroup = chat.isGroup;
+      const mcpEditor = document.getElementById('chat-mcp-permission-editor');
+      const groupMcpNote = document.getElementById('group-mcp-permission-note');
+      if (mcpEditor && groupMcpNote) {
+        mcpEditor.style.display = isGroup ? 'none' : 'block';
+        groupMcpNote.style.display = isGroup ? 'block' : 'none';
+        if (!isGroup && window.mcpManager && typeof window.mcpManager.renderPermissionEditor === 'function') {
+          window.mcpManager.renderPermissionEditor(mcpEditor, chat);
+        }
+      }
 
       const sendTranslateSelect = document.getElementById('send-translate-language-select');
       if (sendTranslateSelect) {
@@ -3824,8 +3833,14 @@ window.initEventBindingsA = async function(state, db) {
 
 
       const characterProfile = state.chats[member.id];
+      if (window.mcpManager && typeof window.mcpManager.readPermissionEditor === 'function') {
+        member.mcp = window.mcpManager.readPermissionEditor(
+          document.getElementById('member-mcp-permission-editor')
+        );
+      }
       if (characterProfile) {
         characterProfile.settings.aiAvatar = newAvatarUrl;
+        characterProfile.settings.mcp = member.mcp;
         await db.chats.put(characterProfile);
       }
 
@@ -3853,6 +3868,13 @@ window.initEventBindingsA = async function(state, db) {
 
       const memberAvatar = member.avatar || (state.chats[member.id] ? state.chats[member.id].settings.aiAvatar : defaultGroupMemberAvatar);
       document.getElementById('member-avatar-preview').src = memberAvatar;
+      if (window.mcpManager && typeof window.mcpManager.renderPermissionEditor === 'function') {
+        const characterProfile = state.chats[member.id];
+        window.mcpManager.renderPermissionEditor(
+          document.getElementById('member-mcp-permission-editor'),
+          characterProfile || { settings: { mcp: member.mcp } }
+        );
+      }
 
       document.getElementById('member-settings-modal').classList.add('visible');
     }
@@ -3885,8 +3907,14 @@ window.initEventBindingsA = async function(state, db) {
 
 
       const characterProfile = state.chats[member.id];
+      if (window.mcpManager && typeof window.mcpManager.readPermissionEditor === 'function') {
+        member.mcp = window.mcpManager.readPermissionEditor(
+          document.getElementById('member-mcp-permission-editor')
+        );
+      }
       if (characterProfile) {
         characterProfile.settings.aiAvatar = newAvatarUrl;
+        characterProfile.settings.mcp = member.mcp;
         await db.chats.put(characterProfile);
       }
 
