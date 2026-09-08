@@ -1861,6 +1861,11 @@ function getFeatureHTML(id) {
 <script>
 // ===== Signatures =====
 let currentCharId = null;
+window.addEventListener('message', function(e) {
+  if (currentCharId && e.data && e.data.charId && e.data.charId !== currentCharId) {
+    e.stopImmediatePropagation();
+  }
+}, true);
 function getSignatures() { try { return JSON.parse(localStorage.getItem('coupleSignatures')) || {}; } catch(e) { return {}; } }
 function saveSignatures(data) { localStorage.setItem('coupleSignatures', JSON.stringify(data)); }
 function loadSignatures() {
@@ -8036,6 +8041,7 @@ function resetLetterPrompt() {
 <script>
 // --- Letter handlers from parent ---
 window.addEventListener('message', function(e) {
+  if (e.data && e.data.charId && e.data.charId !== currentCharId) return;
   // AI generated letter
   if (e.data && e.data.type === 'coupleSpaceLetterAiResult') {
     if (e.data.error) {
@@ -8268,8 +8274,12 @@ function getCoWaterStreak() {
   if (logs.length === 0) return 0;
   // Group by date
   var dateMap = {};
+  function localDateKey(value) {
+    var date = value instanceof Date ? value : new Date(value);
+    return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+  }
   logs.forEach(function(l) {
-    var ds = new Date(l.createdAt).toISOString().split('T')[0];
+    var ds = localDateKey(l.createdAt);
     if (!dateMap[ds]) dateMap[ds] = { user: false, char: false };
     dateMap[ds][l.author] = true;
   });
@@ -8277,7 +8287,7 @@ function getCoWaterStreak() {
   var streak = 0;
   var d = new Date(); d.setHours(0,0,0,0);
   for (var i = 0; i < 400; i++) {
-    var ds = d.toISOString().split('T')[0];
+    var ds = localDateKey(d);
     if (dateMap[ds] && dateMap[ds].user && dateMap[ds].char) {
       streak++;
       d.setDate(d.getDate() - 1);
@@ -8593,7 +8603,8 @@ function submitGardenWrite() {
     charId: currentCharId,
     author: 'user',
     amount: reward.amount,
-    description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树浇水奖励'
+    description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树浇水奖励',
+    transactionId: 'garden-water-' + newWater.id
   }, '*');
 
   // Check streak rewards
@@ -8607,7 +8618,8 @@ function submitGardenWrite() {
       charId: currentCharId,
       author: 'user',
       amount: sr.coins,
-      description: '情侣树连续共同浇水' + sr.label + '奖励'
+      description: '情侣树连续共同浇水' + sr.label + '奖励',
+      transactionId: 'garden-streak-' + sr.days + '-user-' + currentCharId
     }, '*');
     // Also reward char
     window.parent.postMessage({
@@ -8615,14 +8627,15 @@ function submitGardenWrite() {
       charId: currentCharId,
       author: 'char',
       amount: sr.coins,
-      description: '情侣树连续共同浇水' + sr.label + '奖励'
+      description: '情侣树连续共同浇水' + sr.label + '奖励',
+      transactionId: 'garden-streak-' + sr.days + '-char-' + currentCharId
     }, '*');
   });
 
   var overlay = document.getElementById('garden-write-overlay');
   if (overlay) overlay.remove();
   renderGardenPage();
-  showGardenToast('浇水成功 +' + reward.amount.toFixed(2) + '元');
+  showGardenToast('浇水成功，奖励入账中 +' + reward.amount.toFixed(2) + '元');
 
   // Ask char for heart
   window.parent.postMessage({
@@ -9150,7 +9163,8 @@ window.addEventListener('message', function(e) {
       charId: currentCharId,
       author: 'char',
       amount: reward.amount,
-      description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树浇水奖励'
+      description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树浇水奖励',
+      transactionId: 'garden-water-' + newWater.id
     }, '*');
 
     // Check streak rewards
@@ -9164,14 +9178,16 @@ window.addEventListener('message', function(e) {
         charId: currentCharId,
         author: 'user',
         amount: sr.coins,
-        description: '情侣树连续共同浇水' + sr.label + '奖励'
+        description: '情侣树连续共同浇水' + sr.label + '奖励',
+        transactionId: 'garden-streak-' + sr.days + '-user-' + currentCharId
       }, '*');
       window.parent.postMessage({
         type: 'coupleSpaceGardenWaterReward',
         charId: currentCharId,
         author: 'char',
         amount: sr.coins,
-        description: '情侣树连续共同浇水' + sr.label + '奖励'
+        description: '情侣树连续共同浇水' + sr.label + '奖励',
+        transactionId: 'garden-streak-' + sr.days + '-char-' + currentCharId
       }, '*');
     });
     if (streakRewards.length > 0) {
@@ -9219,7 +9235,9 @@ window.addEventListener('message', function(e) {
   if (e.data && e.data.type === 'coupleSpaceGardenAutoResult') {
     var gd = getGardenData();
     if (e.data.item && !gd.waterLogs.find(function(w) { return w.id === e.data.item.id; })) {
-      var reward = calculateWaterReward('char');
+      var reward = e.data.item.rewardSettled
+        ? { amount: Number(e.data.item.coinsEarned) || 0, special: e.data.item.specialDate || null }
+        : calculateWaterReward('char');
       e.data.item.coinsEarned = reward.amount;
       e.data.item.specialDate = reward.special ? { name: reward.special.name, coins: reward.special.coins } : null;
       gd.waterLogs.push(e.data.item);
@@ -9229,14 +9247,21 @@ window.addEventListener('message', function(e) {
       renderGardenPage();
       showGardenToast((csCharName || 'TA') + '自动浇水了 +' + reward.amount.toFixed(2) + '元');
 
-      window.parent.postMessage({
-        type: 'coupleSpaceGardenWaterReward',
-        charId: currentCharId,
-        author: 'char',
-        amount: reward.amount,
-        description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树自动浇水奖励'
-      }, '*');
+      if (!e.data.item.rewardSettled) {
+        window.parent.postMessage({
+          type: 'coupleSpaceGardenWaterReward',
+          charId: currentCharId,
+          author: 'char',
+          amount: reward.amount,
+          description: reward.special ? ('情侣树浇水-' + reward.special.name) : '情侣树自动浇水奖励',
+          transactionId: 'garden-water-' + e.data.item.id
+        }, '*');
+      }
     }
+  }
+
+  if (e.data && e.data.type === 'coupleSpaceGardenWaterRewardResult' && e.data.charId === currentCharId) {
+    showGardenToast(e.data.success ? '浇水奖励已到账' : '奖励入账失败，请稍后重试');
   }
 });
 </script>
