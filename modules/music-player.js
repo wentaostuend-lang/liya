@@ -2123,8 +2123,10 @@
     panel.classList.toggle('management-mode', isPlaylistManagementMode);
 
     if (isPlaylistManagementMode) {
-      manageBtn.textContent = translations[currentLanguage].done;
-      manageBtn.setAttribute('data-lang-key', 'done');
+      if (manageBtn) {
+        manageBtn.textContent = translations[currentLanguage].done;
+        manageBtn.setAttribute('data-lang-key', 'done');
+      }
       actionBar.style.display = 'flex';
       selectedPlaylistItems.clear();
       selectAllCheckbox.checked = false;
@@ -2132,8 +2134,10 @@
       // 显示复选框
       panel.querySelectorAll('.playlist-item-checkbox').forEach(cb => cb.style.display = 'block');
     } else {
-      manageBtn.textContent = translations[currentLanguage].manage;
-      manageBtn.setAttribute('data-lang-key', 'manage');
+      if (manageBtn) {
+        manageBtn.textContent = translations[currentLanguage].manage;
+        manageBtn.setAttribute('data-lang-key', 'manage');
+      }
       actionBar.style.display = 'none';
       // 隐藏复选框并取消选中
       panel.querySelectorAll('.playlist-item').forEach(item => {
