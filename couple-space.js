@@ -1,6 +1,6 @@
 // ========== 情侣空间 ==========
 const COUPLE_SPACE_STORAGE_KEY = 'coupleSpaces';
-const COUPLE_SPACE_IFRAME_PATH = 'archive/330--main/index.html';
+const COUPLE_SPACE_IFRAME_PATH = '330-main/index.html';
 const coupleSpaceRunsInFlight = new Set();
 
 // 获取情侣空间API配置（优先使用情侣空间专用API，否则回退到主API）
