@@ -166,8 +166,8 @@ window.initFeatures = function(state, db) {
 
 
 
-    document.getElementById('cleanup-songs-btn').addEventListener('click', cleanupInvalidSongs);
-    document.getElementById('playlist-manager-btn').addEventListener('click', openPlaylistManager);
+    document.getElementById('cleanup-songs-btn')?.addEventListener('click', cleanupInvalidSongs);
+    document.getElementById('playlist-manager-btn')?.addEventListener('click', openPlaylistManager);
     document.getElementById('move-to-playlist-btn').addEventListener('click', executeMoveToPlaylist);
     document.getElementById('toggle-blur-btn').addEventListener('click', toggleBackgroundBlur);
     document.getElementById('toggle-fullscreen-btn').addEventListener('click', togglePlayerFullscreen);
@@ -2233,6 +2233,26 @@ window.initFeatures = function(state, db) {
     document.getElementById('google-imagen-test-btn').addEventListener('click', testGoogleImagenGeneration);
 
     document.getElementById('google-imagen-fetch-models-btn').addEventListener('click', fetchGoogleImagenModels);
+
+    const openAIImageSwitch = document.getElementById('openai-image-switch');
+    openAIImageSwitch?.addEventListener('change', (e) => {
+      const detailsDiv = document.getElementById('openai-image-details');
+      if (detailsDiv) detailsDiv.style.display = e.target.checked ? 'block' : 'none';
+    });
+
+    document.getElementById('openai-image-key-toggle')?.addEventListener('click', function () {
+      const input = document.getElementById('openai-image-api-key');
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+      this.textContent = input.type === 'password' ? '🧐' : '😌';
+    });
+
+    document.getElementById('openai-image-output-format')?.addEventListener('change', (e) => {
+      const compressionRow = document.getElementById('openai-image-compression-row');
+      if (compressionRow) compressionRow.style.display = ['jpeg', 'webp'].includes(e.target.value) ? 'flex' : 'none';
+    });
+
+    document.getElementById('openai-image-test-btn')?.addEventListener('click', testOpenAIImageGeneration);
 
     document.getElementById('novelai-key-toggle').addEventListener('click', function () {
       const input = document.getElementById('novelai-api-key');
