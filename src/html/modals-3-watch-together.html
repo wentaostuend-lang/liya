@@ -548,12 +548,59 @@
                 <input type="text" id="gr-story-title" class="gr-input" placeholder="请输入书名">
             </div>
             <div class="gr-form-group">
+                <label>作品简介 / 故事前提</label>
+                <textarea id="gr-story-synopsis" class="gr-input" rows="3" placeholder="这部故事讲什么、核心冲突是什么。留空也可以继续使用原有方式创作。"></textarea>
+            </div>
+            <div class="gr-form-group gr-settings-grid">
+                <div>
+                    <label>题材</label>
+                    <input type="text" id="gr-story-genre" class="gr-input" placeholder="例如：古风、都市、悬疑">
+                </div>
+                <div>
+                    <label>整体基调</label>
+                    <input type="text" id="gr-story-tone" class="gr-input" placeholder="例如：克制、轻松、暗黑">
+                </div>
+            </div>
+            <div class="gr-form-group gr-settings-grid">
+                <div><label>作品状态</label><select id="gr-story-status" class="gr-select"><option value="连载中">连载中</option><option value="已完结">已完结</option><option value="暂停更新">暂停更新</option><option value="草稿">草稿</option></select></div>
+                <div><label>标签</label><input type="text" id="gr-story-tags" class="gr-input" placeholder="用逗号分隔"></div>
+            </div>
+            <div class="gr-form-group gr-settings-grid">
+                <div>
+                    <label>叙事视角</label>
+                    <select id="gr-story-pov" class="gr-select">
+                        <option value="第三人称有限视角">第三人称有限视角</option>
+                        <option value="第三人称全知视角">第三人称全知视角</option>
+                        <option value="第一人称视角">第一人称视角</option>
+                        <option value="多视角叙事">多视角叙事</option>
+                    </select>
+                </div>
+                <div>
+                    <label>叙事节奏</label>
+                    <select id="gr-story-tense" class="gr-select">
+                        <option value="自然叙事">自然叙事</option>
+                        <option value="紧凑推进">紧凑推进</option>
+                        <option value="舒缓细腻">舒缓细腻</option>
+                        <option value="对话驱动">对话驱动</option>
+                    </select>
+                </div>
+            </div>
+            <div class="gr-form-group">
+                <label>结局或长期方向</label>
+                <textarea id="gr-ending-direction" class="gr-input" rows="2" placeholder="可选。用于保持长线方向，不会要求本章立刻完成。"></textarea>
+            </div>
+            <div class="gr-form-group">
+                <label>不要出现的内容 / 表达</label>
+                <textarea id="gr-forbidden-content" class="gr-input" rows="2" placeholder="例如：角色突然降智、现代物品、过度使用某些词句。"></textarea>
+            </div>
+            <div class="gr-form-group">
     <label>宏大世界观 / IF线设定 (Macro World View)</label>
     <textarea id="gr-macro-world-view" class="gr-input" rows="3" placeholder="在此输入核心设定。例如：'民国军阀背景，Char是少帅，User是进步学生'，或者 'ABO设定，Char是Enigma'。此设定优先级最高。"></textarea>
 </div>
             <div class="gr-form-group">
                 <label>指定作者 (文风)</label>
-                <select id="gr-author-select" class="gr-select"></select>
+                <button type="button" id="gr-author-select-trigger" class="gr-select gr-author-select-trigger" aria-haspopup="dialog" aria-expanded="false">请选择作者</button>
+                <select id="gr-author-select" aria-hidden="true" tabindex="-1" hidden></select>
             </div>
 
             <div class="gr-form-group">
@@ -574,11 +621,11 @@
             </div>
 
             <div class="gr-form-group">
-                <label>单次生成字数 (Token)</label>
+                <label>单章目标字数（允许自然浮动）</label>
                 <input type="number" id="gr-output-length" class="gr-input" value="500">
             </div>
              <div class="gr-form-group">
-                <label>上下文引用条数 (History)</label>
+                <label>聊天语气参考条数</label>
                 <input type="number" id="gr-context-limit" class="gr-input" value="20">
             </div>
 
@@ -587,7 +634,20 @@
                     <span>💬 生成时开启读者评论</span>
                     <input type="checkbox" id="gr-reader-comments-enabled" style="width: 44px; height: 24px; cursor: pointer;">
                 </label>
-                <div style="font-size: 12px; color: #999; margin-top: 5px;">续写或追更时，AI 会在部分段落后生成模拟读者评论，阅读时点击段尾气泡可查看</div>
+                <div style="font-size: 12px; color: #999; margin-top: 5px;">正文完成后会单独调用一次 AI，在值得讨论的段落生成评论；正文不受评论语气影响。阅读时点击段尾气泡可查看。</div>
+                <div class="gr-settings-grid" style="margin-top:10px;">
+                    <select id="gr-reader-comment-density" class="gr-select" aria-label="段评密度">
+                        <option value="sparse">稀疏</option>
+                        <option value="natural" selected>自然</option>
+                        <option value="lively">热闹</option>
+                    </select>
+                    <select id="gr-reader-comment-tone" class="gr-select" aria-label="段评气氛">
+                        <option value="mixed" selected>混合气氛</option>
+                        <option value="gentle">温和</option>
+                        <option value="funny">轻松吐槽</option>
+                        <option value="serious">认真分析</option>
+                    </select>
+                </div>
             </div>
 
         </div>
@@ -596,4 +656,61 @@
             <button class="save" id="gr-save-story-btn" style="background: #1B4F3E; border: none;">开始创作</button>
         </div>
     </div>
+</div>
+
+<div id="gr-author-select-modal" class="gr-writing-mode-modal" aria-hidden="true">
+  <div class="gr-writing-mode-dialog" role="dialog" aria-modal="true" aria-labelledby="gr-author-select-title">
+    <div class="gr-writing-mode-dialog-header"><span id="gr-author-select-title">选择作者风格</span><button type="button" id="gr-author-select-close" class="gr-writing-mode-close" aria-label="关闭">×</button></div>
+    <div id="gr-author-select-options" class="gr-writing-mode-options"></div>
+  </div>
+</div>
+
+<div id="gr-chapter-editor-modal" class="modal" style="z-index:10003;">
+  <div class="modal-content gr-chapter-editor-modal-content">
+    <div class="modal-header"><span>编辑章节</span></div>
+    <div class="modal-body">
+      <div class="gr-form-group"><label>章节标题</label><input id="gr-edit-chapter-title" class="gr-input" type="text"></div>
+      <div class="gr-form-group"><label>正文</label><textarea id="gr-edit-chapter-content" class="gr-input gr-chapter-editor-textarea"></textarea></div>
+      <div class="gr-editor-ai-tools" aria-label="选中文本处理">
+        <span>选中文字后：</span>
+        <button type="button" data-gr-transform="polish">自然润色</button>
+        <button type="button" data-gr-transform="deai">去除AI腔</button>
+        <button type="button" data-gr-transform="expand">扩写</button>
+        <button type="button" data-gr-transform="condense">精简</button>
+        <button type="button" data-gr-transform="dialogue">加强对话</button>
+      </div>
+      <div class="gr-form-group"><label>剧情存档</label><textarea id="gr-edit-chapter-summary" class="gr-input" rows="4"></textarea></div>
+      <div id="gr-edit-chapter-hint" class="gr-form-hint">保存前会自动保留当前稿，已有段评会尽量跟随未改变的段落。</div>
+    </div>
+    <div class="modal-footer"><button class="cancel" id="gr-cancel-chapter-edit">取消</button><button class="save" id="gr-save-chapter-edit">保存修改</button></div>
+  </div>
+</div>
+
+<div id="gr-revisions-modal" class="modal" style="z-index:10003;">
+  <div class="modal-content" style="height:70%;">
+    <div class="modal-header"><span>修订记录</span></div>
+    <div class="modal-body" id="gr-revisions-list"></div>
+    <div class="modal-footer"><button class="cancel" id="gr-close-revisions">关闭</button></div>
+  </div>
+</div>
+
+<div id="gr-diagnostics-modal" class="modal" style="z-index:10003;">
+  <div class="modal-content" style="height:auto;max-height:75%;">
+    <div class="modal-header"><span>本章诊断</span></div>
+    <div class="modal-body" id="gr-diagnostics-content"></div>
+    <div class="modal-footer"><button class="cancel" id="gr-close-diagnostics">关闭</button></div>
+  </div>
+</div>
+
+<div id="gr-story-bible-modal" class="modal" style="z-index:10003;">
+  <div class="modal-content" style="height:86%;max-width:760px;">
+    <div class="modal-header"><span>剧情档案</span></div>
+    <div class="modal-body">
+      <div class="gr-form-group"><label>全局故事摘要</label><textarea id="gr-global-story-summary" class="gr-input" rows="5" placeholder="用于跨越很多章节后仍然记住整部故事。"></textarea></div>
+      <div class="gr-form-group"><label>尚未解决的剧情 / 伏笔（每行一条）</label><textarea id="gr-open-threads-input" class="gr-input" rows="5"></textarea></div>
+      <div class="gr-form-group"><label>小说内人物状态</label><div id="gr-story-character-editor"></div></div>
+      <div class="gr-form-group"><label>近期时间线</label><div id="gr-story-timeline" class="gr-story-timeline"></div></div>
+    </div>
+    <div class="modal-footer"><button class="cancel" id="gr-cancel-story-bible">取消</button><button class="save" id="gr-save-story-bible">保存档案</button></div>
+  </div>
 </div>

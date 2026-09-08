@@ -386,26 +386,44 @@
               </div>
               <div id="music-total-time" class="time-display">0:00</div>
             </div>
-            <div class="music-controls"> <button id="music-prev-btn">◀</button> <button id="music-play-pause-btn" class="play-pause-btn">▶</button> <button id="music-next-btn">▶</button> <button id="music-mode-btn">顺序</button> <button id="toggle-blur-btn" title="切换背景清晰度">清</button>
+            <div class="music-controls">
+              <button id="music-mode-btn" class="secondary-control-btn" title="播放模式: 顺序播放">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m17 2 4 4-4 4"></path>
+                  <path d="M3 11v-1a4 4 0 0 1 4-4h14"></path>
+                  <path d="m7 22-4-4 4-4"></path>
+                  <path d="M21 13v1a4 4 0 0 1-4 4H3"></path>
+                </svg>
+              </button>
+              <button id="music-prev-btn" class="secondary-control-btn" title="上一首">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="19 20 9 12 19 4 19 20" fill="currentColor"></polygon>
+                  <line x1="5" y1="4" x2="5" y2="20"></line>
+                </svg>
+              </button>
+              <button id="music-play-pause-btn" class="play-pause-btn" title="播放/暂停">▶</button>
+              <button id="music-next-btn" class="secondary-control-btn" title="下一首">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="5 4 15 12 5 20 5 4" fill="currentColor"></polygon>
+                  <line x1="19" y1="4" x2="19" y2="20"></line>
+                </svg>
+              </button>
+              <button id="toggle-blur-btn" class="secondary-control-btn text-btn" title="切换背景清晰度">清</button>
             </div>
           </div>
         </div>
       </div>
       <div id="music-playlist-panel">
         <div class="playlist-header">
-          <div class="header-left-actions" style="display: flex; align-items: center; gap: 10px;">
+          <div class="header-left-actions">
             <span class="panel-btn" id="close-playlist-btn" data-lang-key="back">返回</span>
-            <span class="panel-btn" id="manage-playlist-btn" data-lang-key="manage">管理</span>
           </div>
           
-          <span data-lang-key="playlistTitle">播放列表</span>
+          <span class="playlist-title" data-lang-key="playlistTitle">播放列表</span>
           
-          <div>
-            <span class="panel-btn" id="playlist-manager-btn">歌单</span>
-            <span class="panel-btn" id="music-account-btn">音乐账号</span>
-            <span class="panel-btn" id="cleanup-songs-btn">清理</span> 
-            <span class="panel-btn" id="add-song-upload-btn">上传</span> 
+          <div class="header-right-actions">
             <span class="panel-btn" id="add-song-search-btn" data-lang-key="search">搜索</span>
+            <span class="panel-btn" id="playlist-more-actions-btn">更多</span>
           </div>
         </div>
         <div class="playlist-body" id="playlist-body"></div>

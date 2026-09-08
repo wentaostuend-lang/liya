@@ -2,10 +2,12 @@
   <div class="modal-content" style="height: 70%; width: 350px;">
     <div class="modal-header">
       <span>选择导出的章节</span>
-      <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px;">
-        <input type="checkbox" id="select-all-gr-export"> 全选
-      </label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="gr-export-format" class="gr-select" style="width:auto;padding:6px;"><option value="txt">TXT</option><option value="html">HTML</option></select>
+        <label style="font-size: 14px; font-weight: normal; display: flex; align-items: center; gap: 5px;"><input type="checkbox" id="select-all-gr-export"> 全选</label>
+      </div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #eee;font-size:13px;"><input type="checkbox" id="gr-export-include-comments"> 包含段评</label>
     <div class="modal-body" id="gr-export-txt-list" style="padding: 0; overflow-y: auto;">
     </div>
     <div class="modal-footer">
