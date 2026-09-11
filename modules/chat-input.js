@@ -289,13 +289,25 @@
 
 
   function addLongPressListener(element, callback) {
-    let pressTimer;
+    let pressTimer = null;
+    let isLongPressTriggered = false;
+
     const startPress = (e) => {
-      if (isSelectionMode) return;
-      e.preventDefault();
-      pressTimer = window.setTimeout(() => callback(e), 500);
+      if (typeof isSelectionMode !== 'undefined' && isSelectionMode) return;
+      isLongPressTriggered = false;
+      pressTimer = window.setTimeout(() => {
+        isLongPressTriggered = true;
+        callback(e);
+      }, 500);
     };
-    const cancelPress = () => clearTimeout(pressTimer);
+
+    const cancelPress = () => {
+      if (pressTimer) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+    };
+
     element.addEventListener('mousedown', startPress);
     element.addEventListener('mouseup', cancelPress);
     element.addEventListener('mouseleave', cancelPress);
@@ -304,6 +316,15 @@
     });
     element.addEventListener('touchend', cancelPress);
     element.addEventListener('touchmove', cancelPress);
+
+    // 如果触发了长按，阻止后续派发的默认 click 事件
+    element.addEventListener('click', (e) => {
+      if (isLongPressTriggered) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        isLongPressTriggered = false;
+      }
+    }, true);
   }
 
   function startReplyToMessage() {
@@ -479,3 +500,4 @@
   // ========== 全局暴露 ==========
   window.cancelReplyMode = cancelReplyMode;
   window.startReplyToMessage = startReplyToMessage;
+  window.addLongPressListener = addLongPressListener;
