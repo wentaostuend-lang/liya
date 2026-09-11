@@ -403,7 +403,116 @@
                     <span class="slider"></span>
                 </label>
             </div>
+
+            <!-- OpenAI GPT Image -->
+            <div class="settings-item">
+                <label>启用 GPT 生图</label>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="openai-image-switch">
+                    <span class="slider"></span>
+                </label>
+            </div>
             
+            <!-- GPT 生图详情 (JS控制显示/隐藏) -->
+            <div id="openai-image-details" style="display:none; background-color: #f9f9f9; border-top: 0.5px solid #ebedf0;">
+                <div class="settings-item">
+                    <label>API 地址</label>
+                    <div class="settings-right">
+                        <input type="text" id="openai-image-endpoint" placeholder="https://api.openai.com" style="width:100%; font-size:12px;">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>API Key</label>
+                    <div class="settings-right">
+                        <div style="position:relative; width:100%;">
+                            <input type="password" id="openai-image-api-key" placeholder="sk-...">
+                            <span id="openai-image-key-toggle" style="position:absolute; right:0; top:50%; transform:translateY(-50%); cursor:pointer;">🧐</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>模型</label>
+                    <div class="settings-right">
+                        <input type="text" id="openai-image-model" value="gpt-image-2" placeholder="gpt-image-2" style="width:100%; font-size:12px;">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>尺寸</label>
+                    <div class="settings-right">
+                        <select id="openai-image-size" class="settings-select">
+                            <option value="auto">自动</option>
+                            <option value="1024x1024">1024×1024 方形</option>
+                            <option value="1536x1024">1536×1024 横图</option>
+                            <option value="1024x1536">1024×1536 竖图</option>
+                            <option value="2048x2048">2048×2048 方形</option>
+                            <option value="2048x1152">2048×1152 横图</option>
+                            <option value="1152x2048">1152×2048 竖图</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>质量</label>
+                    <div class="settings-right">
+                        <select id="openai-image-quality" class="settings-select">
+                            <option value="auto">自动</option>
+                            <option value="low">低（更快）</option>
+                            <option value="medium">中</option>
+                            <option value="high">高</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>输出格式</label>
+                    <div class="settings-right">
+                        <select id="openai-image-output-format" class="settings-select">
+                            <option value="png">PNG</option>
+                            <option value="webp">WebP</option>
+                            <option value="jpeg">JPEG</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item" id="openai-image-compression-row" style="display:none;">
+                    <label>压缩率</label>
+                    <div class="settings-right">
+                        <input type="number" id="openai-image-compression" class="settings-num-input" min="0" max="100" value="100">
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>背景</label>
+                    <div class="settings-right">
+                        <select id="openai-image-background" class="settings-select">
+                            <option value="auto">自动</option>
+                            <option value="opaque">不透明</option>
+                            <option value="transparent">透明</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label>内容过滤</label>
+                    <div class="settings-right">
+                        <select id="openai-image-moderation" class="settings-select">
+                            <option value="auto">标准</option>
+                            <option value="low">较宽松</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="settings-item">
+                    <label style="font-size:13px;">附加提示词</label>
+                    <div class="settings-right">
+                        <textarea id="openai-image-positive" rows="2" placeholder="可选，会拼接到 AI 提示词后" style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px; font-size:12px; resize:vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="settings-item" style="justify-content:space-around;">
+                    <button id="openai-image-test-btn" class="settings-mini-btn">🧪 测试生成</button>
+                </div>
+                <div id="openai-image-test-result" style="display:none; padding:10px 15px;">
+                    <div style="font-weight:bold; color:#333; margin-bottom:10px;">生成结果：</div>
+                    <div style="text-align:center; background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #e9ecef;">
+                        <img id="openai-image-result-image" alt="GPT 生图测试结果" style="max-width:100%; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                    </div>
+                </div>
+            </div>
+
             <!-- Google Imagen 详情 (JS控制显示/隐藏) -->
             <div id="google-imagen-details" style="display:none; background-color: #f9f9f9; border-top: 0.5px solid #ebedf0;">
                 <div class="settings-item">
