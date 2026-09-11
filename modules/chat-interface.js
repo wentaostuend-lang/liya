@@ -621,7 +621,7 @@
       return wrapper;
     }
 
-    if (msg.isHidden && !chat.settings.showHiddenMessages) {
+    if (msg.isHidden && msg.type !== 'mcp_activity' && !chat.settings.showHiddenMessages) {
       return null;
     }
     if (msg.type === 'narration') {
@@ -1661,6 +1661,11 @@
     renderChatInterface(chatId);
     showScreen('chat-interface-screen');
     window.updateListenTogetherIconProxy(state.activeChatId);
+
+    // 进入聊天时检查一次是否需要触发主动回复（原来只在页面从后台切回前台时才检查）
+    if (typeof checkAndTriggerProactiveReply === 'function') {
+      checkAndTriggerProactiveReply(chat);
+    }
 
 
     const isGroup = chat.isGroup || false;
