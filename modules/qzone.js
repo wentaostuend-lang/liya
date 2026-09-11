@@ -161,7 +161,7 @@
 
         const postImageUrl = state.globalSettings.enableAiDrawing && targetPost.image_prompt ? getPollinationsImageUrl(targetPost.image_prompt) : 'https://i.postimg.cc/KYr2qRCK/1.jpg';
         innerContentHtml = publicTextHtml ? `${publicTextHtml}<div style="margin-top:10px;"><img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${targetPost.hiddenContent}"></div>` : `<img src="${postImageUrl}" class="chat-image" style="cursor: pointer;" data-hidden-text="${targetPost.hiddenContent}">`;
-      } else if (targetPost.type === 'naiimag' || targetPost.type === 'googleimag') {
+      } else if (targetPost.type === 'naiimag' || targetPost.type === 'googleimag' || targetPost.type === 'openaiimag') {
 
         const imageUrls = targetPost.imageUrls || (targetPost.imageUrl ? [targetPost.imageUrl] : []);
 

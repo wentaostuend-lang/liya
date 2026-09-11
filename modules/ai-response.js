@@ -966,6 +966,9 @@ ${linkedContents}
           } else if (localStorage.getItem('google-imagen-enabled') === 'true') {
             msgData.type = 'googleimag';
             msgData.prompt = msgData.image_prompt || msgData.description || 'a beautiful scene';
+          } else if (localStorage.getItem('openai-image-enabled') === 'true') {
+            msgData.type = 'openaiimag';
+            msgData.prompt = msgData.image_prompt || msgData.description || 'A beautiful scene';
           }
         }
 
@@ -2165,6 +2168,13 @@ ${linkedContents}
         - 使用场景：当你想要分享一张写实风格的高质量图片时使用。
         - 不要频繁使用，只在真正想分享图片的时候使用。` : '';
         
+        let openAIImageGroupContext = localStorage.getItem('openai-image-enabled') === 'true' ? `-   **GPT 图片分享**: \`{"type": "openaiimag", "name": "你的角色名", "prompt": "详细的画面描述..."}\`
+        - 【禁止暴露这是AI生成的图片!】
+        - 根据当前对话、角色人设、情绪和场景撰写具体提示词。
+        - 可使用中文或英文自然语言，明确主体、环境、构图、光线、风格和氛围。
+        - 适合需要准确理解复杂描述、画面文字或精细构图的场景。
+        - 不要频繁使用，只在真正想分享图片的时候使用。` : '';
+        
         let bilingualAlertVoice = chat.settings.enableBilingualMode ? ' ⚠️ （注意：如果该角色是指定的双语角色，必须使用双语格式：外语〖中文〗）' : '';
 
           const contextMap = {
@@ -2206,6 +2216,7 @@ ${linkedContents}
           'narratorInstruction': narratorInstruction,
           'novelAiImageGroupContext': novelAiImageGroupContext,
           'googleImagenGroupContext': googleImagenGroupContext,
+          'openAIImageGroupContext': openAIImageGroupContext,
           'bilingualAlertVoice': bilingualAlertVoice
         };
 
@@ -2796,6 +2807,8 @@ ${enabledEntries}
                 contentSummary = (post.publicText || '') + ` [包含${prompts.length}张NovelAI图片: ${prompts.join(', ')}]`;
               } else if (post.type === 'googleimag' && post.prompt) {
                 contentSummary = (post.publicText || '') + ` [包含1张Google Imagen图片: ${post.prompt}]`;
+              } else if (post.type === 'openaiimag' && post.prompt) {
+                contentSummary = (post.publicText || '') + ` [包含1张GPT图片: ${post.prompt}]`;
               } else {
 
                 contentSummary = String(post.publicText || post.content || "一条动态").substring(0, 50) + '...';
@@ -3101,6 +3114,7 @@ ${getActiveThoughtsPrompt()}
 -   **发动态(文字图)**: \`[{"type": "qzone_post", "postType": "text_image", "publicText": "(可选)公开文字", "hiddenContent": "图片描述", "image_prompt": "图片的【英文】关键词, 用%20分隔, 风格为风景/动漫/插画/二次元等, 禁止真人"}]\`
 \${localStorage.getItem('novelai-enabled') === 'true' ? \`-   **公开发布NovelAI真实图片动态**: \\\`{"type": "qzone_post", "postType": "naiimag", "publicText": "(可选)动态的配文", "prompt": "详细的英文描述词..."}\\\`\` : ''}
 \${localStorage.getItem('google-imagen-enabled') === 'true' ? \`-   **公开发布Google Imagen真实图片动态**: \\\`{"type": "qzone_post", "postType": "googleimag", "publicText": "(可选)动态的配文", "prompt": "详细的英文描述词..."}\\\`\` : ''}
+\${localStorage.getItem('openai-image-enabled') === 'true' ? \`-   **公开发布GPT图片动态**: \\\`{"type": "qzone_post", "postType": "openaiimag", "publicText": "(可选)动态的配文", "prompt": "详细的画面描述..."}\\\`\` : ''}
 -   **转发动态**: \`[{"type": "repost", "postId": 动态ID, "comment": "转发评论"}]\`
 -   **评论动态**: \`[{"type": "qzone_comment", "name": "\${chat.originalName}", "postId": 123, "commentText": "评论内容"}]\` (name必须填你自己的本名"\${chat.originalName}"，绝对不能填用户的名字)
 -   **点赞动态**: \`{"type": "qzone_like", "postId": 456}\`
@@ -3356,6 +3370,13 @@ ${getActiveThoughtsPrompt()}
     - 不要频繁使用，只在真正想分享图片的时候使用。
     - 注意：这会直接在聊天记录中显示图片，而不是发布到动态。` : '';
     
+          let openAIImageContext = localStorage.getItem('openai-image-enabled') === 'true' ? `-   **GPT 图片分享 (在聊天中直接发送)**: \`{"type": "openaiimag", "prompt": "详细的画面描述..."}\`
+    - **【绝不能暴露是AI生成的图片！】**
+    - 根据当前对话、角色人设、情绪和场景撰写具体提示词。
+    - 可使用中文或英文自然语言，明确主体、环境、构图、光线、风格和氛围。
+    - 不要频繁使用，只在真正想分享图片的时候使用。
+    - 注意：这会直接在聊天记录中显示图片，而不是发布到动态。` : '';
+    
           let crossChatInstruction = (() => {
             const enableCrossChat = chat.settings.enableCrossChat !== null ? chat.settings.enableCrossChat : state.globalSettings.enableCrossChat;
             return enableCrossChat !== false ? `- **发消息到群聊**: \\\`{"type": "send_group_message", "targetGroupName": "...", "content": ["..."]}\\\`(content 字段【必须】是数组，当你想在私聊中，突然提及或回应某个你也在的群聊里的事情时，你可以用 \\\`send_group_message\\\` 直接给那个群聊发送消息。)
@@ -3423,6 +3444,7 @@ ${getActiveThoughtsPrompt()}
             'bilingualAlertVoice': chat.settings.enableBilingualMode ? ' ⚠️ 必须使用双语格式：外语〖中文〗（播放时只读外语，但用户可以查看翻译）' : '',
             'novelAiImageContext': novelAiImageContext,
             'googleImagenContext': googleImagenContext,
+            'openAIImageContext': openAIImageContext,
             'qzoneActionsPrompt': qzoneActionsPrompt,
             'viewMyPhonePrompt': viewMyPhonePrompt,
             'crossChatInstruction': crossChatInstruction,
@@ -4161,6 +4183,9 @@ ${getActiveThoughtsPrompt()}
           } else if (localStorage.getItem('google-imagen-enabled') === 'true') {
             msgData.type = 'googleimag';
             msgData.prompt = msgData.image_prompt || msgData.description || 'a beautiful scene';
+          } else if (localStorage.getItem('openai-image-enabled') === 'true') {
+            msgData.type = 'openaiimag';
+            msgData.prompt = msgData.image_prompt || msgData.description || 'A beautiful scene';
           }
         }
 
@@ -5425,6 +5450,25 @@ ${getActiveThoughtsPrompt()}
               }
             }
 
+            // GPT 动态图片生成
+            if (msgData.postType === 'openaiimag' && msgData.prompt) {
+              try {
+                const openAIPrompt = msgData.prompt || 'A beautiful scene';
+                const openAIResult = await generateOpenAIImageFromPrompt(openAIPrompt);
+                newPost.imageUrls = [openAIResult.imageUrl];
+                newPost.imageUrl = openAIResult.imageUrl;
+                newPost.prompt = openAIPrompt;
+                newPost.fullPrompt = openAIResult.fullPrompt;
+                newPost.model = openAIResult.model;
+                newPost.mimeType = openAIResult.mimeType;
+                newPost.requestId = openAIResult.requestId;
+                newPost.imageCount = 1;
+              } catch (error) {
+                console.error('❌ 动态 GPT 图片生成失败:', error);
+                newPost.content = (newPost.content || newPost.publicText || '') + `\n[GPT 图片生成失败: ${error.message}]`;
+              }
+            }
+
             await db.qzonePosts.add(newPost);
             updateUnreadIndicator(unreadPostsCount + 1);
             if (isViewingThisChat && document.getElementById('qzone-screen').classList.contains('active')) {
@@ -6674,6 +6718,29 @@ ${getActiveThoughtsPrompt()}
             }
             break;
 
+          case 'openaiimag':
+            try {
+              const openAIPrompt = msgData.prompt || msgData.image_prompt || msgData.description || 'A beautiful scene';
+              const openAIResult = await generateOpenAIImageFromPrompt(openAIPrompt);
+              aiMessage = {
+                ...baseMessage,
+                type: 'openaiimag',
+                imageUrl: openAIResult.imageUrl,
+                prompt: openAIPrompt,
+                fullPrompt: openAIResult.fullPrompt,
+                model: openAIResult.model,
+                mimeType: openAIResult.mimeType,
+                requestId: openAIResult.requestId
+              };
+            } catch (error) {
+              console.error('❌ GPT 图片生成失败:', error);
+              aiMessage = {
+                ...baseMessage,
+                content: `[GPT 图片生成失败: ${error.message}]`
+              };
+            }
+            break;
+
           default:
             console.warn("收到了未知的AI指令类型:", msgData.type);
             break;
@@ -6702,6 +6769,7 @@ ${getActiveThoughtsPrompt()}
                 break;
               case 'ai_image':
               case 'googleimag':
+              case 'openaiimag':
                 notificationText = `[图片]`;
                 break;
               case 'voice_message':
@@ -6734,6 +6802,7 @@ ${getActiveThoughtsPrompt()}
                 break;
               case 'ai_image':
               case 'googleimag':
+              case 'openaiimag':
                 notificationText = `[图片]`;
                 break;
               case 'voice_message':
@@ -7126,6 +7195,7 @@ ${linkedContents}
         'bilingualAlertVoice': '',
         'novelAiImageContext': '',
         'googleImagenContext': '',
+        'openAIImageContext': '',
         'qzoneActionsPrompt': '',
         'viewMyPhonePrompt': '',
         'crossChatInstruction': '',

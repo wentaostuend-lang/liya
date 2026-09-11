@@ -2343,6 +2343,9 @@ window.initEventBindingsA = async function(state, db) {
       // 保存Google Imagen配置到localStorage
       saveGoogleImagenSettings();
 
+      // 保存 GPT 生图配置到 localStorage
+      saveOpenAIImageSettings();
+
       alert('所有API与后台设置已保存!');
     });
 

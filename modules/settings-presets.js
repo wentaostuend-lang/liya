@@ -256,6 +256,7 @@
 -   **发图片**: \`{"type": "ai_image", "description": "详细中文描述", "image_prompt": "图片的【英文】关键词, 用%20分隔, 风格为风景/二次元/插画等, 禁止真人"}\`
 {{novelAiImageContext}}
 {{googleImagenContext}}
+{{openAIImageContext}}
 
 {{qzoneActionsPrompt}}
 {{viewMyPhonePrompt}}
@@ -410,6 +411,7 @@
 -   **发图片**: \`{"type": "ai_image", "name": "角色本名", "description": "中文描述", "image_prompt": "图片的【英文】关键词, 用%20分隔, 风格为风景/动漫/插画/二次元等, 禁止真人"}\`
 {{novelAiImageGroupContext}}
 {{googleImagenGroupContext}}
+{{openAIImageGroupContext}}
 -   **发语音**: \`{"type": "voice_message", "name": "角色本名", "content": "语音文字"}\`{{bilingualAlertVoice}}
 -   **引用回复 (重要！)**:
     -   **回复【用户】或【历史消息】**: \`{"type": "quote_reply", "name": "你的角色本名", "target_timestamp": 消息时间戳, "reply_content": "回复内容"}\`
@@ -1340,6 +1342,37 @@
     if(document.getElementById('google-imagen-positive')) document.getElementById('google-imagen-positive').value = googleImagenSettings.positivePrompt || '';
     if(document.getElementById('google-imagen-negative')) document.getElementById('google-imagen-negative').value = googleImagenSettings.negativePrompt || '';
     document.getElementById('google-imagen-details').style.display = googleImagenEnabled ? 'block' : 'none';
+
+    // GPT 生图设置加载
+    const openAIImageEnabled = localStorage.getItem('openai-image-enabled') === 'true';
+    const openAIImageApiKey = localStorage.getItem('openai-image-api-key') || '';
+    const openAIImageSettings = getOpenAIImageSettings();
+    const openAIImageSwitch = document.getElementById('openai-image-switch');
+    if (openAIImageSwitch) openAIImageSwitch.checked = openAIImageEnabled;
+    const openAIImageModel = document.getElementById('openai-image-model');
+    if (openAIImageModel) openAIImageModel.value = localStorage.getItem('openai-image-model') || openAIImageSettings.model || 'gpt-image-2';
+    const openAIImageApiKeyInput = document.getElementById('openai-image-api-key');
+    if (openAIImageApiKeyInput) openAIImageApiKeyInput.value = openAIImageApiKey;
+    const openAIImageEndpoint = document.getElementById('openai-image-endpoint');
+    if (openAIImageEndpoint) openAIImageEndpoint.value = openAIImageSettings.endpoint || 'https://api.openai.com';
+    const openAIImageSize = document.getElementById('openai-image-size');
+    if (openAIImageSize) openAIImageSize.value = openAIImageSettings.size || 'auto';
+    const openAIImageQuality = document.getElementById('openai-image-quality');
+    if (openAIImageQuality) openAIImageQuality.value = openAIImageSettings.quality || 'auto';
+    const openAIImageFormat = document.getElementById('openai-image-output-format');
+    if (openAIImageFormat) openAIImageFormat.value = openAIImageSettings.outputFormat || 'png';
+    const openAIImageCompression = document.getElementById('openai-image-compression');
+    if (openAIImageCompression) openAIImageCompression.value = openAIImageSettings.outputCompression ?? 100;
+    const openAIImageCompressionRow = document.getElementById('openai-image-compression-row');
+    if (openAIImageCompressionRow) openAIImageCompressionRow.style.display = ['jpeg', 'webp'].includes(openAIImageSettings.outputFormat) ? 'flex' : 'none';
+    const openAIImageBackground = document.getElementById('openai-image-background');
+    if (openAIImageBackground) openAIImageBackground.value = openAIImageSettings.background || 'auto';
+    const openAIImageModeration = document.getElementById('openai-image-moderation');
+    if (openAIImageModeration) openAIImageModeration.value = openAIImageSettings.moderation || 'auto';
+    const openAIImagePositive = document.getElementById('openai-image-positive');
+    if (openAIImagePositive) openAIImagePositive.value = openAIImageSettings.positivePrompt || '';
+    const openAIImageDetails = document.getElementById('openai-image-details');
+    if (openAIImageDetails) openAIImageDetails.style.display = openAIImageEnabled ? 'block' : 'none';
 
     const imgbbEnableSwitch = document.getElementById('imgbb-enable-switch');
     const imgbbApiKeyInput = document.getElementById('imgbb-api-key');

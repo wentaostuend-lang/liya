@@ -31,7 +31,10 @@
                     // 点击查看深度思考
                     viewThoughtChainBtn.onclick = () => {
                         hideMessageActions();
-                        showCustomAlert('AI 深度思考', parseMarkdown(processMentions(String(prevMsg.content), chat)).replace(/\n/g, '<br>'));
+                        const safeThought = typeof ThoughtChainManager !== 'undefined'
+                            ? ThoughtChainManager.escapeHtml(String(prevMsg.content))
+                            : String(prevMsg.content).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        showCustomAlert('AI 深度思考', parseMarkdown(processMentions(safeThought, chat)).replace(/\n/g, '<br>'));
                     };
                 }
                 break; // 无论是否隐藏，只看最近的一个，防止找太远
@@ -537,6 +540,14 @@
         type: 'naiimag',
         prompt: '1girl, best quality, masterpiece, ...'
       },
+      googleImage: {
+        type: 'googleimag',
+        prompt: 'A detailed photorealistic scene...'
+      },
+      openAIImage: {
+        type: 'openaiimag',
+        prompt: '详细描述希望生成的画面...'
+      },
       // 【关键修改】：添加旁白模板
       narration: {
         type: 'narration',
@@ -556,6 +567,8 @@
             <button class="format-btn" data-template='${JSON.stringify(templates.offline)}'>线下</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.quote)}'>引用</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.nai)}' style="color: #6a329f; border-color: #6a329f;">NAI生图</button>
+            <button class="format-btn" data-template='${JSON.stringify(templates.googleImage)}'>谷歌图</button>
+            <button class="format-btn" data-template='${JSON.stringify(templates.openAIImage)}'>GPT图</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.narration)}' style="color: #888; border-color: #ccc;">旁白</button>
             </div>
     `;
@@ -621,7 +634,7 @@
     }
 
 
-    else if (message.type && ['voice_message', 'ai_image', 'transfer', 'offline_text', 'share_link', 'naiimag', 'narration'].includes(message.type)) {
+    else if (message.type && ['voice_message', 'ai_image', 'transfer', 'offline_text', 'share_link', 'naiimag', 'googleimag', 'openaiimag', 'narration'].includes(message.type)) {
       let fullMessageObject = {
         type: message.type
       };
@@ -647,6 +660,10 @@
       else if (message.type === 'naiimag') {
         fullMessageObject.prompt = message.prompt;
 
+        fullMessageObject.fullPrompt = message.fullPrompt;
+      }
+      else if (message.type === 'googleimag' || message.type === 'openaiimag') {
+        fullMessageObject.prompt = message.prompt;
         fullMessageObject.fullPrompt = message.fullPrompt;
       }
       else if (message.type === 'narration') {
@@ -899,6 +916,47 @@
           break;
         }
 
+        case 'openaiimag': {
+          const originalOpenAIMsg = chat.history[messageIndex];
+          let openAIPrompt = parsedResult.prompt || parsedResult.image_prompt || parsedResult.description;
+          let openAIImageUrl = parsedResult.imageUrl;
+          let openAIFullPrompt = parsedResult.fullPrompt;
+          let openAIModel = originalOpenAIMsg.model;
+          let openAIMimeType = originalOpenAIMsg.mimeType;
+          let openAIRequestId = originalOpenAIMsg.requestId;
+          const openAIPromptChanged = Boolean(openAIPrompt && typeof openAIPrompt === 'string' && originalOpenAIMsg.prompt !== openAIPrompt);
+
+          if (!openAIPromptChanged) {
+            openAIPrompt = originalOpenAIMsg.prompt;
+            openAIFullPrompt = originalOpenAIMsg.fullPrompt;
+            openAIImageUrl = originalOpenAIMsg.imageUrl;
+          } else {
+            await showCustomAlert('请稍候...', '检测到提示词已修改，正在重新生成 GPT 图片...');
+            try {
+              const openAIResult = await generateOpenAIImageFromPrompt(openAIPrompt);
+              openAIImageUrl = openAIResult.imageUrl;
+              openAIFullPrompt = openAIResult.fullPrompt;
+              openAIModel = openAIResult.model;
+              openAIMimeType = openAIResult.mimeType;
+              openAIRequestId = openAIResult.requestId;
+              await showCustomAlert('成功', '图片已根据新提示词重新生成！');
+            } catch (error) {
+              console.error('编辑时重新生成 GPT 图片失败:', error);
+              await showCustomAlert('生成失败', `无法重新生成图片: ${error.message}. \n\n将保留旧图片，但提示词会更新。`);
+              openAIImageUrl = originalOpenAIMsg.imageUrl;
+            }
+          }
+
+          newMessage.type = 'openaiimag';
+          newMessage.imageUrl = openAIImageUrl;
+          newMessage.prompt = openAIPrompt;
+          newMessage.fullPrompt = openAIFullPrompt;
+          newMessage.model = openAIModel;
+          newMessage.mimeType = openAIMimeType;
+          newMessage.requestId = openAIRequestId;
+          break;
+        }
+
 
         case 'sticker': {
           newMessage.type = 'sticker';
@@ -1094,6 +1152,14 @@
         type: 'naiimag',
         prompt: '1girl, best quality, masterpiece, ...'
       },
+      googleImage: {
+        type: 'googleimag',
+        prompt: 'A detailed photorealistic scene...'
+      },
+      openAIImage: {
+        type: 'openaiimag',
+        prompt: '详细描述希望生成的画面...'
+      },
       narration: {
         type: 'narration',
         content: '在这里输入环境或心理描写...'
@@ -1114,6 +1180,8 @@
             <button class="format-btn" data-template='${JSON.stringify(templates.offline)}'>线下</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.quote)}'>引用</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.nai)}' style="color: #6a329f; border-color: #6a329f;">NAI生图</button>
+            <button class="format-btn" data-template='${JSON.stringify(templates.googleImage)}'>谷歌图</button>
+            <button class="format-btn" data-template='${JSON.stringify(templates.openAIImage)}'>GPT图</button>
             <button class="format-btn" data-template='${JSON.stringify(templates.narration)}' style="color: #888; border-color: #ccc;">旁白</button>
             
             </div>
@@ -1616,6 +1684,30 @@
             prompt: googlePrompt,
             fullPrompt: googleFullPrompt
           };
+          break;
+        }
+
+        case 'openaiimag': {
+          const openAIPrompt = msgData.prompt || msgData.image_prompt || msgData.description || 'A beautiful scene';
+          try {
+            const openAIResult = await generateOpenAIImageFromPrompt(openAIPrompt);
+            aiMessage = {
+              ...baseMessage,
+              type: 'openaiimag',
+              imageUrl: openAIResult.imageUrl,
+              prompt: openAIPrompt,
+              fullPrompt: openAIResult.fullPrompt,
+              model: openAIResult.model,
+              mimeType: openAIResult.mimeType,
+              requestId: openAIResult.requestId
+            };
+          } catch (error) {
+            console.error('❌ 导演模式 GPT 图片生成失败:', error);
+            aiMessage = {
+              ...baseMessage,
+              content: `[GPT 图片生成失败: ${error.message}]`
+            };
+          }
           break;
         }
 
