@@ -565,6 +565,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeBackgroundKeepAlive();
     bindBackgroundKeepAliveEvents();
     loadBackgroundKeepAliveSettings();
+    if (window.ReplyGuardian && typeof window.ReplyGuardian.init === 'function') {
+      await window.ReplyGuardian.init();
+    }
     loadShoppingCart(); // 加载购物车数据
     
     // 初始化悬浮球
