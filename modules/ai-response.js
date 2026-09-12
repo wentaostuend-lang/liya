@@ -109,7 +109,8 @@
     return context;
   }
 
-  function toGeminiRequestData(model, apiKey, systemInstruction, messagesForDecision) {
+  function toGeminiRequestData(model, apiKey, systemInstruction, messagesForDecision, options) {
+    options = options || {};
     const apiTemperature = state.globalSettings.apiTemperature || 0.8;
     const apiTopP = state.globalSettings.apiTopP !== undefined ? state.globalSettings.apiTopP : 1.0;
     const apiPresencePenalty = state.globalSettings.apiPresencePenalty !== undefined ? state.globalSettings.apiPresencePenalty : 0.0;
@@ -137,6 +138,37 @@
     ...messagesForDecision.map((item) => {
       const parts = [];
 
+      if (item.role === 'tool') {
+        let response;
+        try { response = JSON.parse(item.content || '{}'); }
+        catch (error) { response = { result: String(item.content || '') }; }
+        return {
+          role: 'user',
+          parts: [{
+            functionResponse: {
+              name: item.name,
+              response
+            }
+          }]
+        };
+      }
+
+      if (item.role === 'assistant' && Array.isArray(item.tool_calls)) {
+        if (item.content) parts.push({ text: String(item.content) });
+        item.tool_calls.forEach(call => {
+          let args = {};
+          try { args = JSON.parse(call.function && call.function.arguments || '{}'); }
+          catch (error) { /* Invalid arguments are handled by the orchestrator. */ }
+          parts.push({
+            functionCall: {
+              name: call.function && call.function.name,
+              args
+            }
+          });
+        });
+        return { role: 'model', parts };
+      }
+
       if (Array.isArray(item.content)) {
         item.content.forEach(part => {
           if (part.type === 'text') {
@@ -160,9 +192,7 @@
         });
       } else {
 
-        parts.push({
-          text: String(item.content)
-        });
+        parts.push({ text: String(item.content == null ? '' : item.content) });
       }
       return {
         role: roleType[item.role],
@@ -181,6 +211,20 @@
         },
         body: JSON.stringify({
           contents: contents,
+          ...(Array.isArray(options.tools) && options.tools.length ? {
+            tools: [{
+              functionDeclarations: options.tools.map(tool => ({
+                name: tool.function.name,
+                description: tool.function.description,
+                parameters: tool.function.parameters
+              }))
+            }],
+            toolConfig: {
+              functionCallingConfig: {
+                mode: options.forceFinal ? 'NONE' : 'AUTO'
+              }
+            }
+          } : {}),
           generationConfig: {
             temperature: apiTemperature,
             topP: apiTopP,
@@ -1079,6 +1123,16 @@ ${linkedContents}
     if (!state.activeChatId) return;
     const chatId = state.activeChatId;
     const chat = state.chats[state.activeChatId];
+    let replyGuardianTaskId = null;
+    let replyGuardianTaskSettled = false;
+    async function safelyUpdateReplyGuardian(operation) {
+      try {
+        return await operation();
+      } catch (guardianError) {
+        console.warn('[回复守护] 任务状态保存失败，不影响本次回复:', guardianError);
+        return null;
+      }
+    }
 
     let thoughtChainContextHead = '';
     let thoughtChainContextMiddle = '';
@@ -3785,7 +3839,14 @@ ${getActiveThoughtsPrompt()}
         stopBtn.style.display = 'flex';
         stopBtn.classList.add('active');
       }
-      const useStream = !isGemini && !!state.globalSettings.enableApiStream;
+      const latestMcpUserMessage = [...(chat.history || [])].reverse().find(message =>
+        message && message.role === 'user' && !message.isHidden
+      );
+      const availableMcpTools = window.McpChatOrchestrator
+        ? window.McpChatOrchestrator.createCatalog(chat, latestMcpUserMessage)
+        : [];
+      // 工具调用包含结构化增量；当前聊天流解析器只处理文本，所以 MCP 回合使用非流式请求。
+      const useStream = !isGemini && !!state.globalSettings.enableApiStream && availableMcpTools.length === 0;
 
       // 记录API请求数据
       const requestData = {
@@ -3807,6 +3868,28 @@ ${getActiveThoughtsPrompt()}
         isGemini: isGemini,
         apiUrl: isGemini ? geminiConfig.url : `${proxyUrl}/v1/chat/completions`
       };
+
+      // 回复守护只保存恢复所需元数据，不保存 API Key 或完整提示词。
+      if (window.ReplyTaskStore && (!window.ReplyGuardian || window.ReplyGuardian.settings().enabled)) {
+        try {
+          const latestUserMessage = [...(chat.history || [])].reverse().find(message =>
+            message && message.role === 'user' && !message.isHidden
+          );
+          replyGuardianTaskId = await window.ReplyTaskStore.begin({
+            chatId,
+            chatName: chat.name,
+            model,
+            provider: isGemini ? 'Gemini' : proxyUrl,
+            stream: useStream,
+            userMessageTimestamp: latestUserMessage && latestUserMessage.timestamp,
+            userMessagePreview: latestUserMessage && typeof latestUserMessage.content === 'string'
+              ? latestUserMessage.content
+              : ''
+          });
+        } catch (guardianError) {
+          console.warn('[回复守护] 创建任务记录失败，不影响本次回复:', guardianError);
+        }
+      }
 
       let response;
       let aiResponseContent = '';
@@ -3848,6 +3931,95 @@ ${getActiveThoughtsPrompt()}
         return;
       }
 
+      async function throwApiError(apiResponse) {
+        let errorMsg = `API 返回错误: ${apiResponse.status} ${apiResponse.statusText}`;
+        try {
+          const errorData = await apiResponse.json();
+          errorMsg += ` - ${errorData?.error?.message || errorData?.message || JSON.stringify(errorData)}`;
+        } catch (jsonError) {
+          errorMsg += ` - 响应内容: ${await apiResponse.text()}`;
+        }
+        throw new Error(errorMsg);
+      }
+
+      async function sendToolAwareRequest(input) {
+        let apiResponse;
+        try {
+          if (isGemini) {
+            const request = toGeminiRequestData(model, apiKey, systemPrompt, input.messages, {
+              tools: input.tools,
+              forceFinal: input.forceFinal
+            });
+            apiResponse = await fetch(request.url, {
+              ...request.data,
+              signal: input.signal
+            });
+          } else {
+            const reqBody = {
+              model,
+              messages: [{ role: 'system', content: systemPrompt }, ...input.messages],
+              temperature: state.globalSettings.apiTemperature || 0.8,
+              stream: false,
+              ...(input.tools.length ? { tools: input.tools, tool_choice: input.forceFinal ? 'none' : 'auto' } : {}),
+              ...(state.globalSettings.apiTopPEnabled && state.globalSettings.apiTopP !== undefined ? { top_p: state.globalSettings.apiTopP } : {}),
+              ...(state.globalSettings.apiMaxTokensEnabled && state.globalSettings.apiMaxTokens !== undefined ? { max_tokens: state.globalSettings.apiMaxTokens } : {}),
+              ...(state.globalSettings.apiPresencePenaltyEnabled && state.globalSettings.apiPresencePenalty !== undefined ? { presence_penalty: state.globalSettings.apiPresencePenalty } : {}),
+              ...(state.globalSettings.apiFrequencyPenaltyEnabled && state.globalSettings.apiFrequencyPenalty !== undefined ? { frequency_penalty: state.globalSettings.apiFrequencyPenalty } : {})
+            };
+            apiResponse = await fetch(`${proxyUrl}/v1/chat/completions`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+              },
+              body: JSON.stringify(reqBody),
+              signal: input.signal
+            });
+          }
+        } catch (networkError) {
+          if (networkError.name === 'AbortError') throw networkError;
+          throw new Error(`网络请求失败: ${networkError.message}`);
+        }
+        response = apiResponse;
+        if (!apiResponse.ok) await throwApiError(apiResponse);
+        const data = await apiResponse.json();
+        responsePayload = data;
+
+        if (isGemini) {
+          const parts = data?.candidates?.[0]?.content?.parts || [];
+          const toolCalls = parts
+            .filter(part => part && part.functionCall)
+            .map((part, index) => ({
+              id: `gemini_call_${Date.now()}_${index}`,
+              name: part.functionCall.name,
+              arguments: part.functionCall.args || {}
+            }));
+          return {
+            text: parts.map(part => part && part.text || '').join(''),
+            toolCalls
+          };
+        }
+
+        const message = data?.choices?.[0]?.message || {};
+        return {
+          text: typeof message.content === 'string' ? message.content : '',
+          assistantMessage: message,
+          toolCalls: (message.tool_calls || []).map(call => ({
+            id: call.id,
+            name: call.function && call.function.name,
+            arguments: call.function && call.function.arguments
+          }))
+        };
+      }
+
+      if (availableMcpTools.length && window.McpChatOrchestrator) {
+        aiResponseContent = await window.McpChatOrchestrator.run({
+          chat,
+          messages: messagesPayload,
+          signal: currentApiController.signal,
+          send: sendToolAwareRequest
+        });
+      } else {
       try {
         let reqBody = {
             model: model,
@@ -3912,6 +4084,15 @@ ${getActiveThoughtsPrompt()}
         aiResponseContent = getGeminiResponseText(data);
         responsePayload = data;
       }
+      }
+
+      if (replyGuardianTaskId && window.ReplyTaskStore) {
+        window.ReplyTaskStore.setStage(replyGuardianTaskId, 'receiving', '正在接收回复').catch(() => {});
+      }
+
+      if (replyGuardianTaskId && window.ReplyTaskStore) {
+        await safelyUpdateReplyGuardian(() => window.ReplyTaskStore.saveResponse(replyGuardianTaskId, aiResponseContent));
+      }
 
       // 记录API响应数据
       const responseData = {
@@ -3944,6 +4125,9 @@ ${getActiveThoughtsPrompt()}
       lastResponseTimestamps = [];
       chat.history = chat.history.filter(msg => !msg.isTemporary);
       const messagesArray = parseAiResponse(aiResponseContent);
+      if (replyGuardianTaskId && window.ReplyTaskStore) {
+        window.ReplyTaskStore.setStage(replyGuardianTaskId, 'applying', '正在写入聊天').catch(() => {});
+      }
 
       let consolidatedMessages = [];
       if (chat.settings.isOfflineMode) {
@@ -6849,10 +7033,22 @@ ${getActiveThoughtsPrompt()}
         }
       }
       if (needsImmediateReaction) {
+        if (replyGuardianTaskId && window.ReplyTaskStore) {
+          const completedTask = await safelyUpdateReplyGuardian(() =>
+            window.ReplyTaskStore.complete(replyGuardianTaskId, { messageCount: messagesArray.length })
+          );
+          replyGuardianTaskSettled = !!completedTask;
+        }
         await triggerAiResponse();
         return;
       }
       await db.chats.put(chat);
+      if (replyGuardianTaskId && window.ReplyTaskStore) {
+        const completedTask = await safelyUpdateReplyGuardian(() =>
+          window.ReplyTaskStore.complete(replyGuardianTaskId, { messageCount: messagesArray.length })
+        );
+        replyGuardianTaskSettled = !!completedTask;
+      }
 
       const qzoneActionTaken = messagesArray.some(action =>
         action.type === 'qzone_post' ||
@@ -6870,6 +7066,16 @@ ${getActiveThoughtsPrompt()}
 
 
     } catch (error) {
+
+      if (replyGuardianTaskId && window.ReplyTaskStore) {
+        // 即使持久化失败状态本身失败，也不能在 finally 中把真实失败误记为完成。
+        replyGuardianTaskSettled = true;
+        try {
+          await window.ReplyTaskStore.fail(replyGuardianTaskId, error, error.name === 'AbortError');
+        } catch (guardianError) {
+          console.warn('[回复守护] 保存失败状态时出错:', guardianError);
+        }
+      }
 
       chat.history = chat.history.filter(msg => !msg.isTemporary);
 
@@ -6895,6 +7101,14 @@ ${getActiveThoughtsPrompt()}
 
       videoCallState.isAwaitingResponse = false;
     } finally {
+      if (replyGuardianTaskId && !replyGuardianTaskSettled && window.ReplyTaskStore) {
+        try {
+          await window.ReplyTaskStore.complete(replyGuardianTaskId, {});
+          replyGuardianTaskSettled = true;
+        } catch (guardianError) {
+          console.warn('[回复守护] 完成任务记录失败:', guardianError);
+        }
+      }
       currentApiController = null;
       if (stopBtn) {
         stopBtn.style.display = 'none';
