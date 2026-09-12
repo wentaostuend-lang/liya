@@ -1,5 +1,5 @@
 window.__EPHONE_HTML_FRAGMENT_SCRIPTS = [
-  "generated/html-fragments/document-head.js?v=fe15f33b",
+  "generated/html-fragments/document-head.js?v=4b93dff1",
   "generated/html-fragments/intro-and-home.js?v=af5a4c9f",
   "generated/html-fragments/home-and-health.js?v=63adbf79",
   "generated/html-fragments/couple-and-myphone-start.js?v=7ea473cf",
