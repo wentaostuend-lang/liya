@@ -53,7 +53,28 @@
   //    没设置自定义字体的话才退回系统字体栈；预设自己声明了字体的话，那条规则在后面，还是预设的赢。
   // 2）顺便把手机浏览器点击链接/按钮时那个蓝色高亮框关掉（iframe是独立文档，app本身设置的
   //    -webkit-tap-highlight-color:transparent 影响不到里面，得单独兜一份）。
-  function buildSbDefaultStyle() {
+  // ---------------- 预设自身不适配夜间模式时的兜底方案 ----------------
+  // 很多预设是纯行内style="background:#fff;color:#111"这种写死颜色的，作者压根没考虑过夜间模式，
+  // App切成夜间后这张卡片还是大白底，很扎眼。这里做一个通用兜底：
+  // 1. 先看预设自己是不是已经用了 prefers-color-scheme / CSS变量 / dark相关 class这些手段——
+  //    有的话说明作者自己适配过，不要手贱去覆盖人家已经做好的效果。
+  // 2. 没适配过的话，整体做一次"反色"滤镜：白底变黑底、深色字变浅色字，图片(真实照片类内容)
+  //    单独用一次反色抵消，避免被连累出现色彩失真。这不是完美方案，但对"纯浅色卡片"这种
+  //    最常见的情况效果还不错，比"始终一片刺眼的白"要好。
+  function looksDarkModeAware(html) {
+    return /prefers-color-scheme|var\(\s*--|dark-mode|data-theme/i.test(html || '');
+  }
+  function isAppInDarkMode() {
+    const phoneScreen = document.getElementById('phone-screen');
+    return !!(phoneScreen && phoneScreen.classList.contains('dark-mode'));
+  }
+  function buildDarkAutoInvertCss(html) {
+    if (!isAppInDarkMode() || looksDarkModeAware(html)) return '';
+    return `html{filter:invert(0.9) hue-rotate(180deg);background:#1c1c1e !important;}
+      img{filter:invert(1) hue-rotate(180deg);}`;
+  }
+
+  function buildSbDefaultStyle(html) {
     const fontSrc = (state.globalSettings && (state.globalSettings.fontLocalData || state.globalSettings.fontUrl)) || '';
     const fontFaceRule = fontSrc
       ? `@font-face { font-family: 'sb-custom-font'; src: url('${fontSrc}'); font-display: swap; }`
@@ -70,6 +91,7 @@
     return `<style>
       ${fontFaceRule}
       html,body,body *{font-family:${fontFamilyStack}${fontOverrideSuffix};}
+      ${buildDarkAutoInvertCss(html)}
       * { -webkit-tap-highlight-color: transparent; }
       a, button, [onclick] { outline: none; -webkit-tap-highlight-color: transparent; }
       *:focus { outline: none; }
@@ -107,7 +129,7 @@
 
   function wrapHtmlWithDefaultFont(html, forIframe) {
     if (!html) return html;
-    const defaultStyle = buildSbDefaultStyle() + (forIframe ? SB_SWIPE_SCRIPT : '');
+    const defaultStyle = buildSbDefaultStyle(html) + (forIframe ? SB_SWIPE_SCRIPT : '');
     const headMatch = html.match(/<head[^>]*>/i);
     if (headMatch) {
       // 完整文档：插到<head>开头，让预设自己后面的<style>能顺理成章地覆盖它
@@ -472,7 +494,16 @@
               applyHasCompatPolyfillIfNeeded(shadow);
               wireInteractiveButtons(shadow, chat.id);
             } else {
+              // 纯行内style的最简单预设，本来就在主文档里，理论上会跟着外观设置里字体走，
+              // 但夜间模式这块因为预设自己写死了颜色，还是需要跟另外两条渲染路径一样兜个底。
               container.innerHTML = e.html;
+              if (isAppInDarkMode() && !looksDarkModeAware(e.html)) {
+                container.style.filter = 'invert(0.9) hue-rotate(180deg)';
+                container.style.background = '#1c1c1e';
+                container.querySelectorAll('img').forEach(img => {
+                  img.style.filter = 'invert(1) hue-rotate(180deg)';
+                });
+              }
               wireInteractiveButtons(container, chat.id);
             }
             return;
@@ -507,14 +538,28 @@
             iframe.style.visibility = 'visible';
           }
 
-          // 轮询：结构解析完（readyState变成interactive/complete）就提前显示，不用等图片下载完的load事件
+          // 轮询：结构解析完（readyState变成interactive/complete）后不马上显示——这时候预设自己的
+          // <script>可能还没跑完（比如异步初始化、延迟渲染某些区块），高度量早了就会先显示出"一半"，
+          // 等脚本跑完/图片撑开内容后才变回完整高度，看起来就是"点开卡一下、过一会才显示全"。
+          // 改成连续两帧高度一致(内容已经稳定不再变化)才真正显示，避免顶着中间状态就先亮出来。
           let pollCount = 0;
+          let lastMeasuredHeight = -1;
+          let stableFrames = 0;
           function pollForEarlyReveal() {
             if (revealed) return;
             const doc = iframe.contentDocument;
             if (doc && doc.readyState !== 'loading') {
-              revealNow();
-              return;
+              const h = measureHeight();
+              if (h > 0 && h === lastMeasuredHeight) {
+                stableFrames++;
+                if (stableFrames >= 2) { // 连续两帧(约32ms)高度没变，认为内容已经稳定下来了
+                  revealNow();
+                  return;
+                }
+              } else {
+                stableFrames = 0;
+                lastMeasuredHeight = h;
+              }
             }
             pollCount++;
             if (pollCount < 120) { // 最多轮询2秒左右（120*~16ms），轮询不到就交给下面的load事件兜底
