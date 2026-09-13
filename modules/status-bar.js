@@ -61,9 +61,15 @@
     const fontFamilyStack = fontSrc
       ? `'sb-custom-font', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`
       : `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif`;
+    // 很多预设自己会在卡片根节点上用行内 style="font-family: ..." 或者自己的 <style> 里
+    // 指定字体——不加 !important 的话，这条规则会被那些更具体/内联的声明盖掉，状态栏用的
+    // 还是预设写死的字体（结果就是外观设置里导入的字体不生效，看着像用了手机自带字体）。
+    // 只有在外观设置里确实导入了自定义字体时才强制覆盖；没导入的话不改变原来的行为，
+    // 让预设自己决定用什么字体。
+    const fontOverrideSuffix = fontSrc ? ' !important' : '';
     return `<style>
       ${fontFaceRule}
-      html,body{font-family:${fontFamilyStack};}
+      html,body,body *{font-family:${fontFamilyStack}${fontOverrideSuffix};}
       * { -webkit-tap-highlight-color: transparent; }
       a, button, [onclick] { outline: none; -webkit-tap-highlight-color: transparent; }
       *:focus { outline: none; }
@@ -189,6 +195,35 @@
     }
     root.addEventListener('change', refresh);
     refresh();
+  }
+
+  // ---------------- Shadow DOM 内联 onclick 里 document.querySelector 失效的修复 ----------------
+  // 有些预设用"点图标 -> onclick里用 document.querySelector('.xxx').click() 去帮你点一下真正
+  // 藏起来的checkbox/radio"这种写法（常见于切换译文、展开评论这类交互）。这段onclick代码
+  // 執行时用的是全局 document，但预设的HTML现在被塞进了 Shadow DOM 隔离出来的独立子树里，
+  // 全局 document.querySelector 根本查不到shadow内部的元素——点了图标，checkbox纹丝不动，
+  // :has() 自然也就检测不到"已勾选"，看起来就是"这个按钮点了没反应"。
+  // 这里扫一遍shadow内所有带onclick的元素，把里面涉及document.querySelector(All)的，
+  // 改成实际执行时用当前shadow root去找，其他不受影响。
+  function fixShadowScopedOnclickHandlers(root) {
+    root.querySelectorAll('[onclick]').forEach(el => {
+      const code = el.getAttribute('onclick');
+      if (!code || !code.includes('document.querySelector')) return;
+      el.removeAttribute('onclick');
+      const fakeDocument = {
+        querySelector: sel => root.querySelector(sel),
+        querySelectorAll: sel => root.querySelectorAll(sel)
+      };
+      el.addEventListener('click', () => {
+        try {
+          // eslint-disable-next-line no-new-func
+          const runOriginalOnclick = new Function('document', code);
+          runOriginalOnclick(fakeDocument);
+        } catch (err) {
+          console.warn('[状态栏] 修复Shadow DOM里的onclick失败', err);
+        }
+      });
+    });
   }
 
   function wireInteractiveButtons(container, chatId) {
@@ -433,6 +468,7 @@
               container.appendChild(shadowHost);
               const shadow = shadowHost.attachShadow({ mode: 'open' });
               shadow.innerHTML = wrapHtmlWithDefaultFont(e.html);
+              fixShadowScopedOnclickHandlers(shadow);
               applyHasCompatPolyfillIfNeeded(shadow);
               wireInteractiveButtons(shadow, chat.id);
             } else {
