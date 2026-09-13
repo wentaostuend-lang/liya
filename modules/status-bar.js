@@ -128,6 +128,69 @@
     return /<style[\s>]/i.test(html);
   }
 
+  // ---------------- :has() 兼容性补丁 ----------------
+  // 很多状态栏预设用"隐藏 checkbox/radio + CSS :has()"这套技巧来做翻页、切换译文、展开评论
+  // 之类的交互（比如 .card:has(.cb:checked) .comment-section { display:block; }）。
+  // :has() 是比较新的CSS特性，个别WebView/浏览器内核可能还不支持——不支持的话这条规则会被
+  // 直接忽略，对应的区域就永远显示不出来，但因为不是语法报错，看起来就是"某些内容莫名其妙显示不了"。
+  // 这里做特征检测：浏览器原生支持就什么都不做；不支持的话，把 CSS 里的 :has(X:checked) 这种写法
+  // 换成一个我们自己维护的 marker class，再用 JS 监听 checkbox/radio 的 change 事件手动去同步这个
+  // class，效果上等价于polyfill了这套最常见的 :has() 用法。
+  function applyHasCompatPolyfillIfNeeded(root) {
+    try {
+      if (window.CSS && CSS.supports && CSS.supports('selector(:has(*))')) return; // 原生支持，不用管
+    } catch (e) {
+      // CSS.supports 本身都不认识 selector() 语法的老浏览器，当成不支持处理，继续走polyfill
+    }
+    const styleEl = root.querySelector('style');
+    if (!styleEl || !styleEl.textContent || !styleEl.textContent.includes(':has(')) return;
+
+    const rawCss = styleEl.textContent;
+    // 逐条规则处理(而不是一次性正则整个文件)，这样"逗号分隔的多个选择器共用一段声明"
+    // 这种常见写法（比如 "A:has(X:checked), B:has(Y:checked) { ... }"）也能正确拆开处理，
+    // 不会因为一个正则跨着逗号乱吃导致提取错误。
+    const ruleRegex = /([^{}]+)\{([^{}]*)\}/g;
+    const injections = [];
+    let idx = 0;
+    const rewritten = rawCss.replace(ruleRegex, (fullRule, selectorList, body) => {
+      if (!selectorList.includes(':has(')) return fullRule;
+      const selectors = selectorList.split(',');
+      const newSelectors = selectors.map(sel => {
+        const m = sel.match(/^([\s\S]*?):has\(([^()]+)\)([\s\S]*)$/);
+        if (!m) return sel;
+        const [, beforeHasRaw, insideHas, afterHas] = m;
+        const beforeHas = beforeHasRaw.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+        if (!insideHas.includes(':checked')) return sel; // 目前只处理checkbox/radio勾选触发这种最常见的写法
+        idx++;
+        const markerClass = `hp-${idx}`;
+        injections.push({
+          outerSelector: beforeHas,
+          triggerSelector: insideHas.replace(':checked', '').trim(),
+          markerClass
+        });
+        return `${beforeHas}.${markerClass}${afterHas}`;
+      });
+      return `${newSelectors.join(',')} {${body}}`;
+    });
+    if (injections.length === 0) return;
+
+    styleEl.textContent = rewritten;
+
+    function refresh() {
+      injections.forEach(({ outerSelector, triggerSelector, markerClass }) => {
+        let outers;
+        try { outers = root.querySelectorAll(outerSelector); } catch (e) { return; }
+        outers.forEach(outerEl => {
+          let triggerEl;
+          try { triggerEl = outerEl.querySelector(triggerSelector); } catch (e) { triggerEl = null; }
+          outerEl.classList.toggle(markerClass, !!(triggerEl && triggerEl.checked));
+        });
+      });
+    }
+    root.addEventListener('change', refresh);
+    refresh();
+  }
+
   function wireInteractiveButtons(container, chatId) {
     container.querySelectorAll('[data-send-msg]').forEach(el => {
       el.addEventListener('click', () => {
@@ -189,9 +252,7 @@
     return applyVariables(html, chat);
   }
 
-  function collectStatusBars(chat, preset) {
-    const regex = buildRegex(preset.regexPattern);
-    if (!regex) return [];
+  async function collectStatusBars(chat, preset) {
     const limit = chat.settings.statusBarHistoryLimit || 20;
     const dismissed = new Set(chat.settings.dismissedStatusBarKeys || []);
     const results = [];
@@ -199,18 +260,35 @@
     // 里每一条的 customThoughts.status_bar 字段上，天然不会出现在聊天气泡里，也复用了心声那套
     // 已经验证过很稳定、不容易重复的生成机制。
     const thoughtsHistory = chat.thoughtsHistory || [];
+
+    // 换了预设之后，之前用旧预设生成的状态栏不应该跟着消失——所以这里把保存过的所有预设都准备好，
+    // 当前预设解析不出来的历史条目，依次拿其他预设试一遍，哪个能解析出来就用哪个渲染。
+    // (前提是旧预设本身还留着没被删；删掉了自然也没法知道当初是按什么格式生成的)
+    const allPresets = preset ? await sbDB.presets.toArray() : [];
+    const orderedPresets = [preset, ...allPresets.filter(p => p.id !== preset.id)].filter(Boolean);
+    const regexCache = new Map();
+    function getRegexFor(p) {
+      if (!regexCache.has(p.id)) regexCache.set(p.id, buildRegex(p.regexPattern));
+      return regexCache.get(p.id);
+    }
+
     for (let i = thoughtsHistory.length - 1; i >= 0 && results.length < limit; i--) {
       const entry = thoughtsHistory[i];
       const raw = entry && entry.customThoughts && entry.customThoughts.status_bar;
       if (!raw || typeof raw !== 'string') continue;
       if (dismissed.has(entry.timestamp)) continue;
-      regex.lastIndex = 0;
-      const m = regex.exec(raw);
-      if (m) {
-        results.push({
-          html: renderOne(m.slice(1), preset.replacePattern, chat),
-          timestamp: entry.timestamp
-        });
+      for (const p of orderedPresets) {
+        const regex = getRegexFor(p);
+        if (!regex) continue;
+        regex.lastIndex = 0;
+        const m = regex.exec(raw);
+        if (m) {
+          results.push({
+            html: renderOne(m.slice(1), p.replacePattern, chat),
+            timestamp: entry.timestamp
+          });
+          break;
+        }
       }
     }
     return results; // 从新到旧
@@ -306,13 +384,13 @@
     document.head.appendChild(style);
   }
 
-  function showStatusBarViewer(chat, preset) {
+  async function showStatusBarViewer(chat, preset) {
     injectViewerStyle();
     document.getElementById('sb-viewer-overlay')?.remove();
     document.getElementById('sb-select-list')?.remove();
     document.getElementById('sb-select-bottom-bar')?.remove();
 
-    let entries = collectStatusBars(chat, preset);
+    let entries = await collectStatusBars(chat, preset);
     let currentIndex = 0; // 0 = 最新
 
     const overlay = document.createElement('div');
@@ -355,6 +433,7 @@
               container.appendChild(shadowHost);
               const shadow = shadowHost.attachShadow({ mode: 'open' });
               shadow.innerHTML = wrapHtmlWithDefaultFont(e.html);
+              applyHasCompatPolyfillIfNeeded(shadow);
               wireInteractiveButtons(shadow, chat.id);
             } else {
               container.innerHTML = e.html;
@@ -451,6 +530,7 @@
               // 预设HTML里可能有 data-send-msg 这种"点了帮你发消息"的按钮，
               // 之前是靠 wireInteractiveButtons(overlay,...) 在外层文档里找，但现在
               // 这些按钮都在iframe自己的文档里，外层找不到了，改成在iframe文档里重新绑一次。
+              applyHasCompatPolyfillIfNeeded(doc);
               wireInteractiveButtons(doc, chat.id);
             } catch (err) {
               console.warn('[状态栏] 读取iframe内容失败', err);
@@ -569,7 +649,7 @@
         chat.settings.dismissedStatusBarKeys.push(...keysToHide);
         await db.chats.put(chat);
 
-        entries = collectStatusBars(chat, preset);
+        entries = await collectStatusBars(chat, preset);
         currentIndex = 0;
         exitSelectMode();
         if (entries.length === 0) { overlay.remove(); return; }
@@ -637,7 +717,7 @@
     if (!chat || !chat.settings.enableStatusBar || !chat.settings.statusBarPresetId) return;
     const preset = await sbDB.presets.get(chat.settings.statusBarPresetId);
     if (!preset) { alert('绑定的状态栏预设不存在了，去聊天设置里重新选一个'); return; }
-    showStatusBarViewer(chat, preset);
+    await showStatusBarViewer(chat, preset);
   }
 
   function bindHeaderClick() {
