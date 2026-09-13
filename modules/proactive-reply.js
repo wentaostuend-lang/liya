@@ -104,8 +104,10 @@ async function rerollProactiveReply(chatId, batchId) {
   }
 
   // 摘掉之后，getLastMessageTimestamp会自然回退到这批消息之前的那条真实消息，
-  // 清掉"已检查"标记，让下面的检查重新按真实间隔触发一次
+  // 清掉"已检查"标记(内存+落库的都要清)，让下面的检查重新按真实间隔触发一次
   delete proactiveReplyCheckedAnchors[chatId];
+  if (chat.settings) chat.settings.lastProactiveAnchor = null;
+  await db.chats.put(chat);
   await checkAndTriggerProactiveReply(chat);
 }
 window.rerollProactiveReply = rerollProactiveReply;
@@ -148,9 +150,13 @@ async function checkAndTriggerProactiveReply(chat) {
     return;
   }
 
-  // 同一个锚点(同一条"最后消息")只触发一次，避免反复进出聊天重复生成
-  if (proactiveReplyCheckedAnchors[chat.id] === lastTimestamp) {
+  // 同一个锚点(同一条"最后消息")只触发一次，避免反复进出聊天重复生成。
+  // 内存里的 proactiveReplyCheckedAnchors 只是加速用的缓存——它在页面刷新/PWA被系统回收重开
+  // 之后会清空，如果只靠它，手机上App被后台杀掉再打开就相当于"失忆"，等于没记录过，
+  // 间隔没到也可能又触发一次。所以这里同时也把锚点存进 chat.settings 里落库，跨刷新也认得。
+  if (proactiveReplyCheckedAnchors[chat.id] === lastTimestamp || chat.settings?.lastProactiveAnchor === lastTimestamp) {
     console.log(`[主动回复] "${chat.name}" 这条最后消息已经检查过了，不重复触发`);
+    proactiveReplyCheckedAnchors[chat.id] = lastTimestamp; // 补一份内存缓存，减少下次重复读db.settings的判断
     return;
   }
 
@@ -164,6 +170,11 @@ async function checkAndTriggerProactiveReply(chat) {
 
   console.log(`[主动回复] "${chat.name}" 达到触发条件，开始生成...`);
   proactiveReplyCheckedAnchors[chat.id] = lastTimestamp;
+  // 落库要赶在真正开始生成之前，这样哪怕生成过程中App被系统杀掉，重开后也不会因为
+  // "内存记录没了"而对同一条锚点又判一次间隔、再生成一遍。
+  if (!chat.settings) chat.settings = {};
+  chat.settings.lastProactiveAnchor = lastTimestamp;
+  await db.chats.put(chat);
   if (chat.isGroup) {
     await generateGroupProactiveMessages(chat, elapsedHours, lastTimestamp);
   } else {
