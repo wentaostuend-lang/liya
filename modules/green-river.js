@@ -372,6 +372,7 @@
     document.getElementById('gr-output-length').value = settings.outputLength || 500;
     document.getElementById('gr-context-limit').value = settings.contextLimit || 20;
     document.getElementById('gr-reader-comments-enabled').checked = settings.readerCommentsEnabled || false;
+    document.getElementById('gr-include-character-memory').checked = settings.includeCharacterMemory !== false;
     document.getElementById('gr-reader-comment-density').value = settings.readerCommentDensity || 'natural';
     document.getElementById('gr-reader-comment-tone').value = settings.readerCommentTone || 'mixed';
     document.getElementById('gr-macro-world-view').value = settings.macroWorldView || '';
@@ -421,6 +422,7 @@
     const outputLength = parseInt(outputLengthInput.value) || 500;
     const contextLimit = parseInt(contextLimitInput.value) || 20;
     const readerCommentsEnabled = document.getElementById('gr-reader-comments-enabled').checked;
+    const includeCharacterMemory = document.getElementById('gr-include-character-memory').checked;
     const readerCommentDensity = document.getElementById('gr-reader-comment-density').value;
     const readerCommentTone = document.getElementById('gr-reader-comment-tone').value;
     const macroWorldView = macroWorldViewInput.value.trim();
@@ -436,6 +438,7 @@
       contextLimit,
       macroWorldView,
       readerCommentsEnabled,
+      includeCharacterMemory,
       readerCommentDensity,
       readerCommentTone
     });
@@ -1188,9 +1191,13 @@
         bible.storyCharacters[id] = { name: chat.name, sourceId: id, persona: chat.settings?.aiPersona || '', role: '', goal: '', voice: '', relationships: '', knowledge: '' };
       }
       const p = bible.storyCharacters[id];
-      const toneReferences = (chat.history || []).slice(-Math.max(1, historyLimit || 20)).filter(message => {
+      // "读取角色记忆"开关：关掉之后不会把这个角色在正常聊天里的真实对话记录当"语气参考"塞进小说
+      // 提示词——开IF线/平行世界观的时候，角色带着原来聊天的记忆很容易出戏，关掉就能让小说完全
+      // 从人设本身出发，不受既有聊天记录影响。默认开启，跟以前行为保持一致。
+      const includeMemory = story.settings.includeCharacterMemory !== false;
+      const toneReferences = includeMemory ? (chat.history || []).slice(-Math.max(1, historyLimit || 20)).filter(message => {
         return message.role !== 'system' && !['red_packet', 'waimai_request', 'transfer'].includes(message.type);
-      }).slice(-Math.min(30, Math.max(1, historyLimit || 20))).map(message => `${message.senderName || (message.role === 'user' ? 'User' : p.name)}：${String(message.content || '').slice(0, 180)}`).join('\n');
+      }).slice(-Math.min(30, Math.max(1, historyLimit || 20))).map(message => `${message.senderName || (message.role === 'user' ? 'User' : p.name)}：${String(message.content || '').slice(0, 180)}`).join('\n') : '';
       blocks.push(`### ${p.name}\n小说内设定：${p.persona}\n小说内身份：${p.role || '依据作品设定自然确定'}\n当前目标：${p.goal || '根据当前剧情确定'}\n关系状态：${p.relationships || '依据已发生剧情'}\n掌握信息：${p.knowledge || '不得知道尚未获知的秘密'}\n说话特点：${p.voice || '参考基础人设'}${toneReferences ? `\n少量语气参考（只参考说话习惯，不把聊天事件当小说事实）：\n${toneReferences}` : ''}`);
     }
     return blocks.join('\n\n');
