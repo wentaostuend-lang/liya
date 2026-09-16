@@ -156,11 +156,20 @@ const bgmPlayer = document.getElementById("dating-bgm-player");
 async function openDatingApp() {
   console.log("打开约会大作战App...");
   showScreen("date-a-live-screen");
-  // 从数据库加载所有已保存的场景
-  currentDatingScenes = await db.datingScenes.toArray();
-  console.log(`从数据库加载了 ${currentDatingScenes.length} 个约会场景。`);
-  // 渲染这些场景（只会先显示文字和加载动画）
-  renderDatingScenes();
+  try {
+    // 从数据库加载所有已保存的场景
+    currentDatingScenes = await db.datingScenes.toArray();
+    console.log(`从数据库加载了 ${currentDatingScenes.length} 个约会场景。`);
+    // 渲染这些场景（只会先显示文字和加载动画）
+    renderDatingScenes();
+  } catch (error) {
+    // 加了这层兜底：万一哪里出错，至少能看到具体报错信息，而不是打开就一片空白不知道哪里坏了
+    console.error("[约会大作战] 打开失败:", error);
+    const contentEl = document.getElementById("dating-scene-content");
+    if (contentEl) {
+      contentEl.innerHTML = `<p style="text-align:center;color:#e74c3c;padding:50px 20px;">加载失败：${error.message}</p>`;
+    }
+  }
 }
 
 /**
@@ -3143,15 +3152,15 @@ document.addEventListener("DOMContentLoaded", () => {
     .getElementById("save-dating-settings-btn")
     .addEventListener("click", saveDatingSettings);
 
-  // 图片上传按钮事件
+  // 图片上传按钮事件（加了空值判断，找不到就跳过，不会因为这个把后面一整串按钮绑定全部搞崩）
   document
     .querySelector("#dating-game-settings-modal .bg-upload-container button")
-    .addEventListener("click", () => handleDatingImageUpload("bg"));
+    ?.addEventListener("click", () => handleDatingImageUpload("bg"));
   document
     .querySelector(
       "#dating-game-settings-modal .form-group:nth-of-type(5) .bg-upload-container button",
     )
-    .addEventListener("click", () => handleDatingImageUpload("sprite"));
+    ?.addEventListener("click", () => handleDatingImageUpload("sprite"));
 
   // 图片URL输入实时更新
   document
