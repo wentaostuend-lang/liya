@@ -1,0 +1,2201 @@
+<audio id="dating-bgm-player" loop></audio>
+<div id="preset-actions-modal" class="modal">
+  <div id="custom-modal" style="width: 250px">
+    <div class="custom-modal-footer">
+      <button id="preset-action-edit">编辑预设</button>
+      <button id="preset-action-delete" class="btn-danger">删除预设</button>
+      <button
+        id="preset-action-cancel"
+        style="
+          margin-top: 8px;
+          border-radius: 8px;
+          background-color: #f0f0f0;
+        "
+      >
+        取消
+      </button>
+    </div>
+  </div>
+</div>
+    <div id="date-a-live-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>约会大作战</span>
+        <div class="header-actions">
+          <!-- “+”号按钮 -->
+          <span
+            class="action-btn"
+            id="create-dating-scene-btn"
+            title="创建新场景"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </span>
+
+          <span class="action-btn" id="dating-history-btn" title="历史约会">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <polyline points="3 3 3 8 8 8" />
+              <path d="M12 6V12L16 14" />
+            </svg>
+          </span>
+          <span
+            class="action-btn"
+            id="refresh-dating-scene-btn"
+            title="刷新场景"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div id="dating-scene-content" class="list-container">
+        <!-- 约会场景卡片将由JS动态生成在这里 -->
+      </div>
+    </div>
+
+    <!-- 宠物功能模态框 -->
+    <div id="pet-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 85%">
+        <div class="modal-header">
+          <span id="pet-modal-title">我的宠物</span>
+        </div>
+        <div class="modal-body">
+          <!-- 宠物信息预览区 -->
+          <div
+            id="pet-preview-area"
+            style="text-align: center; margin-bottom: 20px"
+          >
+            <div
+              id="pet-preview-display"
+              style="
+                font-size: 60px;
+                line-height: 1;
+                margin-bottom: 10px;
+                cursor: pointer;
+              "
+              title="点击更换图片"
+            ></div>
+            <strong id="pet-preview-name" style="font-size: 18px"></strong>
+            <p
+              id="pet-preview-type"
+              style="
+                font-size: 14px;
+                color: var(--text-secondary);
+                margin: 5px 0;
+              "
+            ></p>
+          </div>
+
+          <!-- 宠物数值显示区 -->
+          <div id="pet-stats-area" style="display: none">
+            <div id="pet-hunger-bar" class="stat-bar-container">
+              <span class="stat-label">饱食度</span>
+              <div class="stat-bar"><div class="stat-bar-fill">100%</div></div>
+            </div>
+            <div id="pet-happiness-bar" class="stat-bar-container">
+              <span class="stat-label">心情值</span>
+              <div class="stat-bar"><div class="stat-bar-fill">100%</div></div>
+            </div>
+            <div id="pet-intimacy-user-bar" class="stat-bar-container">
+              <span class="stat-label">对你的亲密度</span>
+              <div class="stat-bar"><div class="stat-bar-fill">50%</div></div>
+            </div>
+            <div id="pet-intimacy-char-bar" class="stat-bar-container">
+              <span class="stat-label">对Ta的亲密度</span>
+              <div class="stat-bar"><div class="stat-bar-fill">50%</div></div>
+            </div>
+          </div>
+
+          <!-- 互动按钮区 (已新增“对话”按钮) -->
+          <div
+            id="pet-interaction-area"
+            style="
+              display: flex;
+              justify-content: center;
+              gap: 15px;
+              margin-bottom: 20px;
+              padding-bottom: 15px;
+              border-bottom: 1px solid var(--border-color);
+            "
+          >
+            <button class="form-button-secondary" data-action="feed">
+              喂食
+            </button>
+            <button class="form-button-secondary" data-action="play">
+              玩耍
+            </button>
+            <button class="form-button-secondary" data-action="touch">
+              抚摸
+            </button>
+            <button class="form-button-secondary" data-action="chat">
+              对话
+            </button>
+          </div>
+
+          <!-- 设置区 -->
+          <div class="form-group">
+            <label for="pet-type-input">种类 (自由填写)</label>
+            <input
+              type="text"
+              id="pet-type-input"
+              placeholder="例如: 小猫, 仓鼠, 太阳花..."
+            />
+          </div>
+          <div class="form-group">
+            <label for="pet-name-input">昵称</label>
+            <input
+              type="text"
+              id="pet-name-input"
+              placeholder="给它起个名字吧"
+            />
+          </div>
+          <div class="form-group">
+            <label for="pet-image-input">初始样子 (Emoji 或 图片URL)</label>
+            <input
+              type="text"
+              id="pet-image-input"
+              placeholder="输入一个 Emoji 比如 🐈 或图片链接"
+            />
+          </div>
+          <!-- 人设输入框 -->
+          <div class="form-group">
+            <label for="pet-persona-input">宠物人设与背景</label>
+            <textarea
+              id="pet-persona-input"
+              rows="3"
+              placeholder="描述一下它的性格和故事，AI会根据这个来扮演它。"
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label class="toggle-switch-label">
+              <span>在聊天界面显示</span>
+              <input type="checkbox" id="pet-display-toggle" />
+              <span class="toggle-switch-slider"></span>
+            </label>
+          </div>
+          <div id="pet-position-controls" style="display: none">
+            <div class="form-group">
+              <label for="pet-size-slider"
+                >大小: <span id="pet-size-value">100px</span></label
+              >
+              <input
+                type="range"
+                id="pet-size-slider"
+                min="30"
+                max="200"
+                value="100"
+                style="width: 100%"
+              />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="cancel"
+            id="pet-abandon-btn"
+            style="
+              background-color: #ffdde5;
+              color: #ff3b30;
+              border-color: #ffc2d1;
+            "
+          >
+            放生宠物
+          </button>
+
+          <button class="cancel" id="pet-modal-cancel-btn">取消</button>
+          <button class="save" id="pet-modal-save-btn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <input
+      type="file"
+      id="pet-custom-image-input"
+      accept="image/*"
+      style="display: none"
+    />
+    <!-- 宠物聊天模态框 -->
+    <div id="pet-chat-modal" class="modal">
+      <div class="modal-content" style="height: 80%">
+        <div class="modal-header">
+          <span id="pet-chat-title">和宠物的对话</span>
+        </div>
+        <div
+          id="pet-chat-messages"
+          class="modal-body"
+          style="
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+          "
+        >
+          <!-- 宠物聊天记录将显示在这里 -->
+        </div>
+        <!-- 复用主聊天输入框的样式 -->
+        <div
+          id="pet-chat-input-area"
+          class="chat-input-area"
+          style="border-top: 1px solid var(--border-color)"
+        >
+          <div class="chat-input-main-row">
+            <textarea
+              id="pet-chat-input"
+              rows="1"
+              placeholder="和它说点什么..."
+            ></textarea>
+            <button id="send-to-pet-btn" class="action-button">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="weibo-char-selector-modal" class="modal">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span>选择生成内容的主角</span>
+        </div>
+        <div
+          class="modal-body"
+          id="weibo-char-selector-list"
+          style="padding: 0; overflow-y: auto"
+        >
+          <!-- 角色列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer" style="justify-content: space-between">
+          <button
+            id="weibo-select-all-btn"
+            class="form-button-secondary"
+            style="width: 45%; margin: 0"
+          >
+            全选
+          </button>
+          <button
+            id="weibo-deselect-all-btn"
+            class="form-button-secondary"
+            style="width: 45%; margin: 0"
+          >
+            全不选
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="weibo-cancel-char-select-btn">取消</button>
+          <button class="save" id="weibo-confirm-char-select-btn">确认</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 情侣空间-情绪日记编辑弹窗 -->
+    <div id="ls-diary-editor-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 80%">
+        <div class="modal-header">
+          <span id="ls-diary-editor-title">记录今天的心情</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label>选择一个表情代表今天的心情</label>
+            <div
+              id="ls-emoji-selector"
+              style="
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                font-size: 24px;
+                cursor: pointer;
+                justify-content: center;
+                padding: 10px 0;
+              "
+            >
+              <!-- Emoji将由JS生成 -->
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="ls-diary-content-input">写下你的日记</label>
+            <textarea
+              id="ls-diary-content-input"
+              rows="6"
+              placeholder="今天发生了什么特别的事吗..."
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="ls-cancel-diary-btn">取消</button>
+          <button class="save" id="ls-save-diary-btn">保存日记</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 情侣空间-日记查看弹窗 -->
+    <div id="ls-diary-viewer-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 80%">
+        <div class="modal-header">
+          <span id="ls-diary-viewer-title">查看日记</span>
+        </div>
+        <div
+          id="ls-diary-viewer-body"
+          class="modal-body"
+          style="display: flex; flex-direction: column; gap: 20px"
+        >
+          <!-- 日记内容将由JS动态生成 -->
+        </div>
+        <div class="modal-footer">
+          <button
+            class="save"
+            id="ls-close-diary-viewer-btn"
+            style="width: 100%"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 情侣空间 - 每日足迹日历弹窗 -->
+    <div id="ls-activity-calendar-modal" class="modal">
+      <div class="modal-content" style="max-width: 380px">
+        <div class="modal-header">
+          <span id="ls-activity-calendar-title">💕 足迹日历 💕</span>
+        </div>
+        <div class="modal-body" id="ls-activity-calendar-body"></div>
+      </div>
+    </div>
+
+    <div id="summary-viewer-modal" class="modal">
+      <div class="modal-content" style="height: 80%">
+        <div class="modal-header">
+          <span id="summary-viewer-title">聊天总结</span>
+        </div>
+        <div class="modal-body" id="summary-list" style="padding: 15px">
+          <!-- 总结列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer" style="display: flex; gap: 10px">
+          <!-- “全部精简”按钮 -->
+          <button
+            class="form-button-secondary"
+            id="concise-all-summaries-btn"
+            style="flex: 1; margin: 0"
+          >
+            全部精简
+          </button>
+          <button
+            class="save"
+            id="close-summary-viewer-btn"
+            style="flex: 1; margin: 0"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI生成商品结果/选择弹窗 -->
+    <div id="ai-generated-products-modal" class="modal">
+      <div class="modal-content" style="height: 80%">
+        <div class="modal-header">
+          <span id="ai-products-modal-title">AI为你生成了以下宝贝</span>
+        </div>
+        <div class="modal-body" style="padding: 15px">
+          <div id="ai-product-results-grid" class="product-grid"></div>
+        </div>
+        <div class="modal-footer">
+          <button
+            class="save"
+            id="close-ai-products-modal-btn"
+            style="width: 100%"
+          >
+            完成
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 飞行棋问题库管理模态框 -->
+    <div id="ludo-qbank-manager-modal" class="modal">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span>管理问题库</span>
+
+          <div class="header-actions">
+            <span
+              class="action-btn"
+              id="import-ludo-qbank-btn"
+              title="导入题库"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+            </span>
+            <span
+              class="action-btn"
+              id="add-ludo-qbank-btn"
+              style="font-size: 16px"
+              >新建</span
+            >
+          </div>
+        </div>
+        <div class="modal-body" id="ludo-qbank-list" style="padding: 0">
+          <!-- 问题库列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <button class="save" id="close-qbank-manager-btn" style="width: 100%">
+            完成
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 飞行棋问题编辑器模态框 -->
+    <div id="ludo-question-editor-modal" class="modal">
+      <div class="modal-content" style="height: 80%">
+        <div class="modal-header">
+          <span class="back-btn" id="back-to-qbank-manager-btn">‹</span>
+          <span id="ludo-question-editor-title">编辑问题</span>
+          <span
+            class="action-btn"
+            id="add-ludo-question-btn"
+            style="font-size: 28px; font-weight: 300"
+            >+</span
+          >
+        </div>
+        <div class="modal-body" id="ludo-question-list" style="padding: 10px">
+          <!-- 问题列表将由JS动态生成在这里 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 飞行棋单个问题编辑器模态框 -->
+    <div id="ludo-single-question-editor-modal" class="modal">
+      <div class="modal-content" style="height: auto">
+        <div class="modal-header">
+          <span id="ludo-single-question-title">编辑问题</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="ludo-question-text-input">问题内容</label>
+            <textarea id="ludo-question-text-input" rows="4"></textarea>
+          </div>
+          <div class="form-group">
+            <label>问题类型</label>
+            <div style="display: flex; gap: 20px">
+              <label
+                ><input
+                  type="radio"
+                  name="ludo_question_type"
+                  value="both_answer"
+                  checked
+                />
+                共同回答</label
+              >
+              <label
+                ><input
+                  type="radio"
+                  name="ludo_question_type"
+                  value="single_answer"
+                />
+                一人回答,一人评价</label
+              >
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-single-question-btn">取消</button>
+          <button class="save" id="save-single-question-btn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 飞行棋游戏结算卡片 -->
+    <div id="ludo-summary-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 80%">
+        <div class="modal-header">
+          <span>游戏结算</span>
+        </div>
+        <div
+          class="modal-body"
+          id="ludo-summary-content"
+          style="text-align: left; line-height: 1.7"
+        >
+          <!-- 结算内容将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="share-ludo-summary-btn">分享给Ta</button>
+          <button class="save" id="back-to-hall-from-ludo-btn">返回大厅</button>
+        </div>
+      </div>
+    </div>
+    <!-- “谁是卧底”游戏结算卡片 -->
+    <div id="undercover-summary-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 80%">
+        <div class="modal-header">
+          <span>游戏结算</span>
+        </div>
+        <div
+          class="modal-body"
+          id="undercover-summary-content"
+          style="white-space: pre-wrap; line-height: 1.7"
+        >
+          <!-- 结算内容将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <!-- “分享复盘”按钮 -->
+          <button class="cancel" id="repost-undercover-summary-btn">
+            分享复盘到单聊
+          </button>
+          <button class="save" id="back-to-hall-from-undercover-btn">
+            返回大厅
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- “谁是卧底”复盘发送目标选择器 -->
+    <div id="undercover-target-picker-modal" class="modal">
+      <div class="modal-content" style="height: 60%">
+        <div class="modal-header">
+          <span>选择要发送的玩家</span>
+        </div>
+        <div class="modal-body" id="undercover-target-list" style="padding: 0">
+          <!-- 玩家列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <button
+            id="uc-select-all-btn"
+            class="form-button-secondary"
+            style="width: 45%; margin: 0"
+          >
+            全选
+          </button>
+          <button
+            id="uc-deselect-all-btn"
+            class="form-button-secondary"
+            style="width: 45%; margin: 0"
+          >
+            全不选
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="uc-cancel-share-btn">取消</button>
+          <button class="save" id="uc-confirm-share-btn">确认发送</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 群公告模态框 -->
+    <div id="group-announcement-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>群公告</span>
+        </div>
+        <div class="modal-body" id="announcement-content-area">
+          <!-- 公告内容将显示在这里 -->
+        </div>
+        <div class="modal-footer" id="announcement-footer">
+          <!-- 按钮将由JS动态生成 -->
+        </div>
+      </div>
+    </div>
+    <!-- 心声面板样式编辑器弹窗 -->
+    <div id="inner-voice-editor-modal" class="modal">
+      <div class="modal-content" style="height: auto">
+        <div class="modal-header">
+          <span>编辑心声面板样式</span>
+        </div>
+        <div class="modal-body">
+          <!-- === 替换开始：自定义心声字段 === -->
+          <div class="form-group">
+            <label>自定义心声字段 (标签名 + AI生成指令)</label>
+            <div style="font-size: 12px; color: #666; margin-bottom: 10px">
+              左边填显示的标题，右边填给AI的具体要求。
+            </div>
+
+            <!-- 字段 1: clothing -->
+            <div style="display: flex; gap: 5px; margin-bottom: 8px">
+              <input
+                type="text"
+                id="iv-label-clothing"
+                placeholder="标题 (如: 服装)"
+                class="moe-input"
+                style="flex: 1"
+              />
+              <textarea
+                id="iv-prompt-clothing"
+                rows="1"
+                placeholder="指令 (如: 描述你现在的穿着)"
+                class="moe-input"
+                style="flex: 2; resize: vertical"
+              ></textarea>
+            </div>
+
+            <!-- 字段 2: behavior -->
+            <div style="display: flex; gap: 5px; margin-bottom: 8px">
+              <input
+                type="text"
+                id="iv-label-behavior"
+                placeholder="标题 (如: 行为)"
+                class="moe-input"
+                style="flex: 1"
+              />
+              <textarea
+                id="iv-prompt-behavior"
+                rows="1"
+                placeholder="指令 (如: 描述你的动作神态)"
+                class="moe-input"
+                style="flex: 2; resize: vertical"
+              ></textarea>
+            </div>
+
+            <!-- 字段 3: thoughts -->
+            <div style="display: flex; gap: 5px; margin-bottom: 8px">
+              <input
+                type="text"
+                id="iv-label-thoughts"
+                placeholder="标题 (如: 心声)"
+                class="moe-input"
+                style="flex: 1"
+              />
+              <textarea
+                id="iv-prompt-thoughts"
+                rows="1"
+                placeholder="指令 (如: 描述你的内心想法)"
+                class="moe-input"
+                style="flex: 2; resize: vertical"
+              ></textarea>
+            </div>
+
+            <!-- 字段 4: naughty -->
+            <div style="display: flex; gap: 5px; margin-bottom: 8px">
+              <input
+                type="text"
+                id="iv-label-naughty"
+                placeholder="标题 (如: 坏心思)"
+                class="moe-input"
+                style="flex: 1"
+              />
+              <textarea
+                id="iv-prompt-naughty"
+                rows="1"
+                placeholder="指令 (如: 描述你的腹黑想法)"
+                class="moe-input"
+                style="flex: 2; resize: vertical"
+              ></textarea>
+            </div>
+          </div>
+          <hr style="opacity: 0.2" />
+          <!-- === 替换结束 === -->
+
+          <hr style="opacity: 0.2" />
+          <!-- === 新增结束 === -->
+          <!-- 卡片背景颜色 -->
+          <div class="form-group">
+            <label for="iv-card-bg-color">卡片背景颜色</label>
+            <input
+              type="color"
+              id="iv-card-bg-color"
+              value="#FFFFFF"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+          <!-- 卡片透明度 -->
+          <div class="form-group">
+            <label for="iv-opacity-slider"
+              >卡片背景透明度: <span id="iv-opacity-value">70%</span></label
+            >
+            <input
+              type="range"
+              id="iv-opacity-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              value="0.7"
+              style="width: 100%"
+            />
+          </div>
+          <hr style="opacity: 0.2" />
+          <!-- 四个标签的背景色 -->
+          <div class="form-group">
+            <label for="iv-color-clothing">“服装”标签背景色</label>
+            <input
+              type="color"
+              id="iv-color-clothing"
+              value="#f0a1a8"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+          <div class="form-group">
+            <label for="iv-color-behavior">“行为”标签背景色</label>
+            <input
+              type="color"
+              id="iv-color-behavior"
+              value="#81c784"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+          <div class="form-group">
+            <label for="iv-color-thoughts">“心声”标签背景色</label>
+            <input
+              type="color"
+              id="iv-color-thoughts"
+              value="#64b5f6"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+          <div class="form-group">
+            <label for="iv-color-naughty">“坏心思”标签背景色</label>
+            <input
+              type="color"
+              id="iv-color-naughty"
+              value="#ba68c8"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+
+          <hr style="opacity: 0.2; margin: 20px 0" />
+          <div class="form-group">
+            <label for="iv-icon-color">图标颜色</label>
+            <input
+              type="color"
+              id="iv-icon-color"
+              value="#ff8a80"
+              style="width: 100%; height: 40px"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="iv-editor-cancel-btn">取消</button>
+          <button class="save" id="iv-editor-save-btn">保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI生成群成员模态框 -->
+    <div id="ai-generate-members-modal" class="modal">
+      <div class="modal-content" style="height: auto">
+        <div class="modal-header">
+          <span>AI 生成群成员</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="ai-member-count-input">生成人数 (1-20)</label>
+            <input
+              type="number"
+              id="ai-member-count-input"
+              value="3"
+              min="1"
+              max="20"
+            />
+          </div>
+          <div class="form-group">
+            <label for="ai-member-prompt-input">要求 (可选，AI会参考)</label>
+            <textarea
+              id="ai-member-prompt-input"
+              rows="4"
+              placeholder="例如：一群喜欢户外探险的大学生，性格各异..."
+            ></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-ai-generate-members-btn">
+            取消
+          </button>
+          <button class="save" id="confirm-ai-generate-members-btn">
+            开始生成
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 约会邀请与支付模态框 -->
+    <div id="dating-payment-modal" class="modal">
+      <div class="modal-content" style="width: 300px; height: auto">
+        <div class="modal-header">
+          <span id="dating-modal-title">发起约会邀请</span>
+        </div>
+        <div class="modal-body" style="text-align: center">
+          <p>你选择的约会是：</p>
+          <h3
+            id="dating-modal-scene-name"
+            style="color: var(--accent-color); margin: 10px 0"
+          ></h3>
+          <p id="dating-modal-scene-cost" style="font-weight: bold"></p>
+          <hr style="opacity: 0.2; margin: 20px 0" />
+          <p>由谁来买单呢？</p>
+          <div
+            id="dating-payment-options"
+            style="display: flex; flex-direction: column; gap: 10px"
+          >
+            <!-- 支付选项按钮将由JS动态生成 -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="dating-cancel-btn" style="width: 100%">
+            下次再说
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 约会角色选择弹窗 -->
+    <div id="dating-char-selector-modal" class="modal">
+      <div class="modal-content" style="height: 60%">
+        <div class="modal-header">
+          <span>选择约会对象</span>
+        </div>
+        <div
+          class="modal-body"
+          id="dating-char-selector-list"
+          style="padding: 0"
+        >
+          <!-- 角色列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <button
+            class="cancel"
+            id="dating-cancel-char-select-btn"
+            style="width: 100%"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dating-game-screen" class="screen">
+      <!-- 1. 动态背景图 (最底层) -->
+      <div id="dating-game-background"></div>
+
+      <!-- 2. 角色立绘容器 (中间层) -->
+      <div id="dating-game-sprite-container">
+        <img id="dating-game-sprite" src="" />
+      </div>
+
+      <!-- 3. UI覆盖层 (最顶层, 包含头部/文本框/选项) -->
+      <div class="dating-game-ui-overlay">
+        <div class="header">
+          <span class="back-btn" id="end-date-btn">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </span>
+
+          <span id="dating-game-char-name"></span>
+          <div class="header-actions">
+            <!-- 心形数值条 -->
+            <div id="dating-values-container">
+              <div id="romance-value" class="value-display">
+                <!-- 我们会用JS在这里生成5个粉色心形 -->
+              </div>
+              <div id="lust-value" class="value-display">
+                <!-- 我们会用JS在这里生成5个黄色心形 -->
+              </div>
+            </div>
+            <span class="action-btn" id="dating-bgm-btn" title="背景音乐">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+            </span>
+            <span
+              class="action-btn"
+              id="dating-game-settings-btn"
+              title="场景设置"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                ></path>
+              </svg>
+            </span>
+            <span
+              class="action-btn"
+              id="dating-game-reroll-btn"
+              title="重Roll回应"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="23 4 23 10 17 10"></polyline>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+            </span>
+          </div>
+        </div>
+
+        <!-- 3b. 底部文本框 -->
+        <div class="dating-game-textbox">
+          <p id="dating-game-text-content">约会即将开始...</p>
+        </div>
+        <div id="dating-completion-bar-container">
+          <div id="dating-completion-bar-fill"></div>
+          <span id="dating-completion-text">0%</span>
+        </div>
+        <!-- 3c. 玩家操作区 -->
+        <div id="dating-game-choices" class="dating-game-choices">
+          <!-- 选项按钮将由JS动态生成在这里 -->
+        </div>
+      </div>
+    </div>
+    <!-- ▼▼▼ 全新：约会BGM控制面板 ▼▼▼ -->
+    <div id="dating-bgm-modal" class="modal">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span>选择背景音乐</span>
+        </div>
+        <div class="modal-body" style="padding: 15px">
+          <!-- 控制按钮 -->
+          <div
+            class="bgm-controls"
+            style="display: flex; gap: 10px; margin-bottom: 15px"
+          >
+            <button
+              id="dating-bgm-random-btn"
+              class="form-button-secondary"
+              style="flex: 1; margin: 0"
+            >
+              随机播放
+            </button>
+            <button
+              id="dating-bgm-stop-btn"
+              class="form-button-secondary"
+              style="
+                flex: 1;
+                margin: 0;
+                background-color: #ffe5e5;
+                color: #ff3b30;
+                border-color: #ffc2d1;
+              "
+            >
+              停止播放
+            </button>
+          </div>
+          <!-- 音量控制 -->
+          <div class="form-group">
+            <label for="dating-bgm-volume-slider"
+              >音量: <span id="dating-bgm-volume-value">100%</span></label
+            >
+            <input
+              type="range"
+              id="dating-bgm-volume-slider"
+              min="0"
+              max="1"
+              step="0.05"
+              value="1"
+              style="width: 100%"
+            />
+          </div>
+          <hr style="opacity: 0.2" />
+          <!-- 歌曲列表 -->
+          <div
+            id="dating-bgm-playlist"
+            class="list-container"
+            style="padding: 0; height: calc(100% - 130px)"
+          >
+            <!-- 曲库将由JS动态生成在这里 -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="save" id="dating-bgm-close-btn" style="width: 100%">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- ▲▲▲ 新增结束 ▲▲▲ -->
+
+    <!-- 借钱对象选择弹窗（带滚动和头像） -->
+    <div id="borrow-money-modal" class="modal">
+      <div class="modal-content" style="height: 60%">
+        <div class="modal-header">
+          <span>向谁借钱？</span>
+        </div>
+        <div
+          class="modal-body"
+          id="borrow-money-char-list"
+          style="padding: 0; overflow-y: auto"
+        >
+          <!-- 借钱对象列表将由JS动态生成在这里 -->
+        </div>
+        <div class="modal-footer">
+          <button
+            class="cancel"
+            id="borrow-money-cancel-btn"
+            style="width: 100%"
+          >
+            取消
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dating-game-settings-modal" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>约会场景设置</span>
+        </div>
+        <div class="modal-body">
+          <!-- 预设管理 (保持不变) -->
+          <div class="form-group">
+            <label>预设方案</label>
+            <div class="bubble-preset-manager">
+              <select
+                id="dating-preset-select"
+                class="form-group select"
+              ></select>
+              <button id="manage-dating-presets-btn" class="action-btn">
+                管理
+              </button>
+            </div>
+          </div>
+
+          <hr style="opacity: 0.2" />
+
+          <!-- 立绘组选择器-->
+          <div class="form-group">
+            <label>选择角色立绘组</label>
+            <div class="bubble-preset-manager">
+              <select id="dating-sprite-group-select" class="form-group select">
+                <option value="">-- 不使用立绘 --</option>
+                <!-- 立绘组将由JS动态填充 -->
+              </select>
+              <button id="manage-sprite-groups-btn" class="action-btn">
+                管理立绘组
+              </button>
+            </div>
+          </div>
+
+          <hr style="opacity: 0.2" />
+
+          <!-- 核心设置 (保持不变) -->
+          <div class="form-group">
+            <label for="dating-prompt-input">场景/角色提示词 (Prompt)</label>
+            <textarea
+              id="dating-prompt-input"
+              rows="4"
+              placeholder="例如：你是一个傲娇但内心温柔的少女，在海边对用户的表白感到不知所措..."
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label for="dating-style-input">文风 (Style)</label>
+            <textarea
+              id="dating-style-input"
+              rows="3"
+              placeholder="例如：请使用细腻的心理描写和优美的风景描写..."
+            ></textarea>
+          </div>
+          <div class="form-group">
+            <label>约会背景图</label>
+            <div class="bg-upload-container">
+              <button
+                class="form-button-secondary"
+                onclick="
+                  document.getElementById('dating-bg-upload-input').click()
+                "
+                style="margin-top: 0"
+              >
+                上传图片
+              </button>
+              <input
+                type="text"
+                id="dating-bg-url-input"
+                placeholder="或粘贴网络图片URL"
+                style="flex-grow: 1"
+              />
+            </div>
+            <input
+              type="file"
+              id="dating-bg-upload-input"
+              accept="image/*"
+              hidden
+            />
+          </div>
+          <hr style="opacity: 0.2; margin: 15px 0" />
+
+          <div class="form-group">
+            <label>额外挂载世界书 (本次约会)</label>
+            <!-- 复用主设置的样式，非常方便 -->
+            <div class="custom-multiselect" id="dating-wb-multiselect">
+              <div class="select-box moe-input">
+                <span class="selected-options-text"
+                  >-- 点击选择额外世界观 --</span
+                >
+                <span class="arrow-down">▼</span>
+              </div>
+              <!-- 注意这个容器的 ID 是新的，防止冲突 -->
+              <div
+                id="dating-wb-checkboxes-container"
+                class="checkboxes-container"
+              >
+                <!-- 选项将由JS动态生成 -->
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-dating-settings-btn">取消</button>
+          <button class="save" id="save-dating-settings-btn">应用并保存</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 立绘组管理弹窗 -->
+    <div id="sprite-group-manager-modal" class="modal">
+      <div class="modal-content" style="height: 60%">
+        <div class="modal-header">
+          <span>管理立绘组</span>
+          <span
+            class="action-btn"
+            id="create-new-sprite-group-btn"
+            style="font-size: 16px"
+            >新建</span
+          >
+        </div>
+        <div
+          class="modal-body"
+          id="sprite-group-list-container"
+          style="padding: 0"
+        >
+          <!-- 立绘组列表将由JS动态生成 -->
+        </div>
+        <div class="modal-footer">
+          <button
+            class="save"
+            id="close-sprite-group-manager-btn"
+            style="width: 100%"
+          >
+            完成
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 立绘组编辑器弹窗 -->
+    <div id="sprite-editor-modal" class="modal">
+      <div class="modal-content" style="height: 90%">
+        <div class="modal-header">
+          <span id="sprite-editor-title">编辑立绘组</span>
+        </div>
+        <div class="modal-body" id="sprite-editor-body">
+          <div class="form-group">
+            <label for="sprite-group-name-input">立绘组名称</label>
+            <input
+              type="text"
+              id="sprite-group-name-input"
+              placeholder="例如：日常、战斗、害羞..."
+            />
+          </div>
+          <hr style="opacity: 0.2" />
+          <label>立绘列表</label>
+          <div
+            id="sprite-list-editor"
+            style="
+              display: flex;
+              flex-direction: column;
+              gap: 15px;
+              margin-top: 10px;
+            "
+          >
+            <!-- 单个立绘的编辑卡片将由JS动态生成 -->
+          </div>
+          <button
+            id="add-new-sprite-btn"
+            class="form-button form-button-secondary"
+            style="margin-top: 20px"
+          >
+            + 添加一个新立绘
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-sprite-editor-btn">取消</button>
+          <button class="save" id="save-sprite-editor-btn">保存立绘组</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 约会结算卡片 -->
+    <div id="dating-summary-overlay" class="modal">
+      <div class="dating-summary-card">
+        <div class="dating-summary-card-inner">
+          <!-- 卡片正面 -->
+          <div class="card-front">
+            <img id="summary-card-avatar" src="" alt="角色头像" />
+            <h2 id="summary-card-rating"></h2>
+            <p class="summary-card-tip">点击卡片查看完整约会记录</p>
+            <div class="summary-card-actions">
+              <button id="summary-share-btn">分享给Ta</button>
+              <button id="summary-close-btn">关闭</button>
+            </div>
+          </div>
+          <!-- 卡片背面 -->
+          <div class="card-back">
+            <div class="card-back-header">
+              <span>完整约会记录</span>
+              <button id="summary-flip-back-btn">返回</button>
+            </div>
+            <div id="summary-card-history" class="card-back-content">
+              <!-- 约会历史记录将由JS动态生成在这里 -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <input
+      type="file"
+      id="dating-summary-image-upload"
+      accept="image/*"
+      hidden
+    />
+
+    <div id="tukey-accounting-screen" class="screen">
+      <!-- 1. 页面头部 (保持不变) -->
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span id="tukey-header-title">记账群聊</span>
+        <span style="width: 30px"></span>
+      </div>
+
+      <!-- 2. 页面内容容器 (保持不变) -->
+      <div class="tukey-content">
+        <!-- 视图1: 钱包 (这是我们要修改的核心) -->
+        <div id="tukey-wallet-view" class="tukey-view">
+          <div id="wallet-summary-card">
+            <div class="summary-item net-assets">
+              <span class="label">净资产</span>
+              <span class="value" id="net-assets-value">¥ 0.00</span>
+            </div>
+            <div class="summary-details">
+              <div class="summary-item">
+                <span class="label">总资产</span>
+                <span class="value" id="total-assets-value">¥ 0.00</span>
+              </div>
+              <div class="summary-item">
+                <span class="label">总负债</span>
+                <span class="value" id="total-liabilities-value">¥ 0.00</span>
+              </div>
+            </div>
+          </div>
+          <div id="wallet-accounts-list">
+            <!-- 账户列表将由JS动态生成在这里 -->
+          </div>
+          <button
+            id="add-new-account-fab"
+            class="ls-fab-btn"
+            title="添加新账户"
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <line
+                x1="12"
+                y1="5"
+                x2="12"
+                y2="19"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <line
+                x1="5"
+                y1="12"
+                x2="19"
+                y2="12"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        <div id="tukey-reports-view" class="tukey-view">
+          <!-- 1. 报表控制/筛选区域 -->
+          <div class="report-controls">
+            <select id="report-account-filter">
+              <!-- 账户选项将由JS动态生成 -->
+            </select>
+            <select id="report-month-filter">
+              <!-- 月份选项将由JS动态生成 -->
+            </select>
+            <select id="report-type-filter">
+              <option value="daily_details">每日明细</option>
+              <option value="monthly_summary">月度统计</option>
+            </select>
+          </div>
+
+          <!-- 2. 报表内容显示区域 -->
+          <div id="report-display-area">
+            <!-- 视图切换容器 -->
+            <div id="daily-report-view" class="report-view active">
+              <!-- 每日明细将由JS动态生成在这里 -->
+              <p class="report-placeholder">正在加载报表...</p>
+            </div>
+            <div id="monthly-report-view" class="report-view">
+              <!-- 月度统计将由JS动态生成在这里 -->
+              <div id="monthly-summary-card">
+                <!-- 月度总收支 -->
+              </div>
+              <div class="chart-container">
+                <h3>支出分类占比</h3>
+                <canvas id="category-pie-chart"></canvas>
+              </div>
+              <div class="chart-container">
+                <h3>月度支出趋势</h3>
+                <canvas id="expenditure-line-chart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tukey-group-chat-view" class="tukey-view active">
+          <!-- 这个容器会在没有群聊时显示 -->
+          <div id="tukey-no-group-placeholder">
+            <p>你还没有创建记账群聊哦</p>
+            <button id="tukey-create-group-btn" class="form-button">
+              立即创建
+            </button>
+          </div>
+
+          <div id="tukey-group-chat-container" style="display: none">
+            <div id="tukey-group-chat-header">
+              <span id="tukey-group-name">群聊名称</span>
+              <button id="tukey-group-settings-btn" title="群聊设置">⚙️</button>
+            </div>
+
+            <!-- 记账和回复历史记录 -->
+            <div id="tukey-records-list">
+              <!-- JS会在这里渲染内容 -->
+            </div>
+
+            <!-- 记账输入区域 -->
+            <div id="tukey-record-input-area">
+              <button id="tukey-add-record-btn">+</button>
+            </div>
+
+            <div id="tukey-record-input-card">
+              <div class="card-header">
+                <button class="close-card-btn">×</button>
+                <div class="type-selector">
+                  <button class="type-btn active" data-type="expense">
+                    支出
+                  </button>
+                  <button class="type-btn" data-type="income">收入</button>
+                </div>
+              </div>
+              <div class="card-body">
+                <!-- 金额和备注输入区域 -->
+                <div class="input-fields">
+                  <div class="amount-input-wrapper">
+                    <span class="currency-symbol">¥</span>
+                    <input
+                      type="number"
+                      id="tukey-card-amount-input"
+                      placeholder="0.00"
+                    />
+                    <!-- 已选分类显示区 -->
+                    <div id="tukey-card-selected-category">
+                      <img src="" alt="" />
+                      <span>请选择分类</span>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    id="tukey-card-remarks-input"
+                    placeholder="点击输入备注..."
+                  />
+                </div>
+                <!-- 分类网格 -->
+                <div class="category-grid">
+                  <!-- 分类将由JS动态生成 -->
+                </div>
+              </div>
+              <div class="card-footer">
+                <!-- 账户和时间选择器 -->
+                <div class="additional-options">
+                  <div class="option-item">
+                    <label for="tukey-card-account-select">账户</label>
+                    <select id="tukey-card-account-select">
+                      <!-- 账户将由JS动态生成 -->
+                    </select>
+                  </div>
+                  <div class="option-item">
+                    <label for="tukey-card-time-input">时间</label>
+                    <input type="datetime-local" id="tukey-card-time-input" />
+                  </div>
+                </div>
+                <button id="tukey-save-from-card-btn">保 存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="tukey-settings-view" class="tukey-view">
+          <div class="form-container" style="padding-top: 20px">
+            <!-- 1. 个人资料设置 -->
+            <div class="form-group">
+              <label>我的个人资料</label>
+              <div class="avatar-upload">
+                <img
+                  id="tukey-user-avatar-preview"
+                  src="https://i.postimg.cc/PxZrFFFL/o-o-1.jpg"
+                />
+                <button
+                  onclick="
+                    document.getElementById('tukey-user-avatar-input').click()
+                  "
+                >
+                  上传我的头像
+                </button>
+                <input
+                  type="file"
+                  id="tukey-user-avatar-input"
+                  accept="image/*"
+                  hidden
+                />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="tukey-user-name-input">用户名</label>
+              <input
+                type="text"
+                id="tukey-user-name-input"
+                placeholder="输入你在群聊中显示的昵称"
+              />
+            </div>
+            <div class="form-group">
+              <label for="tukey-user-profession-input">职业 (选填)</label>
+              <input
+                type="text"
+                id="tukey-user-profession-input"
+                placeholder="你的职业，会展示给群友"
+              />
+            </div>
+
+            <hr style="opacity: 0.2; margin: 20px 0" />
+
+            <!-- 2. 同步设置 -->
+            <div class="form-group">
+              <label for="sync-to-taobao-toggle" class="toggle-switch-label">
+                <span class="toggle-switch-text">
+                  同步至桃宝余额
+                  <p
+                    style="
+                      font-size: 12px;
+                      font-weight: normal;
+                      color: #999;
+                      margin-top: 5px;
+                    "
+                  >
+                    开启后，所有记账记录将同步影响桃宝的余额和收支明细。
+                  </p>
+                </span>
+                <input type="checkbox" id="sync-to-taobao-toggle" />
+                <span class="toggle-switch-slider"></span>
+              </label>
+            </div>
+
+            <hr style="opacity: 0.2; margin: 20px 0" />
+
+            <!-- 3. 导出设置 (新增) -->
+            <div class="form-group">
+              <label>数据导出</label>
+              <button
+                id="export-tukey-report-btn"
+                class="form-button form-button-secondary"
+              >
+                导出账单为 Excel
+              </button>
+            </div>
+
+            <button class="form-button" id="save-tukey-settings-btn">
+              保存所有设置
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. 底部导航栏 (保持不变) -->
+      <div id="tukey-bottom-nav">
+        <div class="tukey-nav-item" data-view="tukey-wallet-view">
+          <svg width="24" height="24" viewBox="0 0 1024 1024">
+            <path
+              d="M517.7 660c-4 26.6-19.2 46.3-37.3 46.3H290.1c-21.2 0-38.4-27-38.4-60.3V435.3c0-33.3 17.2-60.3 38.4-60.3h190.3c17.6 0 32.5 18.7 37 44.1"
+              fill="#BAF4EA"
+            ></path>
+            <path
+              d="M668.7 761.8H321.6c-54 0-97.9-43.9-97.9-97.9V419.6c0-54 43.9-97.9 97.9-97.9h347.1c43.8 0 82.6 29.5 94.4 71.6 4.1 14.9-4.6 30.3-19.5 34.5-14.9 4.1-30.3-4.6-34.5-19.5-5-18-21.6-30.6-40.4-30.6H321.6c-23.1 0-41.9 18.8-41.9 41.9v244.3c0 23.1 18.8 41.9 41.9 41.9h347.1c19.5 0 36.3-13.2 40.8-32.2 3.6-15 18.7-24.3 33.7-20.8 15 3.6 24.3 18.7 20.8 33.7-5 21.1-17.1 40.2-34.1 53.8-17.3 13.9-39 21.5-61.2 21.5z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M719.9 614.4H641c-39.9 0-72.6-32.7-72.6-72.6 0-39.9 32.7-72.6 72.6-72.6h78.9c39.9 0 72.6 32.7 72.6 72.6 0 39.9-32.7 72.6-72.6 72.6z"
+              fill="#BAF4EA"
+            ></path>
+            <path
+              d="M719.9 642.4H641c-55.5 0-100.6-45.1-100.6-100.6 0-55.5 45.1-100.6 100.6-100.6h78.9c55.5 0 100.6 45.1 100.6 100.6 0 55.4-45.2 100.6-100.6 100.6zM641 497.1c-24.6 0-44.6 20-44.6 44.6s20 44.6 44.6 44.6h78.9c24.6 0 44.6-20 44.6-44.6s-20-44.6-44.6-44.6H641z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M650.1 542.4m-0.4 0a0.4 0.4 0 1 0 0.8 0 0.4 0.4 0 1 0-0.8 0Z"
+              fill="#FFFFFF"
+            ></path>
+            <path
+              d="M650.1 570.8c-15.7 0-28.4-12.7-28.4-28.4s12.7-28.4 28.4-28.4 28.4 12.7 28.4 28.4-12.7 28.4-28.4 28.4z m0-56c-15.2 0-27.6 12.4-27.6 27.6s12.4 27.6 27.6 27.6 27.6-12.4 27.6-27.6-12.4-27.6-27.6-27.6z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M155.2 152.2c12 0 21.7 9.7 21.7 21.7s-9.7 21.7-21.7-21.7-21.7-9.7-21.7-21.7 9.7-21.7 21.7-21.7m0-40c-34 0-61.7 27.7-61.7 61.7s27.7 61.7 61.7 61.7 61.7-27.7 61.7-61.7-27.7-61.7-61.7-61.7zM162.7 956.8h-0.2c-8.3-0.1-14.9-6.9-14.8-15.2l1-69.5c0.1-8.2 6.8-14.8 15-14.8h0.2c8.3 0.1 14.9 6.9 14.8 15.2l-1 69.5c-0.1 8.2-6.8 14.8-15 14.8z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M212.9 907.5v0.2c-0.1 8.3-6.9 14.9-15.2 14.8l-69.5-1c-8.2-0.1-14.8-6.8-14.8-15v-0.2c0.1-8.3 6.9-14.9 15.2-14.8l69.5 1c8.3 0.2 14.8 6.9 14.8 15z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M895.4 905.5m-30.9 0a30.9 30.9 0 1 0 61.8 0 30.9 30.9 0 1 0-61.8 0Z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M121.4 613.5m-20.7 0a20.7 20.7 0 1 0 41.4 0 20.7 20.7 0 1 0-41.4 0Z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M861.5 115.5v30.8M861.5 156.3c-5.5 0-10-4.5-10-10v-30.8c0-5.5 4.5-10 10-10s10 4.5 10 10v30.8c0 5.5-4.5 10-10 10zM804.8 172.2h30.8M835.6 182.2h-30.8c-5.5 0-10-4.5-10-10s4.5-10 10-10h30.8c5.5 0 10 4.5 10 10s-4.5 10-10 10zM887.4 172.2h30.8M918.2 182.2h-30.8c-5.5 0-10-4.5-10-10s4.5-10 10-10h30.8c5.5 0 10 4.5 10 10s-4.5 10-10 10z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M821.4 212.3l21.8-21.8M821.4 222.3c-2.6 0-5.1-1-7.1-2.9-3.9-3.9-3.9-10.2 0-14.1l21.8-21.8c3.9-3.9 10.2-3.9 14.1 0 3.9 3.9 3.9 10.2 0 14.1l-21.8 21.8c-1.8 1.9-4.4 2.9-7 2.9z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M879.8 153.9l21.8-21.8M879.8 163.9c-2.6 0-5.1-1-7.1-2.9-3.9-3.9-3.9-10.2 0-14.1l21.8-21.8c3.9-3.9 10.2-3.9 14.1 0 3.9 3.9 3.9 10.2 0 14.1L886.9 161c-2 1.9-4.5 2.9-7.1 2.9z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M901.6 212.3l-21.8-21.8M901.6 222.3c-2.6 0-5.1-1-7.1-2.9l-21.8-21.8c-3.9-3.9-3.9-10.2 0-14.1 3.9-3.9 10.2-3.9 14.1 0l21.8 21.8c3.9 3.9 3.9 10.2 0 14.1-1.9 1.9-4.5 2.9-7 2.9z"
+              fill="#2D5B56"
+            ></path>
+            <path
+              d="M843.2 153.9l-21.8-21.8M843.2 163.9c-2.6 0-5.1-1-7.1-2.9l-21.8-21.8c-3.9-3.9-3.9-10.2 0-14.1 3.9-3.9 10.2-3.9 14.1 0l21.8 21.8c3.9 3.9 3.9 10.2 0 14.1-1.9 1.9-4.4 2.9-7 2.9z"
+              fill="#2D5B56"
+            ></path>
+          </svg>
+          <span>钱包</span>
+        </div>
+        <div class="tukey-nav-item" data-view="tukey-reports-view">
+          <svg width="24" height="24" viewBox="0 0 1024 1024">
+            <path
+              d="M692.24 787.29h-175.3a24.65 24.65 0 0 1 0-49.3h175.3a24.65 24.65 0 0 1 0 49.3z"
+              fill="#303030"
+              p-id="13093"
+            ></path>
+            <path
+              d="M692.24 186.92v89.18H336.29v463.27h-89.34V186.92h445.29z"
+              fill="#279ACC"
+              p-id="13094"
+            ></path>
+            <path
+              d="M810.83 869.58H322.21V660.12a24.65 24.65 0 0 1 49.3 0v160.16h390V318.74h-390v148.19a24.65 24.65 0 1 1-49.3 0V269.44h488.62z"
+              fill="#303030"
+              p-id="13095"
+            ></path>
+            <path
+              d="M346.86 767H225.28V166.87H713.9v127.22a24.65 24.65 0 1 1-49.29 0v-77.93h-390v501.55h72.28a24.65 24.65 0 1 1 0 49.29z"
+              fill="#303030"
+              p-id="13096"
+            ></path>
+            <path
+              d="M751.63 395.07m-78.65 0a78.65 78.65 0 1 0 157.3 0 78.65 78.65 0 1 0-157.3 0Z"
+              fill="#279ACC"
+              p-id="13097"
+            ></path>
+            <path
+              d="M317.28 626.59a24.65 24.65 0 0 1-17.42-42.07l89.58-89.59c10.84-10.85 25-16.36 40.58-16.34a55.34 55.34 0 0 1 39.89 18l64.43 69.85 150.17-148a24.65 24.65 0 0 1 34.63 35.08l-150 148.05a49.43 49.43 0 0 1-71-1.66L433.68 530a6.42 6.42 0 0 0-4.65-2.1 5.84 5.84 0 0 0-4.73 1.91l-89.59 89.59a24.58 24.58 0 0 1-17.43 7.19z"
+              fill="#303030"
+              p-id="13098"
+            ></path>
+            <path
+              d="M751.63 481.75a86.67 86.67 0 1 1 86.67-86.67 86.77 86.77 0 0 1-86.67 86.67z m0-124A37.38 37.38 0 1 0 789 395.08a37.42 37.42 0 0 0-37.37-37.38z"
+              fill="#303030"
+              p-id="13099"
+            ></path>
+          </svg>
+          <span>报表</span>
+        </div>
+        <div class="tukey-nav-item active" data-view="tukey-group-chat-view">
+          <svg width="24" height="24" viewBox="0 0 1024 1024">
+            <path
+              d="M134.588 151C118.247 151 105 164.247 105 180.584v557.964c0 16.339 13.255 29.584 29.599 29.584h155.746l31.872 99.6c2.489 7.777 8.981 9.197 14.504 3.169l94.146-102.769h457.72c16.341 0 29.59-13.247 29.59-29.584V180.584c0-16.339-13.248-29.584-29.588-29.584H134.588z"
+              fill="#0FC8B2"
+              p-id="32320"
+            ></path>
+            <path
+              d="M511.213 422c19.045 0 34.484 15.44 34.484 34.486s-15.44 34.483-34.484 34.483c-19.046 0-34.485-15.438-34.485-34.483 0-19.046 15.439-34.486 34.485-34.486z m-199.727 0c19.046 0 34.483 15.44 34.483 34.486s-15.437 34.483-34.483 34.483S277 475.531 277 456.486C277 437.44 292.44 422 311.486 422z m399.454 0c19.045 0 34.485 15.439 34.485 34.484 0 19.046-15.439 34.483-34.485 34.483-19.045 0-34.485-15.438-34.485-34.483 0-19.045 15.44-34.484 34.485-34.484z"
+              fill="#FFFFFF"
+              p-id="32321"
+            ></path>
+          </svg>
+          <span>记账群聊</span>
+        </div>
+        <div class="tukey-nav-item" data-view="tukey-settings-view">
+          <svg width="24" height="24" viewBox="0 0 1024 1024">
+            <path
+              d="M785.749333 564.770133a231.150933 231.150933 0 0 0 47.035734-258.730666l-145.476267 145.442133a41.5744 41.5744 0 0 1-58.811733 0l-55.876267-55.876267a41.5744 41.5744 0 0 1 0-58.811733l145.476267-145.476267a230.843733 230.843733 0 0 0-305.834667 305.664l-263.509333 263.406934a41.5744 41.5744 0 0 0 0 58.811733l55.842133 55.842133a41.5744 41.5744 0 0 0 58.811733 0l263.406934-263.3728a230.638933 230.638933 0 0 0 258.730666-47.069866l0.170667 0.170666z"
+              fill="#FFFFFF"
+              p-id="33627"
+            ></path>
+            <path
+              d="M435.2 214.084267a264.977067 264.977067 0 0 1 297.028267-53.828267 34.133333 34.133333 0 0 1 10.001066 55.227733l-145.476266 145.442134a7.441067 7.441067 0 0 0 0 10.581333l55.876266 55.842133a7.441067 7.441067 0 0 0 10.5472 0l145.476267-145.476266a34.133333 34.133333 0 0 1 55.227733 10.069333 265.216 265.216 0 0 1-54.033066 296.96 34.474667 34.474667 0 0 1-3.208534 2.833067l-0.238933 0.170666-3.925333 3.822934a264.704 264.704 0 0 1-262.144 57.7536l-5.290667-1.8432-247.5008 247.534933a75.707733 75.707733 0 0 1-102.741333 4.027733l-4.334934-4.027733-55.876266-55.842133a75.707733 75.707733 0 0 1 0-107.1104l247.7056-247.569067-1.809067-5.2224a265.216 265.216 0 0 1 57.719467-262.075733l6.997333-7.2704z m211.285333-7.850667a196.539733 196.539733 0 0 0-163.0208 56.1152 196.983467 196.983467 0 0 0-40.072533 220.535467 34.133333 34.133333 0 0 1-6.9632 38.229333l-263.5776 263.406933a7.441067 7.441067 0 0 0 0 10.513067l55.876267 55.876267a7.441067 7.441067 0 0 0 10.5472 0l263.406933-263.406934a34.133333 34.133333 0 0 1 38.229333-6.929066 196.5056 196.5056 0 0 0 220.501334-40.072534l1.9456-1.7408 4.334933-4.5056a196.8128 196.8128 0 0 0 50.107733-156.672l-1.058133-7.304533-105.301333 105.335467a75.707733 75.707733 0 0 1-102.741334 4.027733l-4.334933-4.027733-55.876267-55.876267a75.707733 75.707733 0 0 1 0-107.076267l105.3696-105.3696-7.3728-1.058133z"
+              fill="#222222"
+              p-id="33628"
+            ></path>
+            <path
+              d="M284.8768 690.858667a34.133333 34.133333 0 0 1 48.298667 48.264533l-61.781334 61.7472a34.133333 34.133333 0 1 1-48.264533-48.264533l61.781333-61.781334z"
+              fill="#009898"
+              p-id="33629"
+            ></path>
+          </svg>
+          <span>设置</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ... </div> 标签来自 id="tukey-accounting-screen" -->
+
+    <!-- 兔k记账导出选项模态框 -->
+    <div id="tukey-export-modal" class="modal">
+      <div class="modal-content" style="height: auto; max-height: 70%">
+        <div class="modal-header">
+          <span>选择要导出的账户</span>
+        </div>
+        <div class="modal-body">
+          <div id="tukey-export-account-list" class="contact-picker-list">
+            <!-- 账户列表将由JS动态生成 -->
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-tukey-export-btn">取消</button>
+          <button class="save" id="confirm-tukey-export-btn">确认导出</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 查岗 - 角色选择屏幕 -->
+    <div id="kk-char-selection-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" onclick="showScreen('home-screen')">‹</span>
+        <span>要查谁的岗？</span>
+        <span style="width: 30px"></span>
+      </div>
+      <div id="kk-char-selection-list" class="list-container">
+        <!-- 角色列表将由JS动态生成 -->
+      </div>
+    </div>
+
+    <!-- 2. 查岗 - 房屋总览屏幕 -->
+    <div id="kk-house-view-screen" class="screen">
+      <div id="kk-house-background"></div>
+      <div
+        class="header"
+        style="
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.6),
+            transparent
+          );
+          border-bottom: none;
+        "
+      >
+        <span class="back-btn" id="kk-back-from-house-view">‹</span>
+        <span id="kk-house-owner-name"></span>
+        <!-- 标题会自动居中 -->
+
+        <div class="header-actions">
+          <!-- 这里只保留“继续翻找”和“重新翻找” -->
+          <span class="action-btn" id="kk-continue-search-btn" title="继续翻找">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <span class="action-btn" id="kk-reset-search-btn" title="重新翻找">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path
+                d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"
+              ></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div
+        id="kk-scene-toolbar"
+        style="
+          position: absolute;
+          top: 110px;
+          right: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+          z-index: 10;
+        "
+      >
+        <!-- 衣柜按钮 -->
+        <!-- 重点修复：加了 box-shadow: none 等重置属性，防止旧样式干扰 -->
+        <div
+          id="kk-wardrobe-btn"
+          title="查看衣柜"
+          style="
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            /* 强制重置旧样式 */
+            margin: 0;
+            padding: 0;
+            /* 水晶果冻风格核心 */
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6); /* 唯一保留的高光边框 */
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); /* 柔和投影 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #ff9a9e; /* 樱花粉图标 */
+            transition: transform 0.2s;
+          "
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="filter: drop-shadow(0 2px 4px rgba(255, 154, 158, 0.3))"
+          >
+            <path
+              d="M20.38 3.46L16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"
+            ></path>
+          </svg>
+        </div>
+
+        <!-- 监控按钮 -->
+        <div
+          id="kk-surveillance-icon"
+          title="查看监控"
+          style="
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            /* 强制重置旧样式 */
+            position: static;
+            top: auto;
+            left: auto;
+            /* 水晶果冻风格核心 */
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #ff9a9e; /* 樱花粉图标 */
+            transition: transform 0.2s;
+          "
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            style="filter: drop-shadow(0 2px 4px rgba(255, 154, 158, 0.3))"
+          >
+            <path d="M23 7l-7 5 7 5V7z"></path>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+      </div>
+
+      <div id="kk-house-info-panel">
+        <h2 id="kk-house-location"></h2>
+        <p id="kk-house-description"></p>
+        <div id="kk-house-areas">
+          <!-- 房屋区域按钮将由JS动态生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 查岗 - 区域探索屏幕 -->
+    <div id="kk-area-view-screen" class="screen">
+      <div id="kk-area-background"></div>
+      <div
+        class="header"
+        style="
+          background: linear-gradient(
+            to bottom,
+            rgba(0, 0, 0, 0.6),
+            transparent
+          );
+          border-bottom: none;
+        "
+      >
+        <span class="back-btn" id="kk-back-from-area-view">‹</span>
+        <span id="kk-area-name"></span>
+        <span style="width: 30px"></span>
+      </div>
+      <div class="kk-item-list-container">
+        <h3 id="kk-area-description"></h3>
+        <p class="kk-instruction-text">点击下方物品进行翻找：</p>
+        <div id="kk-area-items-grid">
+          <!-- 可翻找物品将由JS动态生成 -->
+        </div>
+      </div>
+    </div>
+    <!-- kk查岗-监控屏幕 -->
+    <div id="kk-monitor-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="kk-back-from-monitor">‹</span>
+        <span id="kk-monitor-title">监控中心</span>
+        <div class="header-actions">
+          <!-- 刷新监控按钮：统一成刷新箭头 -->
+          <span
+            class="action-btn"
+            id="kk-refresh-monitor-btn"
+            title="刷新监控画面"
+          >
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M23 4v6h-6"></path>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+          </span>
+        </div>
+      </div>
+      <div id="kk-monitor-grid" class="list-container">
+        <!-- 监控画面将由JS动态生成在这里 -->
+      </div>
+    </div>
+
+    <!-- 4. 查岗 - 电脑屏幕 (模态框) -->
+    <div id="kk-computer-modal" class="modal">
+      <div
+        class="modal-content"
+        style="
+          width: 95%;
+          height: 90%;
+          max-width: 500px;
+          background-color: #e0e0e0;
+        "
+      >
+        <div class="modal-header" id="kk-computer-header">
+          <span>的电脑</span>
+          <span id="close-kk-computer-modal" style="cursor: pointer">×</span>
+        </div>
+        <div class="modal-body" id="kk-computer-desktop">
+          <!-- 电脑桌面图标将由JS动态生成 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 6. 查岗 - 文件浏览器模态框 -->
+    <div id="kk-file-explorer-modal" class="modal" style="z-index: 1003">
+      <div class="modal-content" style="height: 70%">
+        <div class="modal-header">
+          <span>私人文件</span>
+        </div>
+        <div class="modal-body" id="kk-file-list">
+          <!-- 文件列表将由JS动态生成 -->
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="close-file-explorer-modal-btn">
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- KK查岗 - 沉浸式衣帽间屏幕 -->
+    <div id="kk-wardrobe-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="kk-back-from-wardrobe">‹</span>
+        <span>Ta的衣帽间</span>
+        <div class="header-actions">
+          <!-- 新增：添加衣服按钮 -->
+          <span
+            class="action-btn"
+            id="kk-wardrobe-add-btn"
+            title="添置新衣"
+            style="font-size: 24px; font-weight: 300; margin-right: 10px"
+            >+</span
+          >
+          <span
+            class="action-btn"
+            id="kk-wardrobe-refresh-btn"
+            title="重置衣柜 (清空重来)"
+            >↻</span
+          >
+        </div>
+      </div>
+
+      <!-- 衣柜主区域 -->
+      <div id="wardrobe-container">
+        <!-- 左侧/顶部：搭配预览与角色立绘区 -->
+        <div id="wardrobe-preview-area">
+          <img id="wardrobe-char-avatar" src="" alt="角色" />
+
+          <!-- 新增：用于显示角色对衣服看法的气泡 (默认显示提示) -->
+          <div
+            id="wardrobe-comment-bubble"
+            style="
+              display: block;
+              background: #fff;
+              padding: 10px;
+              border-radius: 12px;
+              margin: 10px;
+              font-size: 13px;
+              color: #555;
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+              min-height: 40px;
+              position: relative;
+            "
+          >
+            <span class="content">点击下面的衣服，看看我怎么说~</span>
+            <!-- 小三角 -->
+            <div
+              style="
+                position: absolute;
+                bottom: -6px;
+                left: 20px;
+                width: 0;
+                height: 0;
+                border-left: 6px solid transparent;
+                border-right: 6px solid transparent;
+                border-top: 6px solid #fff;
+              "
+            ></div>
+          </div>
+
+          <!-- 这里的气泡用于显示试穿后的反应 (保留原有) -->
+          <div id="wardrobe-reaction-bubble" style="display: none">
+            <div class="content"></div>
+          </div>
+
+          <!-- 当前选中的搭配展示 -->
+          <div id="current-outfit-display">
+            <div
+              class="outfit-slot"
+              data-type="上装"
+              data-placeholder="上衣"
+            ></div>
+            <div
+              class="outfit-slot"
+              data-type="下装"
+              data-placeholder="下装"
+            ></div>
+            <div
+              class="outfit-slot"
+              data-type="配饰"
+              data-placeholder="配饰"
+            ></div>
+            <div
+              class="outfit-slot"
+              data-type="特殊"
+              data-placeholder="特殊"
+            ></div>
+          </div>
+
+          <button id="wardrobe-try-on-btn" class="form-button" disabled>
+            让Ta穿上
+          </button>
+        </div>
+
+        <!-- 右侧/底部：衣服库存列表 -->
+        <div id="wardrobe-inventory-area">
+          <div class="wardrobe-tabs">
+            <div class="wardrobe-tab active" data-cat="上装">上装</div>
+            <div class="wardrobe-tab" data-cat="下装">下装</div>
+            <div class="wardrobe-tab" data-cat="配饰">配饰</div>
+            <div class="wardrobe-tab" data-cat="特殊">特殊</div>
+          </div>
+          <div id="wardrobe-grid" class="wardrobe-grid">
+            <!-- 衣服卡片由JS生成 -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 约会历史记录界面 -->
+    <div id="dating-history-screen" class="screen">
+      <div class="header">
+        <span class="back-btn" id="dating-history-back-btn">‹</span>
+        <span>历史约会</span>
+        <span style="width: 30px"></span>
+        <!-- 占位符，保持标题居中 -->
+      </div>
+      <div id="dating-history-list" class="list-container">
+        <!-- 历史约会卡片将由JS动态生成在这里 -->
+      </div>
+    </div>
+
+    <div id="create-dating-scene-modal" class="modal">
+      <div class="modal-content" style="width: 300px; height: auto">
+        <div class="modal-header">
+          <span>创建约会场景</span>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="scene-name-input">场景名称</label>
+            <input
+              type="text"
+              id="scene-name-input"
+              placeholder="例如：月光下的海滩漫步"
+            />
+          </div>
+          <div class="form-group">
+            <label for="scene-image-url-input">图片 URL (可选)</label>
+            <!-- ★★★ 核心修改：更新了 placeholder 提示文字 ★★★ -->
+            <input
+              type="text"
+              id="scene-image-url-input"
+              placeholder="留空则由AI根据场景名生成图片..."
+            />
+          </div>
+          <div class="form-group">
+            <label for="scene-cost-input">花费 (金币)</label>
+            <input
+              type="number"
+              id="scene-cost-input"
+              placeholder="例如：520"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="cancel" id="cancel-create-scene-btn">取消</button>
+          <button class="save" id="save-custom-scene-btn">保存</button>
+        </div>
+      </div>
+    </div>
+
