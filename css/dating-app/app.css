@@ -1,1 +1,1402 @@
+/* 约会大作战 App 样式，从 keephone 项目移植 */
+#date-a-live-screen, #dating-game-screen, #dating-history-screen { height: 100vh; }
 
+/* ▼▼▼ 【全新】约会大作战App样式 (V5 - 终极修复版) ▼▼▼ */
+
+#date-a-live-screen {
+  background-color: #f0f2f5;
+}
+#phone-screen.dark-mode #date-a-live-screen {
+  background-color: #000;
+}
+
+/* ★★★ 这是本次唯一的、但最关键的修改区域 ★★★ */
+#dating-scene-content {
+  flex: 1; /* ★★★ 核心1: 让内容区占据父容器（屏幕）的所有剩余空间 */
+  min-height: 0; /* ★★★ 核心2: flex布局的一个重要技巧，防止内容溢出时产生意外的布局问题 */
+  overflow-y: auto; /* ★★★ 核心3: 当内容超出容器高度时，自动显示垂直滚动条！*/
+
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+/* ★★★ 修改结束 ★★★ */
+
+.dating-scene-card {
+  width: 100%;
+  background-color: var(--secondary-bg);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  position: relative;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
+
+  /* 保持卡片内部为垂直flex布局，确保图片在上，文字在下 */
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* 防止卡片自身被意外压缩 */
+}
+
+.dating-scene-delete-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+  border: none;
+  font-size: 20px;
+  line-height: 28px;
+  text-align: center;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0;
+  transition: background-color 0.2s;
+}
+.dating-scene-card:hover .dating-scene-delete-btn {
+  opacity: 1;
+}
+.dating-scene-delete-btn:hover {
+  background-color: #ff3b30;
+}
+
+.dating-scene-image-container {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background-color: #e9ecef;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  flex-shrink: 0;
+}
+#phone-screen.dark-mode .dating-scene-image-container {
+  background-color: #2c2c2e;
+}
+
+.dating-scene-image-container .loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.dating-scene-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dating-scene-info {
+  padding: 15px;
+  text-align: center;
+  flex-shrink: 0; /* 防止文字区域被压缩 */
+}
+
+.dating-scene-info .name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.dating-scene-info .cost {
+  font-size: 16px;
+  color: #ff5722;
+  font-weight: bold;
+  margin-top: 8px;
+}
+/* ▲▲▲ 样式结束 ▲▲▲ */
+/* ▼▼▼ 【全新】借钱列表项美化样式 ▼▼▼ */
+#borrow-money-char-list .character-select-item {
+  gap: 12px; /* 在头像和名字之间增加一些间距 */
+}
+/* ▲▲▲ 新增CSS结束 ▲▲▲ */
+/* ▼▼▼ 【全新】借条卡片样式 ▼▼▼ */
+.message-bubble.is-borrow-request .content {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.borrow-card {
+  width: 220px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e0c3fc, #8ec5fc); /* 温柔的紫蓝色渐变 */
+  color: white;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(142, 197, 252, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+.borrow-card::before {
+  content: "💸"; /* 飞钱的Emoji作为装饰 */
+  position: absolute;
+  top: -5px;
+  right: 10px;
+  font-size: 32px;
+  opacity: 0.15;
+  transform: rotate(15deg);
+}
+
+.borrow-card .borrow-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+.borrow-card .borrow-header span {
+  color: #4a00e0; /* 深紫色突出借钱对象 */
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.borrow-card .borrow-body .label {
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.borrow-card .borrow-body .amount {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 4px 0 10px 0;
+}
+
+.borrow-card .borrow-body .reason {
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.9;
+  padding-top: 8px;
+  margin-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  word-break: break-all;
+}
+/* ▲▲▲ 新增CSS结束 ▲▲▲ */
+/* 1. 主容器 (保持不变) */
+#dating-game-screen {
+  background-color: #000;
+  color: white;
+}
+
+/* 2. 背景图层 (最底层) */
+#dating-game-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transition:
+    background-image 0.5s ease-in-out,
+    filter 0.5s ease-in-out;
+  filter: blur(3px) brightness(0.8);
+  transform: scale(1.05);
+  z-index: 1; /* ★★★ 核心修改：明确指定层级为 1 ★★★ */
+}
+
+/* 4. UI层 (最顶层) */
+.dating-game-ui-overlay {
+  position: relative; /* 相对定位，因为它需要自然地排在最上层 */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* 将内容推到底部 */
+  padding-bottom: calc(env(safe-area-inset-bottom) + 15px);
+  box-sizing: border-box;
+  z-index: 3; /* ★★★ 核心修改：明确指定层级为 3，比立绘高，确保它永远在最上面！ ★★★ */
+}
+#dating-game-screen .header {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+}
+#dating-game-screen .header .back-btn {
+  color: white;
+}
+
+/* --- ▼▼▼ 这里是本次修改的核心区域 ▼▼▼ --- */
+
+.dating-game-textbox {
+  display: flex; /* 1. 改为Flex布局 */
+  flex-direction: column;
+  justify-content: space-between; /* 2. 让内容和提示分开 */
+  background-color: rgba(0, 0, 0, 0.75);
+  padding: 15px 20px;
+  margin: 0 15px 15px 15px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-height: 120px; /* 3. 设置一个固定的最小高度 */
+  transition:
+    opacity 0.5s,
+    transform 0.5s;
+  cursor: pointer;
+  /* 4. 移除 overflow: auto，禁止其自身滚动 */
+}
+
+/* --- ▼▼▼ 在 .dating-game-textbox 规则之后，粘贴下面这段新代码 ▼▼▼ --- */
+
+/* 文本内容的容器，我们给它一个淡入淡出的动画 */
+.dating-game-textbox #dating-game-text-content {
+  transition: opacity 0.2s ease-in-out;
+}
+/* 当句子切换时，先让旧句子淡出 */
+.dating-game-textbox #dating-game-text-content.fade-out {
+  opacity: 0;
+}
+
+/* “点击继续”的提示 */
+.dating-game-textbox .continue-indicator {
+  display: block;
+  text-align: right;
+  margin-top: 10px;
+  font-size: 14px;
+  color: #888;
+  animation: pulse-indicator 1.5s infinite;
+}
+@keyframes pulse-indicator {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* --- ▲▲▲ 新增代码结束 ▲▲▲ --- */
+
+.dating-game-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 15px;
+  margin-bottom: 15px;
+}
+
+.dating-game-choice-btn {
+  width: 100%;
+  padding: 15px;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  border-radius: 25px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  transition:
+    background-color 0.2s,
+    transform 0.1s;
+}
+
+.dating-game-choice-btn.input-action {
+  background-color: rgba(0, 123, 255, 0.4);
+  border-color: rgba(0, 123, 255, 0.6);
+}
+
+.dating-game-choice-btn:hover {
+  background-color: rgba(255, 255, 255, 0.4);
+}
+.dating-game-choice-btn:active {
+  transform: scale(0.98);
+}
+/* ▲▲▲ 新样式粘贴结束 ▲▲▲ */
+/* ▼▼▼ 【全新】约会大作战-文游界面UI增强样式 ▼▼▼ */
+
+/* 1. 为文游界面顶部栏添加按钮容器 (这段代码已包含在步骤1中，如果已添加可忽略) */
+#dating-game-screen .header {
+  justify-content: space-between;
+}
+
+/* 3. 立绘层 (中间层) */
+#dating-game-sprite-container {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: auto;
+  max-height: 80%;
+  pointer-events: none;
+  transition: all 0.5s ease-in-out;
+  z-index: 2; /* ★★★ 核心修改：明确指定层级为 2，比背景高 ★★★ */
+}
+#dating-game-sprite-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+/* 3. 设置弹窗样式 */
+#dating-game-settings-modal .modal-content {
+  height: 85%;
+}
+#dating-game-settings-modal .form-group {
+  margin-bottom: 15px;
+}
+#dating-game-settings-modal hr {
+  margin: 15px 0;
+}
+#dating-game-settings-modal .modal-body {
+  padding-bottom: 15px;
+}
+
+/* 4. 立绘定位控制的样式 */
+.position-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.position-controls label {
+  flex-shrink: 0;
+}
+.position-controls input[type="range"] {
+  flex-grow: 1;
+}
+
+/* ▲▲▲ 样式粘贴结束 ▲▲▲ */
+/* ▼▼▼ 【全新】这是为“立绘预设”功能新增的所有CSS样式 ▼▼▼ */
+
+/* --- 立绘组编辑器 --- */
+.sprite-edit-card {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  position: relative;
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+#phone-screen.dark-mode .sprite-edit-card {
+  background-color: #2c2c2e;
+}
+
+.sprite-edit-card .preview-container {
+  width: 80px;
+  height: 120px;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  border: 1px dashed #ccc;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  flex-shrink: 0;
+}
+#phone-screen.dark-mode .sprite-edit-card .preview-container {
+  background-color: #3a3a3c;
+  border-color: #555;
+}
+
+.sprite-edit-card .fields-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex-grow: 1;
+}
+.sprite-edit-card textarea {
+  min-height: 50px;
+  resize: vertical;
+}
+
+.sprite-edit-card .delete-sprite-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 24px;
+  height: 24px;
+  background-color: #ff3b30;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+  cursor: pointer;
+}
+
+/* --- 立绘组管理列表 --- */
+.sprite-group-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+.sprite-group-list-item:hover {
+  background-color: #f5f5f5;
+}
+#phone-screen.dark-mode .sprite-group-list-item:hover {
+  background-color: #2c2c2e;
+}
+.sprite-group-list-item .group-name {
+  font-weight: 500;
+}
+.sprite-group-list-item .group-actions button {
+  margin-left: 8px;
+  padding: 5px 10px;
+  font-size: 13px;
+}
+/* ▲▲▲ 新增CSS结束 ▲▲▲ */
+/* ▼▼▼ 【全新】约会大作战-立绘定位控制样式 ▼▼▼ */
+
+/* 这是包裹每个滑块（标签+滑块本身）的容器 */
+.sprite-edit-card .position-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px; /* 标签和滑块的间距 */
+  margin-top: 8px;
+}
+
+/* 这是“X 位置”、“Y 位置”、“大小”这些文字标签的样式 */
+.sprite-edit-card .position-controls label {
+  flex-shrink: 0; /* 防止标签文字被压缩换行 */
+  width: 90px; /* 给一个固定的宽度，让所有滑块能左对齐 */
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* 这是滑块旁边的实时数值显示的样式 */
+.sprite-edit-card .position-controls .pos-value {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* 这是滑块本身的样式 */
+.sprite-edit-card .position-controls input[type="range"] {
+  flex-grow: 1; /* 让滑块占据所有剩余空间 */
+  width: 100%; /* 确保它能撑满 */
+}
+
+/* ▲▲▲ 新样式粘贴结束 ▲▲▲ */
+/* ▼▼▼ 【全新】这是约会场景专属的“好感度”和“欲望值”心形UI样式 ▼▼▼ */
+
+/* ▼▼▼ 【独家定制】这是为你修改后的“左上角”版本 ▼▼▼ */
+
+/* 这是包裹两个数值条的总容器 */
+#dating-values-container {
+  position: absolute;
+
+  /* ▼▼▼ 核心修改1：调整垂直位置，把它明确地放到Header下方 ▼▼▼ */
+  /* 你的Header高度是110px，我们再加10px的间距，所以设置为120px */
+  top: 120px;
+
+  /* ▼▼▼ 核心修改2：调整水平位置，从右边移动到左边 ▼▼▼ */
+  left: 15px; /* 原来是 right: 15px; */
+
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+
+  /* ▼▼▼ 核心修改3：让内部元素靠左对齐，更好看 ▼▼▼ */
+  align-items: flex-start; /* 原来是 align-items: flex-end; */
+}
+/* ▲▲▲ 替换结束 ▲▲▲ */
+
+/* 这是每一行数值条（例如“浪漫值”那一行）的样式 */
+.value-display {
+  display: flex;
+  align-items: center;
+  gap: 4px; /* 心与心之间的间距 */
+  background-color: rgba(
+    0,
+    0,
+    0,
+    0.2
+  ); /* 给一个半透明的深色背景板，让心形更突出 */
+  padding: 4px 8px;
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+/* 这是单个心形图标的样式 */
+.value-display svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.5; /* 描边宽度 */
+  transition: all 0.3s ease-in-out; /* 为填充和颜色变化添加动画 */
+}
+
+/* 这是“浪漫值”图标的颜色 */
+#romance-value svg {
+  color: #ff8fab; /* 可爱的粉红色 */
+  stroke: #ffc2d1; /* 描边用更淡的粉色 */
+}
+/* 这是“性欲值”图标的颜色 */
+#lust-value svg {
+  color: #ffde59; /* 诱人的金黄色 */
+  stroke: #ffeda6; /* 描边用更淡的黄色 */
+}
+
+/* ▲▲▲ 新增CSS样式结束 ▲▲▲ */
+/* ▼▼▼ 【全新】约会完成度进度条样式 ▼▼▼ */
+
+/* ▼▼▼ 这是为你修复后的进度条样式 ▼▼▼ */
+
+/* 这是进度条的容器 (已移至底部) */
+#dating-completion-bar-container {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+
+  /* 其他样式保持不变 */
+  left: 15px;
+  right: 15px;
+  height: 18px;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) inset;
+  overflow: hidden;
+  z-index: 4;
+  display: none;
+  transition: width 0.5s ease-in-out;
+}
+/* ▲▲▲ 替换结束 ▲▲▲ */
+
+/* 进度条的填充部分 */
+#dating-completion-bar-fill {
+  width: 0%; /* 初始为0% */
+  height: 100%;
+  /* 使用一个漂亮的粉色渐变作为填充色 */
+  background: linear-gradient(90deg, #ff8fab, #fb6f92);
+  border-radius: 9px;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* 平滑的宽度变化动画 */
+}
+
+/* 进度条上的百分比文字 */
+#dating-completion-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: white;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); /* 文字阴影，确保清晰 */
+}
+
+/* ▲▲▲ 新增CSS结束 ▲▲▲ */
+/* ▼▼▼ 【全新】约会结算卡片样式 ▼▼▼ */
+
+#dating-summary-overlay {
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.dating-summary-card {
+  background-color: transparent;
+  width: 320px;
+  height: 500px;
+  perspective: 1000px; /* 为3D翻转效果设置透视 */
+}
+
+.dating-summary-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border-radius: 20px;
+}
+
+/* 当卡片被翻转时 */
+.dating-summary-card.is-flipped .dating-summary-card-inner {
+  transform: rotateY(180deg);
+}
+
+/* 卡片的正面和背面 */
+.card-front,
+.card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden; /* Safari */
+  backface-visibility: hidden;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* 正面样式 */
+.card-front {
+  color: white;
+  background: linear-gradient(
+    135deg,
+    #a8b2c5,
+    #8e9eab
+  ); /* 期待之夜的默认灰色渐变 */
+  transition: background 0.3s;
+}
+
+/* 不同评级的背景颜色 */
+.card-front.romantic {
+  background: linear-gradient(135deg, #ff8fab, #fb6f92); /* 粉色渐变 */
+}
+.card-front.passionate {
+  background: linear-gradient(
+    135deg,
+    #fff9c4,
+    #fff176
+  ); /* 全新修改：这是一个非常漂亮的淡黄色渐变 */
+}
+
+/* ▼▼▼ 这是为你定制的“完美之夜”薰衣草色，请用它替换旧的 .card-front.perfect 样式 ▼▼▼ */
+.card-front.perfect {
+  /* 核心修改：这里使用了从淡紫到略深紫色的优雅渐变，营造出浪漫梦幻的感觉 */
+  background: linear-gradient(135deg, #d1c4e9, #b39ddb);
+}
+
+.card-front #summary-card-avatar {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 4px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  object-fit: cover;
+  margin-bottom: 20px;
+}
+
+.card-front #summary-card-rating {
+  font-size: 28px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin: 0 0 10px 0;
+}
+
+.card-front .summary-card-tip {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: auto; /* 将提示推到底部 */
+}
+
+.summary-card-actions {
+  display: flex;
+  gap: 15px;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.summary-card-actions button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 20px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#summary-share-btn {
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+}
+#summary-close-btn {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: white;
+}
+
+/* 背面样式 */
+.card-back {
+  background-color: #f8f9fa;
+  color: #333;
+  transform: rotateY(180deg);
+  justify-content: flex-start; /* 内容从顶部开始 */
+}
+
+.card-back-header {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+.card-back-header span {
+  font-weight: 600;
+}
+.card-back-header button {
+  background: none;
+  border: none;
+  color: var(--accent-color);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.card-back-content {
+  width: 100%;
+  flex-grow: 1;
+  overflow-y: auto;
+  text-align: left;
+  line-height: 1.6;
+  font-size: 14px;
+}
+.card-back-content p {
+  margin: 0 0 10px 0;
+}
+
+/* 聊天记录里分享卡片的样式 */
+.message-bubble.is-dating-summary .content {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+}
+
+.dating-summary-chat-card {
+  width: 220px;
+  height: 120px;
+  border-radius: 12px;
+  padding: 15px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.dating-summary-chat-card::before {
+  content: "💖";
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  font-size: 40px;
+  opacity: 0.1;
+  transform: rotate(-15deg);
+}
+
+.dating-summary-chat-card .rating {
+  font-size: 20px;
+  font-weight: bold;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.dating-summary-chat-card .tip {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 8px;
+}
+/* ▲▲▲ 新增CSS样式结束 ▲▲▲ */
+/* ▼▼▼ 把这一整块全新的CSS，粘贴到 <style> 的末尾 ▼▼▼ */
+
+/* --- 【全新】约会历史记录功能样式 --- */
+
+/* --- 【全新 | 已修复布局】约会历史记录功能样式 --- */
+
+/* 历史记录页面的主容器，现在负责滚动和布局 */
+#dating-history-list {
+  background-color: #f0f2f5; /* 保持原有的背景色 */
+
+  /* ▼▼▼ 这是解决拥挤和重叠问题的核心代码 ▼▼▼ */
+  display: flex; /* 1. 使用 Flex 布局，让卡片们听话地排列 */
+  flex-direction: column; /* 2. 设置为垂直方向，从上到下堆叠 */
+  gap: 15px; /* 3. 在每张卡片之间创建 15px 的垂直间距 */
+  padding: 20px 15px; /* 4. 在列表的上下(20px)和左右(15px)都加上内边距，让整体不拥挤 */
+  box-sizing: border-box; /* (推荐) 确保内边距不会影响布局计算 */
+
+  /* 
+       滚动条的功能由它的父容器 .list-container 提供，
+       我们在这里正确地设置了布局，父容器就能正常滚动了！
+    */
+}
+
+#phone-screen.dark-mode #dating-history-list {
+  background-color: #1c1c1e; /* 夜间模式的背景色 */
+}
+
+/* 历史列表中的卡片，我们让它更适合列表显示 */
+#dating-history-list .dating-summary-card {
+  width: 100%; /* 卡片宽度撑满 (保持不变) */
+  height: 180px; /* 给一个固定的高度，让列表更整齐 (保持不变) */
+  position: relative;
+  transform: none;
+  left: auto;
+  top: auto;
+  margin: 0; /* (保持不变) */
+
+  /* 【新增】防止卡片在 Flex 布局中被意外压缩变形 */
+  flex-shrink: 0;
+}
+
+/* 历史列表中的卡片，正面样式微调 */
+#dating-history-list .card-front {
+  padding: 15px;
+  justify-content: center;
+  cursor: pointer; /* 鼠标放上去时显示小手，提示可以点击 */
+}
+
+#dating-history-list .card-front img {
+  width: 70px !important;
+  height: 70px !important;
+  margin-bottom: 10px !important;
+  border-radius: 50% !important;
+  border: 3px solid rgba(255, 255, 255, 0.7) !important;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2) !important;
+}
+
+#dating-history-list .card-front h2 {
+  font-size: 22px !important;
+  margin: 0 0 5px 0 !important;
+}
+
+#dating-history-list .card-front p {
+  margin-top: 5px !important;
+}
+
+/* 历史列表中的卡片，背面样式微调 */
+#dating-history-list .card-back-header {
+  flex-shrink: 0; /* 防止头部被压缩 */
+}
+#dating-history-list .card-back-content {
+  font-family: sans-serif; /* 背面可以用更易读的非衬线字体 */
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+
+#dating-bgm-playlist .dating-bgm-item {
+  padding: 12px 15px;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#dating-bgm-playlist .dating-bgm-item:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+#dating-bgm-playlist .dating-bgm-item.playing {
+  background-color: var(--accent-color-light, #e0f7ff);
+  color: var(--accent-color, #007bff);
+  font-weight: 600;
+}
+
+.dark-mode #dating-bgm-playlist .dating-bgm-item.playing {
+  background-color: rgba(var(--accent-color-rgb), 0.2);
+}
+
+#dating-bgm-playlist .dating-bgm-item .title {
+  font-size: 15px;
+}
+
+#dating-bgm-playlist .dating-bgm-item .artist {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+#dating-bgm-modal .modal-content {
+  background-color: #f7f3f8;
+  border: 1px solid #e1dbe6;
+  height: 65% !important;
+  max-width: 320px;
+}
+
+#dating-bgm-modal .modal-header span {
+  color: #6a4c95;
+}
+
+#dating-bgm-modal .bgm-controls {
+  margin-bottom: 20px !important;
+}
+
+#dating-bgm-modal .form-button-secondary {
+  border-color: #d8c1e8 !important;
+  background-color: #fff !important;
+  color: #6a4c95 !important;
+  border-radius: 20px !important;
+  font-weight: 600 !important;
+}
+
+#dating-bgm-modal .form-button-secondary:active {
+  background-color: #f7f3f8 !important;
+}
+
+#dating-bgm-modal .form-group label {
+  color: #8e809c;
+}
+#dating-bgm-modal input[type="range"] {
+  -webkit-appearance: none;
+  background: #e1dbe6;
+}
+#dating-bgm-modal input[type="range"]::-webkit-slider-thumb {
+  background: #a98bc4;
+}
+
+#dating-bgm-playlist .dating-bgm-item {
+  border-bottom-color: #e1dbe6;
+  transition: all 0.2s;
+}
+
+#dating-bgm-playlist .dating-bgm-item:hover {
+  background-color: rgba(255, 255, 255, 0.7);
+}
+
+#dating-bgm-playlist .dating-bgm-item.playing {
+  background-color: #e9e0f3;
+  border-left: 4px solid #a98bc4;
+  padding-left: 11px;
+}
+
+#dating-bgm-playlist .dating-bgm-item.playing .title {
+  color: #6a4c95;
+  font-weight: 700;
+}
+#date-a-live-screen {
+  background: linear-gradient(135deg, #fff0f5 0%, #e6e6fa 100%) !important;
+}
+
+#dating-scene-content {
+  background: transparent !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 25px !important;
+  padding: 25px 20px !important;
+  min-height: 0;
+  flex-grow: 1;
+  overflow-y: auto;
+}
+
+.dating-scene-card {
+  box-sizing: border-box !important;
+
+  width: 100% !important;
+  background-color: #ffffff !important;
+  border-radius: 20px !important;
+  padding: 12px !important;
+  box-shadow: 0 8px 25px rgba(230, 159, 181, 0.25) !important;
+  border: 1px solid rgba(255, 192, 203, 0.5) !important;
+  position: relative;
+  overflow: visible !important;
+  transition:
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.dating-scene-card:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 12px 30px rgba(230, 159, 181, 0.35) !important;
+}
+
+.dating-scene-card::before {
+  content: "💖";
+  position: absolute;
+  top: -15px;
+  left: 20px;
+  font-size: 28px;
+  transform: rotate(-20deg);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  opacity: 0.9;
+}
+
+.dating-scene-image-container {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  border-radius: 12px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08) !important;
+  border: 2px solid white;
+  box-sizing: border-box;
+}
+
+.dating-scene-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.dating-scene-card:hover .dating-scene-image-container img {
+  transform: scale(1.05);
+}
+
+.dating-scene-info {
+  padding: 15px 5px 5px 5px !important;
+  text-align: center;
+}
+
+.dating-scene-info .name {
+  font-size: 17px !important;
+  font-weight: 700 !important;
+  color: #4a4a4a !important;
+}
+
+.dating-scene-info .cost {
+  font-size: 15px !important;
+  color: #ff69b4 !important;
+  font-weight: bold !important;
+  margin-top: 8px !important;
+}
+.dating-scene-info .cost::after {
+  content: " 🪙";
+}
+
+.dating-scene-delete-btn {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  color: #ff8fab !important;
+  border-radius: 50% !important;
+  width: 28px !important;
+  height: 28px !important;
+  font-size: 18px !important;
+  line-height: 28px !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1) !important;
+}
+.dating-scene-delete-btn:hover {
+  background-color: #ff69b4 !important;
+  color: white !important;
+}
+
+#phone-screen.dark-mode .dating-scene-card {
+  background-color: #2c1e22 !important;
+  border-color: #583d47 !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+}
+#phone-screen.dark-mode .dating-scene-info .name {
+  color: #fce4ec !important;
+}
+#dating-game-screen {
+  background-color: #000;
+  color: white;
+}
+
+#dating-game-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  transition: all 0.5s ease-in-out;
+  filter: blur(8px) brightness(0.7);
+  transform: scale(1.1);
+  z-index: 1;
+}
+
+#dating-game-sprite-container {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  height: auto;
+  max-height: 80%;
+  pointer-events: none;
+  transition: all 0.5s ease-in-out;
+  z-index: 2;
+}
+#dating-game-sprite-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+  transition: opacity 0.3s ease-in-out;
+}
+
+.dating-game-ui-overlay {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: calc(15px + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  z-index: 3;
+}
+#dating-game-screen .header {
+  position: absolute;
+  top: 0;
+  width: 100%;
+  box-sizing: border-box;
+  background-color: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+}
+#dating-game-screen .header .back-btn,
+#dating-game-screen .header .action-btn svg {
+  color: white !important;
+}
+
+.dating-game-textbox {
+  background-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(25px) saturate(180%);
+  -webkit-backdrop-filter: blur(25px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  padding: 20px;
+  margin: 0 15px 15px 15px;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  line-height: 1.7;
+  font-size: 16px;
+  color: white;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dating-game-textbox #dating-game-text-content {
+  transition: opacity 0.2s ease-in-out;
+}
+.dating-game-textbox #dating-game-text-content.fade-out {
+  opacity: 0;
+}
+
+.dating-game-textbox .continue-indicator {
+  display: block;
+  text-align: right;
+  margin-top: 10px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  animation: pulse-indicator 1.5s infinite;
+}
+@keyframes pulse-indicator {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.dating-game-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 15px;
+  margin-bottom: 15px;
+}
+
+.dating-game-choice-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50px;
+  padding: 16px;
+  color: #f2f2f7;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dating-game-choice-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+.dating-game-choice-btn:active {
+  transform: scale(0.98);
+}
+
+.dating-game-choice-btn.input-action {
+  background-color: rgba(255, 136, 178, 0.8);
+  border-color: rgba(255, 136, 178, 1);
+  color: white;
+}
+
+#dating-values-container,
+#dating-completion-bar-container {
+  background-color: rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+#dating-values-container {
+  padding: 6px 10px;
+  border-radius: 15px;
+}
+
+#dating-completion-bar-container {
+  height: 12px;
+  border-radius: 6px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+#dating-completion-bar-fill {
+  background: linear-gradient(90deg, #ff8fab, #fb6f92);
+}
+#dating-completion-text {
+  font-size: 10px;
+}
+.moe-settings-content {
+  position: relative !important;
+}
+#chat-settings-modal .modal-footer {
+  position: static !important;
+  padding: 0 !important;
+  border: none !important;
+  height: 0 !important;
+  pointer-events: none;
+}
+.moe-fab-save,
+.moe-fab-cancel {
+  position: absolute !important;
+  bottom: 25px !important;
+  pointer-events: auto !important;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.moe-fab-save:hover,
+.moe-fab-cancel:hover {
+  transform: scale(1.08) rotate(-5deg);
+}
+.moe-fab-save {
+  right: 25px !important;
+}
+
+.moe-fab-cancel {
+  left: 25px !important;
+}
+#dating-game-settings-modal .modal-content {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 24px !important;
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1) !important;
+}
+
+#dating-game-settings-modal .modal-header {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: #a786df;
+  border-bottom: 1px dashed #e1dbe6;
+  padding-bottom: 15px;
+}
+
+#dating-game-settings-modal .form-group {
+  margin-bottom: 18px;
+}
+
+#dating-game-settings-modal label {
+  font-weight: 600;
+  color: #6a526f;
+  font-size: 14px;
+  margin-bottom: 8px;
+  letter-spacing: 0.5px;
+}
+
+#dating-game-settings-modal input[type="text"],
+#dating-game-settings-modal textarea,
+#dating-game-settings-modal select {
+  background-color: #f9f5f6 !important;
+  border: 1px solid #f0e6e8 !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  font-size: 14px;
+  color: #555;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+#dating-game-settings-modal input:focus,
+#dating-game-settings-modal textarea:focus,
+#dating-game-settings-modal select:focus {
+  border-color: #ffb7c5 !important;
+  background-color: white !important;
+  box-shadow: 0 0 0 3px rgba(255, 183, 197, 0.3) !important;
+  outline: none;
+}
+
+#dating-game-settings-modal .modal-footer {
+  gap: 12px;
+}
+
+#dating-game-settings-modal #cancel-dating-settings-btn {
+  background-color: #f0e6f2;
+  color: #827693;
+  border: none;
+  font-weight: 600;
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+#dating-game-settings-modal #cancel-dating-settings-btn:hover {
+  background-color: #e1dbe6;
+}
+
+#dating-game-settings-modal #save-dating-settings-btn {
+  background: linear-gradient(135deg, #ff9a9e 0%, #ffc3a0 100%);
+  color: white;
+  border: none;
+  font-weight: bold;
+  border-radius: 20px;
+  box-shadow: 0 4px 15px rgba(255, 154, 158, 0.4);
+  transition: all 0.2s ease;
+}
+#dating-game-settings-modal .modal-footer button:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+#phone-screen.dark-mode #dating-game-settings-modal .modal-content {
+  background-color: rgba(30, 30, 30, 0.8) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4) !important;
+}
+
+#phone-screen.dark-mode #dating-game-settings-modal .modal-header {
+  border-bottom-color: #444;
+}
+
+#phone-screen.dark-mode #dating-game-settings-modal input,
+#phone-screen.dark-mode #dating-game-settings-modal textarea,
+#phone-screen.dark-mode #dating-game-settings-modal select {
+  background-color: #2c2c2e !important;
+  border-color: #444 !important;
+  color: #eee;
+}
+
+#phone-screen.dark-mode
+  #dating-game-settings-modal
+  #cancel-dating-settings-btn {
+  background-color: #3e3e42;
+  color: #ccc;
+}
