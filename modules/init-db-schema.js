@@ -154,4 +154,19 @@ db.version(63).stores({
   keepAliveAssets: '&id, updatedAt'
 });
 
+// 论坛：关注/屏蔽名单(存的是profileKey序列化后的字符串，唯一索引防重复)
+db.version(64).stores({
+  forumFollows: '++id, &profileKey, timestamp',
+  forumBlocks: '++id, &profileKey, timestamp'
+});
+
+// 约会大作战：从 keephone 项目移植
+db.version(65).stores({
+  datingScenes: '&uid, imageUrl',
+  datingPresets: '++id, name, settings.spriteGroupId',
+  datingSpriteGroups: '++id, name',
+  datingSprites: '++id, groupId, description, url',
+  datingHistory: '++id, characterId, timestamp'
+});
+
 window.db = db;
