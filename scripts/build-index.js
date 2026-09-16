@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const projectRoot = path.resolve(__dirname, '..');
 const fragmentDirectory = path.join(projectRoot, 'src', 'html');
@@ -28,6 +29,7 @@ const fragments = [
   'modals-2.html',
   'modals-3-watch-together.html',
   'modals-4-and-online.html',
+  'dating-app.html',
   'myphone-modals-and-tail.html'
 ];
 
@@ -40,9 +42,10 @@ const fragmentScripts = fragments.map(fragment => ({
   source: fs.readFileSync(path.join(fragmentDirectory, fragment), 'utf8')
 }));
 
-const fragmentScriptPaths = fragmentScripts.map(
-  fragment => `generated/html-fragments/${fragment.outputName}`
-);
+const fragmentScriptPaths = fragmentScripts.map(fragment => {
+  const hash = crypto.createHash('md5').update(fragment.source).digest('hex').slice(0, 8);
+  return `generated/html-fragments/${fragment.outputName}?v=${hash}`;
+});
 
 const generatedFragmentScripts = fragmentScripts.map(fragment => ({
   ...fragment,
