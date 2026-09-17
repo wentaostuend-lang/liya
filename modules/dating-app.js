@@ -21,7 +21,11 @@ window.generatePollinationsImage = async function (
             options,
           );
 
-          while (true) {
+          const MAX_RETRIES = 3; // 原版这里是 while(true) 死循环重试，一旦接口挂了/没配key，
+          // 就会每5秒重试一次、永远不停——好几张卡片同时生成图片时，等于同时挂着好几个
+          // 永不停止的定时器和网络请求，手机上很容易被拖到卡死、看起来跟白屏一样。
+          // 改成最多重试3次，实在不行就抛出错误，让上层去显示"加载失败"而不是无限转圈。
+          for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
               const encodedPrompt = encodeURIComponent(prompt);
               // 尝试获取全局 state，如果不存在则为 null
@@ -80,10 +84,14 @@ window.generatePollinationsImage = async function (
                 return await loadImage(fallbackUrl);
               });
             } catch (error) {
+              const isLastAttempt = attempt === MAX_RETRIES - 1;
               console.error(
-                `[Global Image Gen] 生成失败，5秒后自动重试... 错误: ${error.message}`,
+                `[Global Image Gen] 生成失败(第${attempt + 1}/${MAX_RETRIES}次)${isLastAttempt ? "，放弃重试" : "，2秒后重试"}... 错误: ${error.message}`,
               );
-              await new Promise((resolve) => setTimeout(resolve, 5000));
+              if (isLastAttempt) {
+                throw error; // 重试次数用完了，把错误抛给调用方去处理(比如显示"加载失败"占位图)
+              }
+              await new Promise((resolve) => setTimeout(resolve, 2000));
             }
           }
         };
